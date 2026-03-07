@@ -1,0 +1,137 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── CSS 커스텀 프로퍼티 — 라이트 기본 + 다크 오버라이드 ─────────────────────
+   theme.ts applyTheme()로 런타임에 주입됨.
+   라이트 테마를 기본값으로 정의.
+ ───────────────────────────────────────────────────────────────────────────── */
+
+:root {
+  --color-bg: #F9F8FF;
+  --color-surface: #FFFFFF;
+  --color-surface-alt: #F0EEFF;
+  --color-surface-dim: #E8E3FF;
+  --color-accent: #8B7CF5;
+  --color-accent-dim: #EDE9FE;
+  --color-accent-hover: #7C6BF0;
+  --color-text: #1A1333;
+  --color-text-sub: #5F5A7A;
+  --color-text-tertiary: #9B96BC;
+  --color-text-on-accent: #ffffff;
+  --color-border: rgba(107, 78, 232, 0.12);
+  --color-border-light: rgba(107, 78, 232, 0.06);
+  --color-muted: #F0EEFF;
+  --color-success: #16A34A;
+  --color-success-dim: rgba(22, 163, 74, 0.12);
+  --color-warning: #D97706;
+  --color-warning-dim: rgba(217, 119, 6, 0.12);
+  --color-danger: #DC2626;
+  --color-danger-dim: rgba(220, 38, 38, 0.10);
+  --shadow-sm: 0 1px 3px rgba(107, 78, 232, 0.08);
+  --shadow-md: 0 4px 12px rgba(107, 78, 232, 0.12);
+
+  /* V2.0 Glassmorphism */
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-bg-strong: rgba(255, 255, 255, 0.88);
+  --glass-border: rgba(255, 255, 255, 0.5);
+  --glass-shadow: 0 8px 32px rgba(107, 78, 232, 0.08), 0 2px 8px rgba(107, 78, 232, 0.04);
+  --glass-shadow-lg: 0 16px 48px rgba(107, 78, 232, 0.12), 0 4px 16px rgba(107, 78, 232, 0.06);
+  --glass-blur: 20px;
+  --radius-card: 24px;
+  --radius-lg: 28px;
+  --radius-pill: 100px;
+}
+
+[data-theme="dark"] {
+  --color-bg: #101322;
+  --color-surface: #1b1e2e;
+  --color-surface-alt: #252840;
+  --color-surface-dim: #2d3050;
+  --color-accent: #1337ec;
+  --color-accent-dim: rgba(19, 55, 236, 0.15);
+  --color-accent-hover: #2548f8;
+  --color-text: #ffffff;
+  --color-text-sub: rgba(255, 255, 255, 0.70);
+  --color-text-tertiary: rgba(255, 255, 255, 0.40);
+  --color-text-on-accent: #ffffff;
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-light: rgba(255, 255, 255, 0.04);
+  --color-muted: rgba(255, 255, 255, 0.06);
+  --color-success: #22c55e;
+  --color-success-dim: rgba(34, 197, 94, 0.15);
+  --color-warning: #f59e0b;
+  --color-warning-dim: rgba(245, 158, 11, 0.15);
+  --color-danger: #ef4444;
+  --color-danger-dim: rgba(239, 68, 68, 0.12);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+
+  /* V2.0 Glassmorphism */
+  --glass-bg: rgba(27, 30, 46, 0.72);
+  --glass-bg-strong: rgba(27, 30, 46, 0.88);
+  --glass-border: rgba(255, 255, 255, 0.06);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  --glass-shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.4);
+}
+
+/* ── SoftPulse: 1회성 미세 펄스 ──────────────────────────────────────────── */
+@keyframes softPulse {
+  0%   { transform: scale(1);     opacity: 1; }
+  50%  { transform: scale(1.015); opacity: 0.85; }
+  100% { transform: scale(1);     opacity: 1; }
+}
+.soft-pulse { animation: softPulse 200ms ease-out; }
+
+/* ── V2.0 Glassmorphism Utilities ────────────────────────────────────────── */
+
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--glass-shadow);
+}
+
+.glass-card-strong {
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--glass-shadow);
+}
+
+.glass-card-elevated {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--glass-shadow-lg);
+}
+
+.glass-nav {
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border-top: 1px solid var(--glass-border);
+  box-shadow: 0 -4px 24px rgba(107, 78, 232, 0.06);
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* 3D 아이콘 플레이스홀더 호버 효과 */
+.illust-3d {
+  transition: transform 0.2s ease;
+}
+.illust-3d:hover {
+  transform: translateY(-2px) scale(1.03);
+}
