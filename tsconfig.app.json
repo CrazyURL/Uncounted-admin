@@ -9,13 +9,6 @@
     "skipLibCheck": true,
     "moduleResolution": "node",
     "paths": {
-      "@capacitor/android": ["./node_modules/@capacitor/android"],
-      "@capacitor/app": ["./node_modules/@capacitor/app"],
-      "@capacitor/browser": ["./node_modules/@capacitor/browser"],
-      "@capacitor/cli": ["./node_modules/@capacitor/cli"],
-      "@capacitor/core": ["./node_modules/@capacitor/core"],
-      "@capacitor/filesystem": ["./node_modules/@capacitor/filesystem"],
-      "@capacitor/preferences":["./node_modules/@capacitor/preferences"],
       "@huggingface/transformers": ["./node_modules/@huggingface/transformers"],
       "framer-motion": ["./node_modules/framer-motion"],
       "react": ["./node_modules/react"],

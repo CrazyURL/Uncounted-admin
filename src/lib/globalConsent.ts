@@ -2,8 +2,6 @@
 // 일괄 데이터 공개 동의 설정 CRUD + 적용 로직.
 // MANUAL 레코드는 글로벌 토글 변경 시 항상 유지 (정책 고정).
 
-import { Capacitor } from '@capacitor/core'
-import { Filesystem, Directory, Encoding } from '@capacitor/filesystem'
 import { batchUpdateSessions } from './api/sessions'
 import { getEffectiveUserId } from './auth'
 import { idbGet, idbSet } from './idb'
@@ -17,7 +15,6 @@ import {
 } from '../types/consent'
 
 const SETTINGS_KEY = 'uncounted_user_settings'
-const CONSENT_FLAG_PATH = 'consent_flag.json'
 
 // ── localStorage CRUD ─────────────────────────────────────────────────────────
 
@@ -34,46 +31,17 @@ export function saveUserSettings(s: UserSettings): void {
   try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)) } catch { /* 용량 초과 무시 */ }
 }
 
-// ── Native file consent flag — Android WebView localStorage 비동기 flush 대비 ──
-// localStorage는 메모리 버퍼에만 쓰고 디스크 flush를 보장하지 않음.
-// 빠른 앱 재시작 시 localStorage 데이터 유실 가능 → 네이티브 파일로 백업.
-
 type ConsentFlag = {
   enabled: boolean
   consentVersion: string | null
   updatedAt: string | null
 }
 
-/** 동의 상태를 네이티브 파일에 즉시 저장 (디스크 flush 보장) */
-export async function saveConsentFlag(enabled: boolean, settings?: UserSettings): Promise<void> {
-  try {
-    if (!Capacitor.isNativePlatform()) return
-    const flag: ConsentFlag = {
-      enabled,
-      consentVersion: settings?.consentVersion ?? null,
-      updatedAt: settings?.globalShareConsentUpdatedAt ?? new Date().toISOString().slice(0, 10),
-    }
-    await Filesystem.writeFile({
-      path: CONSENT_FLAG_PATH,
-      data: JSON.stringify(flag),
-      directory: Directory.Data,
-      encoding: Encoding.UTF8,
-    })
-  } catch { /* ignore */ }
-}
+/** 동의 상태를 네이티브 파일에 즉시 저장 (웹에서는 no-op) */
+export async function saveConsentFlag(_enabled: boolean, _settings?: UserSettings): Promise<void> { }
 
-/** 네이티브 파일에서 동의 상태 복원 */
-export async function loadConsentFlag(): Promise<ConsentFlag | null> {
-  try {
-    if (!Capacitor.isNativePlatform()) return null
-    const result = await Filesystem.readFile({
-      path: CONSENT_FLAG_PATH,
-      directory: Directory.Data,
-      encoding: Encoding.UTF8,
-    })
-    return JSON.parse(result.data as string) as ConsentFlag
-  } catch { return null }
-}
+/** 네이티브 파일에서 동의 상태 복원 (웹에서는 항상 null) */
+export async function loadConsentFlag(): Promise<ConsentFlag | null> { return null }
 
 // ── IDB consent flag — 가장 신뢰할 수 있는 백업 (세션 7000건 저장/로드 검증됨) ──
 const IDB_CONSENT_KEY = 'consent_flag'

@@ -4,9 +4,6 @@
 // 등록(enrollment) + 검증(verification) 흐름 관리
 // 임베딩은 로컬에만 저장 (서버 전송 금지)
 
-import { Capacitor } from '@capacitor/core'
-import { Filesystem, Directory, Encoding } from '@capacitor/filesystem'
-import { Preferences } from '@capacitor/preferences'
 import { resampleTo16kMono } from './wavEncoder'
 import { resetVerificationFields } from './sessionMapper'
 import {
@@ -75,8 +72,6 @@ export function subscribe(fn: Listener): () => void {
 // Capacitor Preferences(SharedPreferences) + Filesystem(파일)을 백업으로 사용.
 // 저장: 매번 3곳 모두 기록 / 로드: localStorage → Preferences → File 순서
 
-const PROFILE_FILE = 'voice_profile.json'
-const CACHE_FILE = 'verification_cache.json'
 
 // ── 프로필 저장/로드 ────────────────────────────────────────────────────────
 
@@ -92,56 +87,12 @@ function loadProfile(): VoiceProfile {
 function saveProfile(): void {
   const json = JSON.stringify(profile)
   try { localStorage.setItem(VOICE_PROFILE_KEY, json) } catch { /* ignore */ }
-  if (Capacitor.isNativePlatform()) {
-    Preferences.set({ key: VOICE_PROFILE_KEY, value: json }).catch(() => {})
-    Filesystem.writeFile({
-      path: PROFILE_FILE,
-      data: json,
-      directory: Directory.Data,
-      encoding: Encoding.UTF8,
-    }).catch(() => {})
-  }
 }
 
 /**
- * 앱 시작 시 호출: localStorage가 유실된 경우 Preferences → File 순서로 복원.
+ * 앱 시작 시 호출: localStorage가 유실된 경우 복원 (웹에서는 no-op).
  */
-export async function ensureProfileLoaded(): Promise<void> {
-  if (profile.enrollmentStatus !== 'not_enrolled') return
-  if (!Capacitor.isNativePlatform()) return
-
-  // 1차: Preferences (SharedPreferences)
-  try {
-    const { value } = await Preferences.get({ key: VOICE_PROFILE_KEY })
-    if (value) {
-      const restored: VoiceProfile = { ...DEFAULT_VOICE_PROFILE, ...JSON.parse(value) }
-      if (restored.enrollmentStatus === 'enrolled' && restored.referenceEmbedding) {
-        profile = restored
-        try { localStorage.setItem(VOICE_PROFILE_KEY, value) } catch { /* ignore */ }
-        notify()
-        return
-      }
-    }
-  } catch { /* ignore */ }
-
-  // 2차: Filesystem (파일)
-  try {
-    const result = await Filesystem.readFile({
-      path: PROFILE_FILE,
-      directory: Directory.Data,
-      encoding: Encoding.UTF8,
-    })
-    if (typeof result.data === 'string' && result.data) {
-      const restored: VoiceProfile = { ...DEFAULT_VOICE_PROFILE, ...JSON.parse(result.data) }
-      if (restored.enrollmentStatus === 'enrolled' && restored.referenceEmbedding) {
-        profile = restored
-        try { localStorage.setItem(VOICE_PROFILE_KEY, result.data) } catch { /* ignore */ }
-        Preferences.set({ key: VOICE_PROFILE_KEY, value: result.data }).catch(() => {})
-        notify()
-      }
-    }
-  } catch { /* ignore */ }
-}
+export async function ensureProfileLoaded(): Promise<void> { }
 
 // ── 검증 캐시 (세션별 검증 결과) ────────────────────────────────────────────
 
@@ -167,15 +118,6 @@ function saveVerificationResult(result: VerificationResult): void {
   _memCache = cache
   const json = JSON.stringify(cache)
   try { localStorage.setItem(VERIFICATION_CACHE_KEY, json) } catch { /* ignore */ }
-  if (Capacitor.isNativePlatform()) {
-    Preferences.set({ key: VERIFICATION_CACHE_KEY, value: json }).catch(() => {})
-    Filesystem.writeFile({
-      path: CACHE_FILE,
-      data: json,
-      directory: Directory.Data,
-      encoding: Encoding.UTF8,
-    }).catch(() => {})
-  }
 }
 
 export function getVerificationResult(sessionId: string): VerificationResult | null {
@@ -212,15 +154,6 @@ export function reevaluateCachedResults(): number {
     _memCache = cache
     const json = JSON.stringify(cache)
     try { localStorage.setItem(VERIFICATION_CACHE_KEY, json) } catch { /* ignore */ }
-    if (Capacitor.isNativePlatform()) {
-      Preferences.set({ key: VERIFICATION_CACHE_KEY, value: json }).catch(() => {})
-      Filesystem.writeFile({
-        path: CACHE_FILE,
-        data: json,
-        directory: Directory.Data,
-        encoding: Encoding.UTF8,
-      }).catch(() => {})
-    }
   }
 
   return changed
@@ -276,59 +209,8 @@ export function getAllCachedSessionIds(): Set<string> {
   return new Set(Object.keys(loadVerificationCache()))
 }
 
-/** 검증 캐시 복원: 3곳(localStorage/Preferences/File) 중 가장 큰 데이터 사용 */
-export async function ensureVerificationCacheLoaded(): Promise<void> {
-  if (!Capacitor.isNativePlatform()) return
-
-  // 3곳 모두 읽어서 가장 큰(= 엔트리가 많은) 데이터를 사용
-  let lsData: string | null = null
-  let prefData: string | null = null
-  let fileData: string | null = null
-
-  // 1) localStorage
-  try { lsData = localStorage.getItem(VERIFICATION_CACHE_KEY) } catch { /* ignore */ }
-
-  // 2) Preferences
-  try {
-    const { value } = await Preferences.get({ key: VERIFICATION_CACHE_KEY })
-    if (value) prefData = value
-  } catch { /* ignore */ }
-
-  // 3) Filesystem
-  try {
-    const result = await Filesystem.readFile({
-      path: CACHE_FILE,
-      directory: Directory.Data,
-      encoding: Encoding.UTF8,
-    })
-    if (typeof result.data === 'string' && result.data) fileData = result.data
-  } catch { /* ignore */ }
-
-  // 가장 큰 데이터 선택 (길이 = JSON 크기 ≈ 엔트리 수)
-  let best: string | null = null
-  let bestLen = 0
-  for (const d of [lsData, prefData, fileData]) {
-    if (d && d.length > bestLen) {
-      best = d
-      bestLen = d.length
-    }
-  }
-
-  if (!best) return  // 3곳 모두 비어있음
-
-  // 메모리 캐시 갱신
-  _memCache = JSON.parse(best)
-
-  // 3곳 모두 동기화 (가장 큰 데이터로 통일)
-  try { localStorage.setItem(VERIFICATION_CACHE_KEY, best) } catch { /* ignore */ }
-  Preferences.set({ key: VERIFICATION_CACHE_KEY, value: best }).catch(() => {})
-  Filesystem.writeFile({
-    path: CACHE_FILE,
-    data: best,
-    directory: Directory.Data,
-    encoding: Encoding.UTF8,
-  }).catch(() => {})
-}
+/** 검증 캐시 복원 (웹에서는 no-op) */
+export async function ensureVerificationCacheLoaded(): Promise<void> { }
 
 // ── Worker 관리 ─────────────────────────────────────────────────────────────
 
@@ -353,28 +235,13 @@ function getWorker(): Worker {
 // ── 오디오 파일 → Float32Array 변환 ─────────────────────────────────────────
 
 async function readAndResampleAudio(
-  callRecordId: string,
+  _callRecordId: string,
   sessionId: string,
 ): Promise<Float32Array> {
   currentJob = { sessionId, status: 'reading', progress: 0, message: '오디오 파일 읽는 중...' }
   notify()
 
-  if (!Capacitor.isNativePlatform()) {
-    throw new Error('네이티브 플랫폼에서만 사용 가능')
-  }
-
-  const { data } = await Filesystem.readFile({
-    path: callRecordId,
-    directory: Directory.ExternalStorage,
-  })
-  const binary = atob(data as string)
-  const bytes = new Uint8Array(binary.length)
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
-
-  currentJob = { sessionId, status: 'resampling', progress: 0.1, message: '오디오 변환 중 (16kHz)...' }
-  notify()
-  await new Promise((r) => setTimeout(r, 30))  // UI 양보
-  return resampleTo16kMono(bytes.buffer)
+  throw new Error('네이티브 플랫폼에서만 사용 가능')
 }
 
 // ── 임베딩 추출 (Promise wrapper) ───────────────────────────────────────────
@@ -757,15 +624,6 @@ export function clearUnverifiedCache(): number {
     _memCache = cache
     const json = JSON.stringify(cache)
     try { localStorage.setItem(VERIFICATION_CACHE_KEY, json) } catch { /* ignore */ }
-    if (Capacitor.isNativePlatform()) {
-      Preferences.set({ key: VERIFICATION_CACHE_KEY, value: json }).catch(() => {})
-      Filesystem.writeFile({
-        path: CACHE_FILE,
-        data: json,
-        directory: Directory.Data,
-        encoding: Encoding.UTF8,
-      }).catch(() => {})
-    }
   }
   return cleared
 }
@@ -936,10 +794,6 @@ export function resetProfile(): void {
   _accumulatedCallEmbeddings.length = 0
   saveProfile()
   try { localStorage.removeItem(VERIFICATION_CACHE_KEY) } catch { /* ignore */ }
-  if (Capacitor.isNativePlatform()) {
-    Preferences.remove({ key: VERIFICATION_CACHE_KEY }).catch(() => {})
-    Filesystem.deleteFile({ path: CACHE_FILE, directory: Directory.Data }).catch(() => {})
-  }
   // 세션의 verifiedSpeaker/consentStatus도 초기화 (비동기이지만 fire-and-forget)
   resetVerificationFields().catch(() => {})
   notify()

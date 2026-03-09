@@ -3,16 +3,6 @@
 // 사용할 수 있도록 참조 카운팅 방식으로 관리.
 // 모든 태스크가 해제되어야 서비스 중지.
 
-import { Capacitor, registerPlugin } from '@capacitor/core'
-
-interface SttServicePlugin {
-  start(options: { total: number; completed: number; title?: string }): Promise<void>
-  stop(): Promise<void>
-  updateProgress(options: { total: number; completed: number; message?: string; title?: string }): Promise<void>
-}
-
-const SttService = registerPlugin<SttServicePlugin>('SttService')
-const isNative = Capacitor.isNativePlatform()
 
 // ── 태스크 추적 ──────────────────────────────────────────────────────────
 
@@ -27,52 +17,12 @@ type TaskInfo = {
 const activeTasks = new Map<string, TaskInfo>()
 let serviceRunning = false
 
-/** 가장 최근 업데이트된 태스크 정보 반환 (알림 표시용) */
-function getLatestTask(): TaskInfo | null {
-  let latest: TaskInfo | null = null
-  for (const task of activeTasks.values()) {
-    if (!latest || task.updatedAt > latest.updatedAt) latest = task
-  }
-  return latest
-}
 
 /** 서비스 시작 또는 알림 업데이트 (내부) */
-async function syncService(): Promise<void> {
-  if (!isNative) return
-  const task = getLatestTask()
-  if (!task) return
-
-  if (!serviceRunning) {
-    try {
-      await SttService.start({ total: task.total, completed: task.done, title: task.title })
-      serviceRunning = true
-    } catch (e) {
-      console.warn('[processingService] start failed:', e)
-    }
-  } else {
-    try {
-      await SttService.updateProgress({
-        total: task.total,
-        completed: task.done,
-        message: task.message,
-        title: task.title,
-      })
-    } catch {
-      // 알림 업데이트 실패 무시
-    }
-  }
-}
+async function syncService(): Promise<void> { }
 
 /** 서비스 중지 (내부) */
-async function stopService(): Promise<void> {
-  if (!isNative || !serviceRunning) return
-  try {
-    await SttService.stop()
-  } catch (e) {
-    console.warn('[processingService] stop failed:', e)
-  }
-  serviceRunning = false
-}
+async function stopService(): Promise<void> { }
 
 // ── Public API ───────────────────────────────────────────────────────────
 

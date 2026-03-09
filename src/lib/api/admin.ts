@@ -3,6 +3,16 @@
 
 import { apiFetch } from './client'
 
+// ── Admin Auth ───────────────────────────────────────────────────────────
+
+/**
+ * 서버에서 admin 권한 여부를 확인
+ * 200 → admin, 403 → unauthorized, 401 → unauthenticated
+ */
+export async function checkAdminMe() {
+  return apiFetch<{ user: { id: string; email: string } }>('/api/admin/me')
+}
+
 // ── Clients ─────────────────────────────────────────────────────────────
 
 export async function loadClientsApi() {

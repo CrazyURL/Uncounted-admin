@@ -1,19 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import AdminNav from './AdminNav'
+import { useAuth } from '../../lib/AuthContext'
+import { signInWithGoogle, signOut } from '../../lib/auth'
+import { checkAdminMe } from '../../lib/api/admin'
 
-const AUTH_KEY = 'uncounted_admin_auth'
-const ADMIN_PASSWORD = (import.meta.env.VITE_ADMIN_PASSWORD as string) || 'uncounted2026'
-
-function isAuthed(): boolean {
-  try {
-    const raw = localStorage.getItem(AUTH_KEY)
-    if (!raw) return false
-    return (JSON.parse(raw) as { verified: boolean }).verified === true
-  } catch {
-    return false
-  }
-}
+type AdminState = 'loading' | 'unauthenticated' | 'checking' | 'unauthorized' | 'authorized'
 
 function getTitle(pathname: string): string {
   // dashboard
@@ -43,32 +35,64 @@ function getTitle(pathname: string): string {
 }
 
 export default function AdminShell() {
-  const [authed, setAuthed] = useState(isAuthed)
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState(false)
+  const { userId, isReady } = useAuth()
+  const [adminState, setAdminState] = useState<AdminState>('loading')
   const location = useLocation()
   const navigate = useNavigate()
-
   const adminMainRef = useRef<HTMLElement>(null)
 
   useEffect(() => {
     adminMainRef.current?.scrollTo(0, 0)
   }, [location.pathname])
 
+  // auth 초기화 전
+  useEffect(() => {
+    if (!isReady) {
+      setAdminState('loading')
+      return
+    }
+    if (!userId) {
+      setAdminState('unauthenticated')
+      return
+    }
+    // 로그인 됨 → 서버에서 admin 권한 확인
+    setAdminState('checking')
+    checkAdminMe().then(({ error }) => {
+      setAdminState(error ? 'unauthorized' : 'authorized')
+    })
+  }, [isReady, userId])
+
   const title = getTitle(location.pathname)
   const showBack = location.pathname.match(/^\/admin\/(datasets|users|jobs)\/.+/) !== null
 
-  function handleLogin() {
-    if (password === ADMIN_PASSWORD) {
-      localStorage.setItem(AUTH_KEY, JSON.stringify({ verified: true }))
-      setAuthed(true)
-      setError(false)
-    } else {
-      setError(true)
-    }
+  function handleGoogleLogin() {
+    signInWithGoogle(`${window.location.origin}/auth?next=/admin`)
   }
 
-  if (!authed) {
+  async function handleSignOut() {
+    await signOut()
+    // AuthContext userId → null → unauthenticated로 자동 전환
+  }
+
+  // ── 로딩 / admin 확인 중 ────────────────────────────────────────────────
+  if (adminState === 'loading' || adminState === 'checking') {
+    return (
+      <div
+        className="flex items-center justify-center h-screen"
+        style={{ backgroundColor: '#101322' }}
+      >
+        <span
+          className="material-symbols-outlined text-3xl animate-spin"
+          style={{ color: '#1337ec' }}
+        >
+          autorenew
+        </span>
+      </div>
+    )
+  }
+
+  // ── 미로그인 ────────────────────────────────────────────────────────────
+  if (adminState === 'unauthenticated') {
     return (
       <div
         className="flex flex-col items-center justify-center h-screen text-white px-6"
@@ -77,45 +101,49 @@ export default function AdminShell() {
         <span className="material-symbols-outlined text-5xl mb-4" style={{ color: '#1337ec' }}>
           admin_panel_settings
         </span>
-        <h1 className="text-xl font-bold mb-1">관리자 인증</h1>
-        <p className="text-sm mb-6" style={{ color: 'rgba(255,255,255,0.5)' }}>
-          관리자 비밀번호를 입력하세요
+        <h1 className="text-xl font-bold mb-1">관리자 로그인</h1>
+        <p className="text-sm mb-8" style={{ color: 'rgba(255,255,255,0.5)' }}>
+          관리자 페이지에 접근하려면 로그인이 필요합니다
         </p>
-        <input
-          type="password"
-          value={password}
-          onChange={e => { setPassword(e.target.value); setError(false) }}
-          onKeyDown={e => { if (e.key === 'Enter') handleLogin() }}
-          placeholder="비밀번호"
-          className="w-full max-w-xs px-4 py-3 rounded-xl text-white text-sm border outline-none"
-          style={{
-            backgroundColor: '#1b1e2e',
-            borderColor: error ? '#ef4444' : 'rgba(255,255,255,0.1)',
-          }}
-        />
-        {error && (
-          <p className="text-xs mt-2" style={{ color: '#ef4444' }}>
-            비밀번호가 일치하지 않습니다
-          </p>
-        )}
         <button
-          onClick={handleLogin}
-          className="w-full max-w-xs mt-4 py-3 rounded-xl text-white text-sm font-semibold"
+          onClick={handleGoogleLogin}
+          className="w-full max-w-xs py-3 rounded-xl text-white text-sm font-semibold flex items-center justify-center gap-2"
           style={{ backgroundColor: '#1337ec' }}
         >
-          로그인
-        </button>
-        <button
-          onClick={() => navigate('/home')}
-          className="mt-4 text-xs"
-          style={{ color: 'rgba(255,255,255,0.4)' }}
-        >
-          사용자 앱으로 돌아가기
+          <span className="material-symbols-outlined text-base">login</span>
+          Google로 로그인
         </button>
       </div>
     )
   }
 
+  // ── 권한 없음 ───────────────────────────────────────────────────────────
+  if (adminState === 'unauthorized') {
+    return (
+      <div
+        className="flex flex-col items-center justify-center h-screen text-white px-6"
+        style={{ backgroundColor: '#101322' }}
+      >
+        <span className="material-symbols-outlined text-5xl mb-4" style={{ color: '#ef4444' }}>
+          block
+        </span>
+        <h1 className="text-xl font-bold mb-1">접근 권한 없음</h1>
+        <p className="text-sm mb-8 text-center" style={{ color: 'rgba(255,255,255,0.5)' }}>
+          현재 계정에 관리자 권한이 없습니다.<br />
+          관리자 계정으로 다시 로그인해 주세요.
+        </p>
+        <button
+          onClick={handleSignOut}
+          className="w-full max-w-xs py-3 rounded-xl text-sm font-semibold"
+          style={{ backgroundColor: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)' }}
+        >
+          다른 계정으로 로그인
+        </button>
+      </div>
+    )
+  }
+
+  // ── authorized: admin layout ────────────────────────────────────────────
   return (
     <div className="flex flex-col h-screen text-white" style={{ backgroundColor: '#101322' }}>
       <header

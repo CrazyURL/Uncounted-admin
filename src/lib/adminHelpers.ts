@@ -9,8 +9,6 @@ import { maskSessionTitle, maskFilePath } from './displayMask'
 import { sanitizeAndUpload, type AudioSource } from './audioSanitizer'
 import { resolveExportFields } from './exportFields'
 import { calcQualityGrade } from './valueEngine'
-import { Capacitor } from '@capacitor/core'
-import { Filesystem, Directory } from '@capacitor/filesystem'
 
 // ── 품질 등급 (통합: valueEngine.calcQualityGrade 사용) ──
 export const qualityGradeFromScore = calcQualityGrade
@@ -664,33 +662,15 @@ export async function exportSanitizedWavs(
 }
 
 async function saveWavToDevice(wav: ArrayBuffer, filename: string): Promise<void> {
-  if (Capacitor.isNativePlatform()) {
-    // ArrayBuffer → base64
-    const bytes = new Uint8Array(wav)
-    let binary = ''
-    for (let i = 0; i < bytes.length; i++) {
-      binary += String.fromCharCode(bytes[i])
-    }
-    const base64 = btoa(binary)
-
-    await Filesystem.writeFile({
-      path: `Download/uncounted_wav/${filename}`,
-      data: base64,
-      directory: Directory.ExternalStorage,
-      recursive: true,
-    })
-  } else {
-    // 웹 브라우저 폴백
-    const blob = new Blob([wav], { type: 'audio/wav' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    setTimeout(() => URL.revokeObjectURL(url), 3000)
-  }
+  const blob = new Blob([wav], { type: 'audio/wav' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  setTimeout(() => URL.revokeObjectURL(url), 3000)
 }
 
 // ── 사용자별 그룹핑 ──

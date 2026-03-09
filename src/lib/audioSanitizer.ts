@@ -2,8 +2,6 @@
 // 소스: 로컬 파일(callRecordId) 또는 Supabase Storage(audioUrl)
 // 파이프라인: 원본 → 16kHz 모노 리샘플링 → 무음 제거 → PII 비프 마스킹 → WAV 인코딩
 
-import { Capacitor } from '@capacitor/core'
-import { Filesystem, Directory } from '@capacitor/filesystem'
 import { resampleTo16kMono, removeSilence, applyBeepMask, pcmToWav } from './wavEncoder'
 import { getAudioSignedUrl, uploadSanitizedAudio } from './storageUpload'
 
@@ -22,21 +20,6 @@ export type AudioSource = {
   sessionId: string
 }
 
-// ── 로컬 파일 로드 (base64 → ArrayBuffer) ───────────────────────────────────
-
-async function loadLocalAudio(callRecordId: string): Promise<ArrayBuffer> {
-  const { data } = await Filesystem.readFile({
-    path: callRecordId,
-    directory: Directory.ExternalStorage,
-  })
-  const binary = atob(data as string)
-  const bytes = new Uint8Array(binary.length)
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i)
-  }
-  return bytes.buffer
-}
-
 // ── Supabase Storage에서 다운로드 ───────────────────────────────────────────
 
 async function loadFromStorage(storagePath: string): Promise<ArrayBuffer> {
@@ -51,17 +34,7 @@ async function loadFromStorage(storagePath: string): Promise<ArrayBuffer> {
 // ── 오디오 로드 (로컬 우선 → Storage 폴백) ──────────────────────────────────
 
 async function loadAudio(source: AudioSource): Promise<{ buffer: ArrayBuffer; fromStorage: boolean }> {
-  // 1) 로컬 파일 시도 (네이티브 플랫폼 + callRecordId 있을 때)
-  if (source.callRecordId && Capacitor.isNativePlatform()) {
-    try {
-      const buffer = await loadLocalAudio(source.callRecordId)
-      return { buffer, fromStorage: false }
-    } catch {
-      // 로컬 실패 → Storage 폴백
-    }
-  }
-
-  // 2) Supabase Storage 시도 (audioUrl 있을 때)
+  // Supabase Storage 시도 (audioUrl 있을 때)
   if (source.audioUrl) {
     const buffer = await loadFromStorage(source.audioUrl)
     return { buffer, fromStorage: true }

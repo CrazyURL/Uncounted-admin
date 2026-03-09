@@ -5,8 +5,6 @@
 
 import { type PhotoPatternRecord } from '../types/metadata'
 import { type TimeBucket2h } from '../types/audioAsset'
-import { Capacitor } from '@capacitor/core'
-import { Filesystem, Directory } from '@capacitor/filesystem'
 import { generateUUID } from './uuid'
 
 // ── 유틸 ──────────────────────────────────────────────────────────────────
@@ -37,20 +35,6 @@ function dateToBucket(ts: number): { dateBucket: string; timeBucket: TimeBucket2
   const d = new Date(ts)
   const dateBucket = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
   return { dateBucket, timeBucket: hourToTimeBucket(d.getHours()) }
-}
-
-// ── 확장자 분류 ──────────────────────────────────────────────────────────
-
-const PHOTO_EXTS = new Set(['jpg', 'jpeg', 'png', 'heic', 'heif', 'webp', 'bmp', 'gif'])
-const VIDEO_EXTS = new Set(['mp4', '3gp', 'mov', 'mkv', 'avi', 'webm'])
-
-type FileType = 'photo' | 'video' | 'unknown'
-
-function classifyExtension(name: string): FileType {
-  const ext = name.split('.').pop()?.toLowerCase() ?? ''
-  if (PHOTO_EXTS.has(ext)) return 'photo'
-  if (VIDEO_EXTS.has(ext)) return 'video'
-  return 'unknown'
 }
 
 // ── localStorage 관리 ──────────────────────────────────────────────────
@@ -95,62 +79,18 @@ function saveScanState(state: ScanState) {
   localStorage.setItem(SCAN_STATE_KEY, JSON.stringify(state))
 }
 
-// ── 스캔 대상 디렉토리 (Android 일반) ──────────────────────────────────
-
-const SCAN_DIRS = [
-  'DCIM/Camera',
-  'DCIM',
-  'Pictures',
-  'Pictures/Screenshots',
-  'Screenshots',
-]
-
 // ── 핵심: 디렉토리 스캔 → 버킷 집계 ──────────────────────────────────
 
 type FileInfo = {
-  type: FileType
+  type: 'photo' | 'video' | 'unknown'
   isScreenshot: boolean
-  isSelfCreated: boolean  // DCIM/Camera 출처 = 직접 촬영
-  mtime: number  // unix ms
-  size: number   // bytes
+  isSelfCreated: boolean
+  mtime: number
+  size: number
 }
 
 async function scanMediaFiles(): Promise<FileInfo[]> {
-  const files: FileInfo[] = []
-  const seen = new Set<string>()  // 중복 방지 (DCIM/DCIM/Camera 겹침)
-
-  for (const dir of SCAN_DIRS) {
-    const isScreenshotDir = dir.toLowerCase().includes('screenshot')
-    const isCameraDir = dir === 'DCIM/Camera'
-    try {
-      const result = await Filesystem.readdir({
-        path: dir,
-        directory: Directory.ExternalStorage,
-      })
-      for (const entry of result.files) {
-        if (entry.type === 'directory') continue
-        // 중복 체크: 같은 mtime+size 조합
-        const key = `${entry.mtime ?? 0}_${entry.size ?? 0}`
-        if (seen.has(key)) continue
-        seen.add(key)
-
-        const ft = classifyExtension(entry.name)
-        if (ft === 'unknown') continue
-
-        files.push({
-          type: ft,
-          isScreenshot: isScreenshotDir && ft === 'photo',
-          isSelfCreated: isCameraDir,
-          mtime: entry.mtime ?? 0,
-          size: entry.size ?? 0,
-        })
-      }
-    } catch {
-      // 디렉토리 없음 — 정상 (기기마다 구조 다름)
-    }
-  }
-
-  return files
+  return []
 }
 
 // ── 집계: FileInfo[] → PhotoPatternRecord[] ──────────────────────────
@@ -249,8 +189,6 @@ function aggregateToRecords(files: FileInfo[]): PhotoPatternRecord[] {
  * 하루 1회만 스캔 (이미 오늘 스캔했으면 건너뜀)
  */
 export async function startPhotoPatternCollector(): Promise<boolean> {
-  if (!Capacitor.isNativePlatform()) return false
-
   const today = todayBucket()
   const state = loadScanState()
   if (state?.lastScanDate === today) return true  // 이미 오늘 스캔함

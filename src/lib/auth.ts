@@ -2,8 +2,6 @@
 // 인증은 API 서버를 통해서만 처리 (Supabase SDK 미사용)
 // 세션: httpOnly 쿠키 (uncounted_session, uncounted_refresh) + 인메모리 access_token
 
-import { Capacitor } from '@capacitor/core'
-import { Browser } from '@capacitor/browser'
 import * as authApi from './api/auth'
 import { generateUUID } from './uuid'
 
@@ -97,22 +95,15 @@ export async function signOut(): Promise<void> {
 
 // ── Google OAuth 로그인 ──────────────────────────────────────────────────
 
-export async function signInWithGoogle(): Promise<{ error: string | null }> {
-  const redirectTo = Capacitor.isNativePlatform()
-    ? 'com.uncounted.app://login-callback'
-    : `${window.location.origin}/auth`
-  
-  const { data, error } = await authApi.signInWithOAuth('google', {
-    redirectTo,
-    skipBrowserRedirect: Capacitor.isNativePlatform(),
-  })
-  
-  if (error) return { error: error.message }
+export async function signInWithGoogle(redirectTo?: string): Promise<{ error: string | null }> {
+  const redirect = redirectTo ?? `${window.location.origin}/auth`
 
-  // 네이티브: Chrome Custom Tabs로 OAuth URL 열기
-  if (Capacitor.isNativePlatform() && data.url) {
-    await Browser.open({ url: data.url })
-  }
+  const { error } = await authApi.signInWithOAuth('google', {
+    redirectTo: redirect,
+    skipBrowserRedirect: false,
+  })
+
+  if (error) return { error: error.message }
 
   return { error: null }
 }

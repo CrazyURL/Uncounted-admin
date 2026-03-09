@@ -1,8 +1,6 @@
 // ── scanEngine — 기기 오디오 스캔 로직 (AssetsPage에서 추출) ──────────────────
 // GuidedOnboardingPage + AssetsPage 양쪽에서 재사용
 
-import { Capacitor } from '@capacitor/core'
-import { Filesystem, Directory } from '@capacitor/filesystem'
 import { type Session, type SessionStatus } from '../types/session'
 import { loadAllSessions, saveAllSessions, invalidateSessionCache } from './sessionMapper'
 import { refreshDerivedMetadata } from './metadataExportResolver'
@@ -131,65 +129,6 @@ export async function mergeWithExisting(scanned: Session[]): Promise<Session[]> 
   })
 }
 
-// ── 네이티브 스캔 ─────────────────────────────────────────────────────────────
-
-export async function scanDeviceAudio(
-  onProgress?: (p: ScanProgress) => void,
-): Promise<ScanResult> {
-  try { await Filesystem.requestPermissions() } catch { /* ignore */ }
-  invalidateSessionCache()
-
-  const scannedFiles: ScannedFile[] = []
-
-  async function scanDir(path: string) {
-    try {
-      onProgress?.({ found: scannedFiles.length, currentDir: path, phase: 'scanning' })
-      const result = await Filesystem.readdir({ path, directory: Directory.ExternalStorage })
-      for (const entry of result.files) {
-        const fullPath = `${path}/${entry.name}`
-        if (entry.type === 'directory') {
-          await scanDir(fullPath)
-        } else {
-          const ext = entry.name.split('.').pop()?.toLowerCase() ?? ''
-          if (AUDIO_EXTENSIONS.has(ext)) {
-            scannedFiles.push({
-              name: entry.name,
-              path: fullPath,
-              size: entry.size ?? 0,
-              mtime: entry.mtime ?? 0,
-            })
-            onProgress?.({ found: scannedFiles.length, currentDir: path, phase: 'scanning' })
-          }
-        }
-      }
-    } catch {
-      // 접근 실패 경로 무시
-    }
-  }
-
-  for (const root of SCAN_ROOTS) await scanDir(root)
-
-  onProgress?.({ found: scannedFiles.length, currentDir: '', phase: 'converting' })
-  const scanned = scannedFiles.map(fileMetaToSession)
-  const merged = await mergeWithExisting(scanned)
-
-  onProgress?.({ found: merged.length, currentDir: '', phase: 'saving' })
-  saveFilePaths(merged)
-  await saveAllSessions(merged)
-
-  // 메타데이터 파생 (U-M06 음성 환경 + U-M07 통화 패턴)
-  try { refreshDerivedMetadata(merged) } catch { /* non-critical */ }
-
-  const totalBytes = scannedFiles.reduce((sum, f) => sum + f.size, 0)
-  const filePaths: Record<string, string> = {}
-  for (const s of merged) {
-    if (s.callRecordId) filePaths[s.id] = s.callRecordId
-  }
-
-  onProgress?.({ found: merged.length, currentDir: '', phase: 'done' })
-  return { sessions: merged, filePaths, totalBytes }
-}
-
 // ── 웹 스캔 ──────────────────────────────────────────────────────────────────
 
 export async function scanWebAudio(
@@ -255,8 +194,5 @@ export async function scanWebAudio(
 export async function scanAudio(
   onProgress?: (p: ScanProgress) => void,
 ): Promise<ScanResult> {
-  if (Capacitor.isNativePlatform()) {
-    return scanDeviceAudio(onProgress)
-  }
   return scanWebAudio(onProgress)
 }

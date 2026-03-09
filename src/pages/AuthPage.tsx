@@ -3,8 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { signInWithGoogle, authInitPromise } from '../lib/auth'
 import { onAuthStateChange, handleOAuthCallback } from '../lib/api/auth'
 import { useAuth } from '../lib/AuthContext'
-import { loadProfile, isProfileGateCompleted } from '../types/userProfile'
-import { loadTutorial } from '../lib/tutorialStore'
 import UncountedLogo from '../components/domain/UncountedLogo'
 
 export default function AuthPage() {
@@ -17,16 +15,23 @@ export default function AuthPage() {
   const [oauthPending, setOauthPending] = useState(false)
 
   function navigateAfterAuth() {
-    const profile = loadProfile()
-    const tutorial = loadTutorial()
-
-    if (!profile || !isProfileGateCompleted(profile)) {
-      navigate('/profile/setup?mode=gate', { replace: true })
-    } else if (tutorial.stage !== 'done') {
-      navigate('/guided', { replace: true })
-    } else {
-      navigate('/home', { replace: true })
+    // OAuth 콜백 경로: sessionStorage에 저장된 next 우선 사용
+    const next = sessionStorage.getItem('auth_next')
+    if (next) {
+      sessionStorage.removeItem('auth_next')
+      navigate(next, { replace: true })
+      return
     }
+
+    // 직접 접근 경로 (/auth?next=... 상태에서 이미 로그인된 경우)
+    const params = new URLSearchParams(window.location.search)
+    const nextParam = params.get('next')
+    if (nextParam) {
+      navigate(nextParam, { replace: true })
+      return
+    }
+
+    navigate('/admin', { replace: true })
   }
 
   // OAuth 콜백 완료 + AuthContext userId 업데이트 후 네비게이션 실행
@@ -53,6 +58,8 @@ export default function AuthPage() {
     // ② Supabase OAuth 콜백: ?code 파라미터가 있으면 백엔드 콜백 API 호출
     // flow ID는 백엔드가 pkce_flow_id 쿠키에서 직접 읽음
     if (code) {
+      const next = searchParams.get('next')
+      if (next) sessionStorage.setItem('auth_next', next)
       history.replaceState(null, '', window.location.pathname)
       handleOAuthCallback(code).then(({ error }) => {
         if (error) {

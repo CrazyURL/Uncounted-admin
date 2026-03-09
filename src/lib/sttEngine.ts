@@ -4,10 +4,7 @@
 // 메인 스레드: 파일 I/O(Capacitor) + 리샘플링(AudioContext) → Worker: 추론
 // 글로벌 싱글턴 — 페이지 이동해도 큐/진행 상태 유지
 
-import { Capacitor } from '@capacitor/core'
-import { Filesystem, Directory } from '@capacitor/filesystem'
-import { resampleTo16kMono } from './wavEncoder'
-import { saveTranscript, loadTranscript, loadAllTranscripts } from './transcriptStore'
+import { loadTranscript, loadAllTranscripts } from './transcriptStore'
 import { startSttService, stopSttService, updateSttProgress } from './sttServiceBridge'
 
 // ── 타입 ──────────────────────────────────────────────────────────────────
@@ -83,7 +80,6 @@ let totalEnqueued = 0
 let completedCount = 0
 let isProcessing = false
 let currentSessionId: string | null = null
-let worker: Worker | null = null
 let singleSessionMode = false  // "이 세션만" 추출 시 true → 1건 처리 후 멈춤
 
 // ── pub/sub ──────────────────────────────────────────────────────────────
@@ -98,63 +94,6 @@ function notify() {
 export function subscribe(fn: Listener): () => void {
   listeners.add(fn)
   return () => { listeners.delete(fn) }
-}
-
-// ── Worker 관리 ──────────────────────────────────────────────────────────
-
-function getWorker(): Worker {
-  if (!worker) {
-    worker = new Worker(
-      new URL('./sttWorker.ts', import.meta.url),
-      { type: 'module' },
-    )
-    worker.addEventListener('message', handleWorkerMessage)
-    worker.addEventListener('error', (e) => {
-      console.error('[sttEngine] Worker error:', e)
-      if (currentSessionId) {
-        updateJob(currentSessionId, 'error', `Worker 오류: ${e.message ?? '알 수 없는 오류'}`)
-      }
-      isProcessing = false
-      currentSessionId = null
-      notify()
-      processNext()
-    })
-  }
-  return worker
-}
-
-function handleWorkerMessage(e: MessageEvent) {
-  const { type, sessionId, text, message, progress, status } = e.data
-
-  if (type === 'progress') {
-    updateJob(sessionId, status, message, progress)
-  } else if (type === 'result') {
-    // 텍스트 저장 + 완료 처리
-    const trimmed = (text ?? '').trim()
-    if (!trimmed) {
-      updateJob(sessionId, 'error', '텍스트를 추출하지 못했습니다 (무음 또는 인식 불가)')
-    } else {
-      saveTranscript(sessionId, trimmed).then(() => {
-        updateJob(sessionId, 'done', '완료')
-        completedCount++
-        notify()
-        syncForegroundService()
-      })
-    }
-    isProcessing = false
-    currentSessionId = null
-    if (singleSessionMode) singleSessionMode = false
-    processNext()
-  } else if (type === 'error') {
-    updateJob(sessionId, 'error', `실패: ${message}`)
-    completedCount++
-    isProcessing = false
-    currentSessionId = null
-    if (singleSessionMode) singleSessionMode = false
-    notify()
-    syncForegroundService()
-    processNext()
-  }
 }
 
 // ── job 업데이트 ─────────────────────────────────────────────────────────
@@ -226,37 +165,14 @@ async function processNext() {
     // 1) 파일 읽기
     updateJob(item.sessionId, 'reading', '오디오 파일 읽는 중...')
 
-    if (!Capacitor.isNativePlatform()) {
-      updateJob(item.sessionId, 'error', '네이티브 플랫폼에서만 사용 가능')
-      completedCount++
-      isProcessing = false
-      currentSessionId = null
-      notify()
-      syncForegroundService()
-      processNext()
-      return
-    }
-
-    const { data } = await Filesystem.readFile({
-      path: item.callRecordId,
-      directory: Directory.ExternalStorage,
-    })
-    const binary = atob(data as string)
-    const bytes = new Uint8Array(binary.length)
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
-
-    // 2) 리샘플링 (AudioContext — 메인 스레드 필수)
-    updateJob(item.sessionId, 'resampling', '오디오 변환 중 (16kHz)...')
-    await new Promise((r) => setTimeout(r, 30))  // UI 양보
-    const float32 = await resampleTo16kMono(bytes.buffer)
-
-    // 3) Worker에 전송 (Transferable — zero-copy)
-    updateJob(item.sessionId, 'download', '모델 준비 중...')
-    const w = getWorker()
-    w.postMessage(
-      { type: 'transcribe', audio: float32, sessionId: item.sessionId },
-      [float32.buffer],
-    )
+    updateJob(item.sessionId, 'error', '네이티브 플랫폼에서만 사용 가능')
+    completedCount++
+    isProcessing = false
+    currentSessionId = null
+    notify()
+    syncForegroundService()
+    processNext()
+    return
   } catch (err: any) {
     const msg = err instanceof Error ? err.message : String(err)
     updateJob(item.sessionId, 'error', `실패: ${msg}`)

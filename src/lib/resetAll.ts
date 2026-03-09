@@ -1,30 +1,12 @@
 // ── 전체 데이터 초기화 유틸 ──────────────────────────────────────────────────
 // localStorage + IndexedDB + Capacitor Preferences/Filesystem + Backend API 일괄 삭제.
 
-import { Capacitor } from '@capacitor/core'
-import { Preferences } from '@capacitor/preferences'
-import { Directory, Filesystem } from '@capacitor/filesystem'
 import { invalidateIdbHandle } from './idb'
 import { invalidateSessionCache } from './sessionMapper'
 import { resetProfile } from './embeddingEngine'
-import { VOICE_PROFILE_KEY, VERIFICATION_CACHE_KEY } from '../types/voiceBiometrics'
 import { resetAllApi } from './api/admin'
 
 
-/** Capacitor Preferences 키 목록 (SharedPreferences) */
-const CAPACITOR_PREF_KEYS = [
-  VOICE_PROFILE_KEY,                  // uncounted_voice_profile
-  VERIFICATION_CACHE_KEY,             // uncounted_verification_cache
-  'uncounted_device_install_id',
-  'uncounted_device_password',
-]
-
-/** Capacitor Filesystem 파일 목록 (Directory.Data) */
-const CAPACITOR_FILES = [
-  'voice_profile.json',
-  'verification_cache.json',
-  'consent_flag.json',
-]
 
 export type ResetLocalResult = {
   localStorage: number
@@ -64,24 +46,6 @@ export async function resetLocal(): Promise<ResetLocalResult> {
     result.indexedDB = true
   } catch {
     result.indexedDB = false
-  }
-
-  // 4. Capacitor Preferences (SharedPreferences) 삭제
-  if (Capacitor.isNativePlatform()) {
-    for (const key of CAPACITOR_PREF_KEYS) {
-      try {
-        await Preferences.remove({ key })
-        result.capacitorPreferences++
-      } catch { /* ignore */ }
-    }
-
-    // 5. Capacitor Filesystem 파일 삭제
-    for (const path of CAPACITOR_FILES) {
-      try {
-        await Filesystem.deleteFile({ path, directory: Directory.Data })
-        result.capacitorFiles++
-      } catch { /* 파일 미존재 시 무시 */ }
-    }
   }
 
   return result
