@@ -215,11 +215,15 @@ export async function handleOAuthCallback(
     )
     if (!res.ok) {
       const body = await res.json().catch(() => ({}))
+      console.error('[handleOAuthCallback] backend error:', res.status, body)
       return { error: (body as any).error ?? 'callback_failed' }
     }
     dispatchAuthEvent('SIGNED_IN', null)
     return { error: null }
-  } catch {
+  } catch (err) {
+    // CORS 차단 또는 네트워크 오류 시 여기로 진입
+    // 크로스사이트(onrender.com) 환경에서 SameSite=Lax 쿠키 차단 또는 CORS 미허용 가능성
+    console.error('[handleOAuthCallback] network/CORS error:', err)
     return { error: 'network_error' }
   }
 }
