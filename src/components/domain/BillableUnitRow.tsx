@@ -24,7 +24,7 @@ export default function BillableUnitRow({ unit }: Props) {
       {/* 세션 ID + 분 인덱스 */}
       <div className="flex-1 min-w-0">
         <p className="text-xs text-white truncate">
-          {unit.sessionId.slice(0, 8)}..._{unit.minuteIndex}
+          {unit.sessionId ? unit.sessionId.slice(0, 8) : ''}..._{unit.minuteIndex}
         </p>
         <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>
           {unit.sessionDate} · {Math.round(unit.effectiveSeconds)}초

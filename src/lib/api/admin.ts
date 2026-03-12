@@ -134,6 +134,8 @@ export type BillableUnitFilters = {
   lockStatus?: string
   sessionDate?: { from: string; to: string }
   userId?: string
+  limit?: number
+  offset?: number
 }
 
 export async function loadBillableUnitsApi(filters?: BillableUnitFilters) {
@@ -157,6 +159,12 @@ export async function loadBillableUnitsApi(filters?: BillableUnitFilters) {
   if (filters?.sessionDate) {
     params.set('dateFrom', filters.sessionDate.from)
     params.set('dateTo', filters.sessionDate.to)
+  }
+  if (filters?.limit != null) {
+    params.set('limit', String(filters.limit))
+  }
+  if (filters?.offset != null) {
+    params.set('offset', String(filters.offset))
   }
 
   const query = params.toString()
