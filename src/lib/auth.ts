@@ -3,6 +3,8 @@
 // 세션: httpOnly 쿠키 (uncounted_session, uncounted_refresh) + 인메모리 access_token
 
 import * as authApi from './api/auth'
+import { checkAdminMe } from './api/admin'
+import { getAuthToken } from './api/client'
 import { generateUUID } from './uuid'
 
 // ── pid 관리 ──────────────────────────────────────────────────────────────
@@ -52,19 +54,28 @@ export function isAuthenticated(): boolean {
 export function initAuthListener(
   onAuthChange: (userId: string | null) => void,
 ): { unsubscribe: () => void } {
-  // 초기 세션 확인 (쿠키 기반)
-  authApi.getSession().then(async ({ data }) => {
-    cachedUserId = data.session?.user?.id ?? null
-
-    if (cachedUserId) {
-      // 쿠키 세션 유효 → access_token 갱신 (Bearer 누락 방지)
-      await authApi.refreshSession()
-    }
-
-    _authInitResolve?.(cachedUserId)
+  // 초기 세션 확인 — 저장된 토큰이 있을 때만 API 호출
+  // 토큰 없이 checkAdminMe()를 호출하면 401 → auto-refresh 실패 → SIGNED_OUT 발행
+  // → OAuth 콜백 흐름과 레이스 컨디션 발생 가능
+  if (getAuthToken()) {
+    checkAdminMe()
+      .then(({ data }) => {
+        cachedUserId = data?.user?.id ?? null
+        _authInitResolve?.(cachedUserId)
+        _authInitResolve = null
+        onAuthChange(cachedUserId)
+      })
+      .catch(() => {
+        _authInitResolve?.(null)
+        _authInitResolve = null
+        onAuthChange(null)
+      })
+  } else {
+    // 토큰 없음 → 즉시 미인증 처리 (OAuth 진행 중이면 SIGNED_IN 이벤트가 상태 갱신)
+    _authInitResolve?.(null)
     _authInitResolve = null
-    onAuthChange(cachedUserId)
-  })
+    onAuthChange(null)
+  }
 
   const { data: { subscription } } = authApi.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_OUT') {
@@ -74,9 +85,13 @@ export function initAuthListener(
       cachedUserId = session.user.id
     } else {
       // SIGNED_IN with null session: handleOAuthCallback은 session=null로 이벤트를 발행함
-      // 쿠키가 이미 세팅되었으므로 /api/auth/me로 실제 userId를 재조회
-      const { data } = await authApi.getSession()
-      cachedUserId = data.session?.user?.id ?? null
+      // 쿠키가 세팅되었으므로 checkAdminMe로 admin 권한 포함 재조회 (401 시 auto-refresh)
+      try {
+        const { data } = await checkAdminMe()
+        cachedUserId = data?.user?.id ?? null
+      } catch {
+        cachedUserId = null
+      }
     }
     onAuthChange(cachedUserId)
   })

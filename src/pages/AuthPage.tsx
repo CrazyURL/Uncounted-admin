@@ -2,17 +2,13 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { signInWithGoogle, authInitPromise } from '../lib/auth'
 import { onAuthStateChange, handleOAuthCallback } from '../lib/api/auth'
-import { useAuth } from '../lib/AuthContext'
 import UncountedLogo from '../components/domain/UncountedLogo'
 
 export default function AuthPage() {
   const navigate = useNavigate()
-  const { userId } = useAuth()
   const [checking, setChecking] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  // OAuth 콜백 후 AuthContext userId 업데이트를 기다리는 플래그 (useState: 리렌더 트리거)
-  const [oauthPending, setOauthPending] = useState(false)
 
   function navigateAfterAuth() {
     // OAuth 콜백 경로: sessionStorage에 저장된 next 우선 사용
@@ -34,13 +30,6 @@ export default function AuthPage() {
     navigate('/admin', { replace: true })
   }
 
-  // OAuth 콜백 완료 + AuthContext userId 업데이트 후 네비게이션 실행
-  useEffect(() => {
-    if (oauthPending && userId) {
-      navigateAfterAuth()
-    }
-  }, [oauthPending, userId])
-
   // 세션 확인 + OAuth 콜백 완료 감지
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search)
@@ -55,8 +44,7 @@ export default function AuthPage() {
       return
     }
 
-    // ② Supabase OAuth 콜백: ?code 파라미터가 있으면 백엔드 콜백 API 호출
-    // flow ID는 백엔드가 pkce_flow_id 쿠키에서 직접 읽음
+    // ② OAuth 콜백: ?code 파라미터가 있으면 백엔드 콜백 API 호출
     if (code) {
       const next = searchParams.get('next')
       if (next) sessionStorage.setItem('auth_next', next)
@@ -66,9 +54,7 @@ export default function AuthPage() {
           setError('로그인 처리 중 오류가 발생했습니다.')
           setChecking(false)
         } else {
-          // AuthContext userId 업데이트 대기 (useEffect([oauthPending, userId])에서 navigate)
-          // setOauthPending → 리렌더 트리거 → userId도 반영된 시점에 navigate
-          setOauthPending(true)
+          navigateAfterAuth()
         }
       })
       return
@@ -102,8 +88,6 @@ export default function AuthPage() {
       if (oauthError) {
         setError(oauthError)
       }
-      // 네이티브: Browser가 열림 → appUrlOpen에서 처리 → AuthInitializer가 상태 변경 감지
-      // 웹: 페이지 리다이렉트 → 돌아오면 위 useEffect에서 처리
     } catch (e) {
       setLoading(false)
       setError(e instanceof Error ? e.message : '알 수 없는 오류가 발생했습니다.')

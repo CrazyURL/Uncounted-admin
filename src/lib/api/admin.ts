@@ -10,7 +10,12 @@ import { apiFetch } from './client'
  * 200 → admin, 403 → unauthorized, 401 → unauthenticated
  */
 export async function checkAdminMe() {
-  return apiFetch<{ user: { id: string; email: string } }>('/api/admin/me')
+  const result = await apiFetch<{ user: { id: string; email: string } }>('/api/admin/me')
+  // 백엔드가 { user: {...} } 직접 반환 시 data로 정규화
+  if (!result.data && !result.error && (result as any).user) {
+    return { ...result, data: { user: (result as any).user as { id: string; email: string } } }
+  }
+  return result
 }
 
 // ── Clients ─────────────────────────────────────────────────────────────

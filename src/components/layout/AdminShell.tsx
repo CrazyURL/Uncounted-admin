@@ -57,16 +57,21 @@ export default function AdminShell() {
     }
     // 로그인 됨 → 서버에서 admin 권한 확인
     setAdminState('checking')
-    checkAdminMe().then(({ error }) => {
-      setAdminState(error ? 'unauthorized' : 'authorized')
-    })
+    checkAdminMe()
+      .then(({ error }) => {
+        setAdminState(error ? 'unauthorized' : 'authorized')
+      })
+      .catch(() => {
+        setAdminState('unauthorized')
+      })
   }, [isReady, userId])
 
   const title = getTitle(location.pathname)
   const showBack = location.pathname.match(/^\/admin\/(datasets|users|jobs)\/.+/) !== null
 
   function handleGoogleLogin() {
-    signInWithGoogle(`${window.location.origin}/auth?next=/admin`)
+    sessionStorage.setItem('auth_next', location.pathname)
+    signInWithGoogle(`${window.location.origin}/auth`)
   }
 
   async function handleSignOut() {

@@ -201,31 +201,30 @@ export async function signInWithOAuth(
 
 /**
  * 프론트엔드에 도착한 ?code 파라미터를 백엔드 콜백 API로 전달
- * flow ID는 백엔드가 pkce_flow_id 쿠키에서 직접 읽음
- * 백엔드가 PKCE 코드 교환 후 httpOnly 쿠키를 설정하고 { success: true } 반환
+ * apiFetch를 사용해 응답을 복호화하고 session.access_token이 있으면 즉시 저장
  */
 export async function handleOAuthCallback(
   code: string,
 ): Promise<{ error: string | null }> {
-  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-  try {
-    const res = await fetch(
-      `${apiUrl}/api/auth/oauth/callback?code=${encodeURIComponent(code)}`,
-      { credentials: 'include' },
-    )
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}))
-      console.error('[handleOAuthCallback] backend error:', res.status, body)
-      return { error: (body as any).error ?? 'callback_failed' }
-    }
-    dispatchAuthEvent('SIGNED_IN', null)
-    return { error: null }
-  } catch (err) {
-    // CORS 차단 또는 네트워크 오류 시 여기로 진입
-    // 크로스사이트(onrender.com) 환경에서 SameSite=Lax 쿠키 차단 또는 CORS 미허용 가능성
-    console.error('[handleOAuthCallback] network/CORS error:', err)
-    return { error: 'network_error' }
+  const result = await apiFetch<{ session?: Session; success?: boolean }>(
+    `/api/auth/oauth/callback?code=${encodeURIComponent(code)}`,
+  )
+
+  if (result.error) {
+    console.error('[handleOAuthCallback] backend error:', result.error)
+    return { error: result.error }
   }
+
+  if (result.data?.session?.access_token) {
+    // 백엔드가 session(access_token 포함)을 반환하면 즉시 저장 → 이후 Bearer 헤더에 사용
+    setAuthToken(result.data.session.access_token)
+    dispatchAuthEvent('SIGNED_IN', result.data.session)
+  } else {
+    // 쿠키 기반 세션만 설정된 경우 fallback
+    dispatchAuthEvent('SIGNED_IN', null)
+  }
+
+  return { error: null }
 }
 
 /**
