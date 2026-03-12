@@ -72,71 +72,128 @@ export default function AdminSessionListPage() {
   // flat 탭 state
   const [sessions, setSessions] = useState<Session[]>([])
   const [totalSessions, setTotalSessions] = useState(0)
-  const [page, setPage] = useState(1)
+  const [sessionOffset, setSessionOffset] = useState(0)
+  const [sessionHasMore, setSessionHasMore] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
 
   // byUser 탭 state
   const [userGroups, setUserGroups] = useState<UserGroupSummary[]>([])
   const [totalUsers, setTotalUsers] = useState(0)
-  const [userPage, setUserPage] = useState(1)
+  const [userOffset, setUserOffset] = useState(0)
+  const [userHasMore, setUserHasMore] = useState(false)
+  const [userLoadingMore, setUserLoadingMore] = useState(false)
   const [userSortKey, setUserSortKey] = useState<'sessionCount' | 'totalDuration' | 'avgQaScore'>('sessionCount')
 
-  const currentPathRef = useRef(location.pathname)
+  const sessionOffsetRef = useRef(sessionOffset)
+  const userOffsetRef = useRef(userOffset)
+  sessionOffsetRef.current = sessionOffset
+  userOffsetRef.current = userOffset
 
-  // 경로 변경 감지
-  useEffect(() => {
-    currentPathRef.current = location.pathname
-  }, [location.pathname])
+  const isTargetRoute =
+    location.pathname === '/admin/calls' ||
+    location.pathname === '/admin/sessions'
 
-  // flat 탭 데이터 로딩
+  // flat 탭 초기 로드 (필터/정렬/탭 변경 시 목록 초기화)
   useEffect(() => {
-    const isTargetRoute =
-      location.pathname === '/admin/calls' ||
-      location.pathname === '/admin/sessions'
     if (!isTargetRoute || viewMode !== 'flat') return
 
     setLoading(true)
+    setSessions([])
+    setSessionOffset(0)
+    setSessionHasMore(false)
+
     fetchAdminSessionsApi({
       limit: PAGE_SIZE,
-      offset: (page - 1) * PAGE_SIZE,
+      offset: 0,
       ...filtersToQuery(filters),
       sortBy: sortKey,
       sortDir,
     }).then(({ data, count }) => {
-      setSessions(data ?? [])
+      const items = data ?? []
+      setSessions(items)
       setTotalSessions(count ?? 0)
+      setSessionHasMore(items.length < (count ?? 0))
+      setSessionOffset(items.length)
       setLoading(false)
     }).catch(err => {
       console.error('[AdminSessionList] fetchAdminSessionsApi failed:', err)
       setLoading(false)
     })
-  }, [location.pathname, filters, sortKey, sortDir, page, viewMode])
+  }, [filters, sortKey, sortDir, viewMode, location.pathname])
 
-  // byUser 탭 데이터 로딩
+  // byUser 탭 초기 로드
   useEffect(() => {
-    const isTargetRoute =
-      location.pathname === '/admin/calls' ||
-      location.pathname === '/admin/sessions'
     if (!isTargetRoute || viewMode !== 'byUser') return
 
     setLoading(true)
+    setUserGroups([])
+    setUserOffset(0)
+    setUserHasMore(false)
+
     fetchAdminUserStatsApi({
       limit: PAGE_SIZE,
-      offset: (userPage - 1) * PAGE_SIZE,
+      offset: 0,
       ...filtersToQuery(filters),
       sortBy: userSortKey,
       sortDir,
     }).then(({ data, count }) => {
-      setUserGroups(data ?? [])
+      const items = data ?? []
+      setUserGroups(items)
       setTotalUsers(count ?? 0)
+      setUserHasMore(items.length < (count ?? 0))
+      setUserOffset(items.length)
       setLoading(false)
     }).catch(err => {
       console.error('[AdminSessionList] fetchAdminUserStatsApi failed:', err)
       setLoading(false)
     })
-  }, [location.pathname, filters, sortDir, userPage, userSortKey, viewMode])
+  }, [filters, sortDir, userSortKey, viewMode, location.pathname])
 
-  const totalPages = Math.max(1, Math.ceil(totalSessions / PAGE_SIZE))
-  const totalUserPages = Math.max(1, Math.ceil(totalUsers / PAGE_SIZE))
+  // flat 탭 "더 보기"
+  async function loadMoreSessions() {
+    setLoadingMore(true)
+    try {
+      const { data, count } = await fetchAdminSessionsApi({
+        limit: PAGE_SIZE,
+        offset: sessionOffsetRef.current,
+        ...filtersToQuery(filters),
+        sortBy: sortKey,
+        sortDir,
+      })
+      const items = data ?? []
+      const nextOffset = sessionOffsetRef.current + items.length
+      setSessions(prev => [...prev, ...items])
+      setSessionOffset(nextOffset)
+      setTotalSessions(count ?? 0)
+      setSessionHasMore(nextOffset < (count ?? 0))
+    } catch (err) {
+      console.error('[AdminSessionList] loadMoreSessions failed:', err)
+    }
+    setLoadingMore(false)
+  }
+
+  // byUser 탭 "더 보기"
+  async function loadMoreUsers() {
+    setUserLoadingMore(true)
+    try {
+      const { data, count } = await fetchAdminUserStatsApi({
+        limit: PAGE_SIZE,
+        offset: userOffsetRef.current,
+        ...filtersToQuery(filters),
+        sortBy: userSortKey,
+        sortDir,
+      })
+      const items = data ?? []
+      const nextOffset = userOffsetRef.current + items.length
+      setUserGroups(prev => [...prev, ...items])
+      setUserOffset(nextOffset)
+      setTotalUsers(count ?? 0)
+      setUserHasMore(nextOffset < (count ?? 0))
+    } catch (err) {
+      console.error('[AdminSessionList] loadMoreUsers failed:', err)
+    }
+    setUserLoadingMore(false)
+  }
 
   const selectedSessions = useMemo(
     () => sessions.filter(s => selectedIds.has(s.id)),
@@ -144,8 +201,8 @@ export default function AdminSessionListPage() {
   )
 
   function updateFilters(next: DatasetFilterCriteria) {
-    setPage(1)
-    setUserPage(1)
+    setSessionOffset(0)
+    setUserOffset(0)
     setFilters(next)
   }
 
@@ -193,8 +250,7 @@ export default function AdminSessionListPage() {
         alert(`동기화 실패: ${error}`)
       } else {
         alert(`동기화 완료: ${data?.total ?? 0}개 WAV 파일 확인, ${data?.updated ?? 0}건 업데이트`)
-        // 현재 페이지 재로딩
-        setPage(p => p)
+        updateFilters({ ...filters })
       }
     } catch (err) {
       alert(`동기화 오류: ${err}`)
@@ -251,17 +307,11 @@ export default function AdminSessionListPage() {
     <div className="pb-24">
       {/* 총 건수 요약 */}
       <div className="px-4 py-3 flex items-center gap-3">
-        <div
-          className="rounded-lg p-2.5 text-center flex-1"
-          style={{ backgroundColor: '#1b1e2e' }}
-        >
+        <div className="rounded-lg p-2.5 text-center flex-1" style={{ backgroundColor: '#1b1e2e' }}>
           <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>전체 세션</p>
           <p className="text-sm font-bold text-white mt-0.5">{totalSessions.toLocaleString()}건</p>
         </div>
-        <div
-          className="rounded-lg p-2.5 text-center flex-1"
-          style={{ backgroundColor: '#1b1e2e' }}
-        >
+        <div className="rounded-lg p-2.5 text-center flex-1" style={{ backgroundColor: '#1b1e2e' }}>
           <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>전체 사용자</p>
           <p className="text-sm font-bold text-white mt-0.5">{totalUsers.toLocaleString()}명</p>
         </div>
@@ -299,18 +349,16 @@ export default function AdminSessionListPage() {
           <div className="flex items-center gap-2">
             <select
               value={sortKey}
-              onChange={e => { setSortKey(e.target.value as AdminSortKey); setPage(1) }}
+              onChange={e => setSortKey(e.target.value as AdminSortKey)}
               className="text-xs py-1 px-2 rounded-lg border outline-none bg-transparent text-white"
               style={{ borderColor: 'rgba(255,255,255,0.1)' }}
             >
               {SORT_OPTIONS.map(o => (
-                <option key={o.key} value={o.key} style={{ backgroundColor: '#1b1e2e' }}>
-                  {o.label}
-                </option>
+                <option key={o.key} value={o.key} style={{ backgroundColor: '#1b1e2e' }}>{o.label}</option>
               ))}
             </select>
             <button
-              onClick={() => { setSortDir(d => d === 'asc' ? 'desc' : 'asc'); setPage(1) }}
+              onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
               className="text-xs"
               style={{ color: 'rgba(255,255,255,0.5)' }}
             >
@@ -325,18 +373,16 @@ export default function AdminSessionListPage() {
           <div className="flex items-center gap-2">
             <select
               value={userSortKey}
-              onChange={e => { setUserSortKey(e.target.value as typeof userSortKey); setUserPage(1) }}
+              onChange={e => setUserSortKey(e.target.value as typeof userSortKey)}
               className="text-xs py-1 px-2 rounded-lg border outline-none bg-transparent text-white"
               style={{ borderColor: 'rgba(255,255,255,0.1)' }}
             >
               {USER_SORT_OPTIONS.map(o => (
-                <option key={o.key} value={o.key} style={{ backgroundColor: '#1b1e2e' }}>
-                  {o.label}
-                </option>
+                <option key={o.key} value={o.key} style={{ backgroundColor: '#1b1e2e' }}>{o.label}</option>
               ))}
             </select>
             <button
-              onClick={() => { setSortDir(d => d === 'asc' ? 'desc' : 'asc'); setUserPage(1) }}
+              onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
               className="text-xs"
               style={{ color: 'rgba(255,255,255,0.5)' }}
             >
@@ -433,10 +479,7 @@ export default function AdminSessionListPage() {
           onClick={handleSyncAudioUrls}
           disabled={syncing}
           className="px-2.5 py-1 rounded-lg text-xs font-medium transition-colors flex-shrink-0 disabled:opacity-50"
-          style={{
-            backgroundColor: 'rgba(255,255,255,0.06)',
-            color: 'rgba(255,255,255,0.4)',
-          }}
+          style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.4)' }}
         >
           {syncing ? '동기화중...' : '스토리지동기화'}
         </button>
@@ -469,7 +512,7 @@ export default function AdminSessionListPage() {
               전체 선택
             </button>
             <span className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
-              {sessions.length}건 표시
+              {sessions.length.toLocaleString()}건 표시 중
             </span>
           </div>
 
@@ -487,29 +530,26 @@ export default function AdminSessionListPage() {
 
           {sessions.length === 0 && (
             <div className="flex flex-col items-center py-12">
-              <span className="material-symbols-outlined text-3xl mb-2" style={{ color: 'rgba(255,255,255,0.15)' }}>
-                search_off
-              </span>
-              <p className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>
-                필터 조건에 맞는 세션이 없습니다
-              </p>
+              <span className="material-symbols-outlined text-3xl mb-2" style={{ color: 'rgba(255,255,255,0.15)' }}>search_off</span>
+              <p className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>필터 조건에 맞는 세션이 없습니다</p>
             </div>
           )}
 
-          {/* 페이지네이션 */}
-          {totalPages > 1 && (
-            <Pagination page={page} totalPages={totalPages} total={totalSessions} onPage={setPage} />
-          )}
+          {/* 더 보기 */}
+          <LoadMoreBar
+            shown={sessions.length}
+            total={totalSessions}
+            hasMore={sessionHasMore}
+            loading={loadingMore}
+            onLoadMore={loadMoreSessions}
+          />
         </>
       )}
 
       {/* ── 사용자별 뷰 ── */}
       {viewMode === 'byUser' && (
         <>
-          <div
-            className="px-4 py-2 border-b"
-            style={{ borderColor: 'rgba(255,255,255,0.06)' }}
-          >
+          <div className="px-4 py-2 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
             <span className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
               {totalUsers.toLocaleString()}명의 사용자
             </span>
@@ -527,19 +567,19 @@ export default function AdminSessionListPage() {
 
           {userGroups.length === 0 && (
             <div className="flex flex-col items-center py-12">
-              <span className="material-symbols-outlined text-3xl mb-2" style={{ color: 'rgba(255,255,255,0.15)' }}>
-                search_off
-              </span>
-              <p className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>
-                필터 조건에 맞는 사용자가 없습니다
-              </p>
+              <span className="material-symbols-outlined text-3xl mb-2" style={{ color: 'rgba(255,255,255,0.15)' }}>search_off</span>
+              <p className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>필터 조건에 맞는 사용자가 없습니다</p>
             </div>
           )}
 
-          {/* 페이지네이션 */}
-          {totalUserPages > 1 && (
-            <Pagination page={userPage} totalPages={totalUserPages} total={totalUsers} onPage={setUserPage} />
-          )}
+          {/* 더 보기 */}
+          <LoadMoreBar
+            shown={userGroups.length}
+            total={totalUsers}
+            hasMore={userHasMore}
+            loading={userLoadingMore}
+            onLoadMore={loadMoreUsers}
+          />
         </>
       )}
 
@@ -553,9 +593,7 @@ export default function AdminSessionListPage() {
             paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))',
           }}
         >
-          <span className="text-sm text-white font-medium">
-            {selectedIds.size}건 선택됨
-          </span>
+          <span className="text-sm text-white font-medium">{selectedIds.size}건 선택됨</span>
           <button
             onClick={() => setShowCreate(true)}
             className="px-4 py-2.5 rounded-xl text-sm font-semibold text-white flex items-center gap-1.5"
@@ -592,43 +630,40 @@ export default function AdminSessionListPage() {
   )
 }
 
-// ── 페이지네이션 컨트롤 ──────────────────────────────────────────────────────
+// ── 더 보기 바 ────────────────────────────────────────────────────────────────
 
-function Pagination({
-  page,
-  totalPages,
+function LoadMoreBar({
+  shown,
   total,
-  onPage,
+  hasMore,
+  loading,
+  onLoadMore,
 }: {
-  page: number
-  totalPages: number
+  shown: number
   total: number
-  onPage: (p: number) => void
+  hasMore: boolean
+  loading: boolean
+  onLoadMore: () => void
 }) {
   return (
-    <div className="flex items-center justify-center gap-3 px-4 py-4">
-      <button
-        onClick={() => onPage(page - 1)}
-        disabled={page <= 1}
-        className="p-1.5 rounded-lg disabled:opacity-30"
-        style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.6)' }}
-      >
-        <span className="material-symbols-outlined text-base">chevron_left</span>
-      </button>
-      <span className="text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>
-        {page} / {totalPages}페이지
-        <span className="ml-2" style={{ color: 'rgba(255,255,255,0.3)' }}>
-          (총 {total.toLocaleString()}건)
-        </span>
+    <div className="flex items-center justify-between px-4 py-3">
+      <span className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>
+        {shown.toLocaleString()}건 표시 중 / 총 {total.toLocaleString()}건
       </span>
-      <button
-        onClick={() => onPage(page + 1)}
-        disabled={page >= totalPages}
-        className="p-1.5 rounded-lg disabled:opacity-30"
-        style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.6)' }}
-      >
-        <span className="material-symbols-outlined text-base">chevron_right</span>
-      </button>
+      {hasMore && (
+        <button
+          onClick={onLoadMore}
+          disabled={loading}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+          style={{ backgroundColor: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)' }}
+        >
+          {loading
+            ? <span className="w-3.5 h-3.5 border border-t-transparent rounded-full animate-spin" style={{ borderColor: 'rgba(255,255,255,0.5)', borderTopColor: 'transparent' }} />
+            : <span className="material-symbols-outlined text-sm">expand_more</span>
+          }
+          더 보기
+        </button>
+      )}
     </div>
   )
 }
@@ -644,22 +679,10 @@ function UserGroupCard({ group, onClick }: { group: UserGroupSummary; onClick: (
     >
       <div className="flex items-center justify-between mb-2.5">
         <div className="flex items-center gap-2 min-w-0">
-          <span
-            className="material-symbols-outlined text-lg"
-            style={{ color: 'rgba(255,255,255,0.3)' }}
-          >
-            person
-          </span>
-          <p className="text-sm font-medium text-white truncate">
-            {group.displayId}
-          </p>
+          <span className="material-symbols-outlined text-lg" style={{ color: 'rgba(255,255,255,0.3)' }}>person</span>
+          <p className="text-sm font-medium text-white truncate">{group.displayId}</p>
         </div>
-        <span
-          className="material-symbols-outlined text-base"
-          style={{ color: 'rgba(255,255,255,0.3)' }}
-        >
-          chevron_right
-        </span>
+        <span className="material-symbols-outlined text-base" style={{ color: 'rgba(255,255,255,0.3)' }}>chevron_right</span>
       </div>
 
       <div className="grid grid-cols-4 gap-2">
