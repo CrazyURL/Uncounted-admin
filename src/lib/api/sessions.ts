@@ -115,6 +115,17 @@ export async function deleteSessions(sessionIds: string[]) {
 }
 
 /**
+ * PATCH /api/sessions/:id/diarization
+ * 화자분리 상태 업데이트
+ */
+export async function updateDiarizationStatus(sessionId: string, hasDiarization: boolean) {
+  return apiFetch<{ success: boolean }>(`/api/sessions/${sessionId}/diarization`, {
+    method: 'PATCH',
+    body: JSON.stringify({ hasDiarization }),
+  })
+}
+
+/**
  * GET /api/admin/sessions
  * 전체 세션 조회 (어드민 전용, user_id 필터 없음)
  */

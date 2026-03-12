@@ -35,6 +35,9 @@ const DEFAULT_FILTERS: DatasetFilterCriteria = {
   labelStatus: 'all',
   publicStatus: 'all',
   piiCleanedOnly: false,
+  hasAudioUrl: false,
+  diarizationStatus: 'all',
+  transcriptStatus: 'all',
   dateRange: null,
   uploadStatuses: [],
 }
@@ -58,6 +61,8 @@ export default function AdminSessionListPage() {
   const [showFilters, setShowFilters] = useState(false)
   const [viewMode, setViewMode] = useState<ViewMode>('flat')
   const [resetting, setResetting] = useState(false)
+  const [syncing, setSyncing] = useState(false)
+  const [transcriptIds, setTranscriptIds] = useState<Set<string> | null>(null)
   const hasLoadedRef = useRef(false)
   const currentPathRef = useRef(location.pathname)
 
@@ -88,8 +93,8 @@ export default function AdminSessionListPage() {
   }, [location.pathname])
 
   const filtered = useMemo(
-    () => applyAdminFilters(allSessions, filters),
-    [allSessions, filters],
+    () => applyAdminFilters(allSessions, filters, transcriptIds ?? undefined),
+    [allSessions, filters, transcriptIds],
   )
 
   const sorted = useMemo(
@@ -143,6 +148,36 @@ export default function AdminSessionListPage() {
         ? f.qualityGrades.filter(x => x !== g)
         : [...f.qualityGrades, g],
     }))
+  }
+
+  async function handleSyncAudioUrls() {
+    setSyncing(true)
+    try {
+      const { syncAudioUrlsApi } = await import('../../lib/api/admin')
+      const { data, error } = await syncAudioUrlsApi()
+      if (error) {
+        alert(`동기화 실패: ${error}`)
+      } else {
+        alert(`동기화 완료: ${data?.total ?? 0}개 WAV 파일 확인, ${data?.updated ?? 0}건 업데이트`)
+        invalidateSessionCache()
+        const sessions = await loadAllSessions({ skipUserFilter: true })
+        setAllSessions(sessions)
+      }
+    } catch (err) {
+      alert(`동기화 오류: ${err}`)
+    }
+    setSyncing(false)
+  }
+
+  async function loadTranscriptIds() {
+    if (transcriptIds) return
+    try {
+      const { fetchTranscriptIdsApi } = await import('../../lib/api/admin')
+      const { data } = await fetchTranscriptIdsApi()
+      setTranscriptIds(new Set(data ?? []))
+    } catch (err) {
+      console.error('[AdminSessionList] loadTranscriptIds failed:', err)
+    }
   }
 
   async function handleResetAll() {
@@ -308,6 +343,77 @@ export default function AdminSessionListPage() {
         />
       )}
 
+      {/* 퀵 필터 바 */}
+      <div className="flex items-center gap-1.5 px-4 py-2 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+        {(['A', 'B', 'C'] as const).map(g => {
+          const active = filters.qualityGrades.includes(g)
+          return (
+            <button
+              key={g}
+              onClick={() => toggleGrade(g)}
+              className="px-2.5 py-1 rounded-lg text-xs font-bold transition-colors flex-shrink-0"
+              style={{
+                backgroundColor: active ? `${GRADE_COLORS[g]}20` : 'rgba(255,255,255,0.06)',
+                color: active ? GRADE_COLORS[g] : 'rgba(255,255,255,0.4)',
+              }}
+            >
+              {g}
+            </button>
+          )
+        })}
+        <span className="w-px h-4 flex-shrink-0" style={{ backgroundColor: 'rgba(255,255,255,0.1)' }} />
+        <button
+          onClick={() => setFilters(f => ({ ...f, hasAudioUrl: !f.hasAudioUrl }))}
+          className="px-2.5 py-1 rounded-lg text-xs font-medium transition-colors flex-shrink-0"
+          style={{
+            backgroundColor: filters.hasAudioUrl ? 'rgba(96,165,250,0.15)' : 'rgba(255,255,255,0.06)',
+            color: filters.hasAudioUrl ? '#60a5fa' : 'rgba(255,255,255,0.4)',
+          }}
+        >
+          비식별화완료
+        </button>
+        <button
+          onClick={() => setFilters(f => ({
+            ...f,
+            diarizationStatus: f.diarizationStatus === 'done' ? 'all' : 'done',
+          }))}
+          className="px-2.5 py-1 rounded-lg text-xs font-medium transition-colors flex-shrink-0"
+          style={{
+            backgroundColor: filters.diarizationStatus === 'done' ? 'rgba(167,139,250,0.15)' : 'rgba(255,255,255,0.06)',
+            color: filters.diarizationStatus === 'done' ? '#a78bfa' : 'rgba(255,255,255,0.4)',
+          }}
+        >
+          화자분리완료
+        </button>
+        <button
+          onClick={() => {
+            loadTranscriptIds()
+            setFilters(f => ({
+              ...f,
+              transcriptStatus: f.transcriptStatus === 'done' ? 'all' : 'done',
+            }))
+          }}
+          className="px-2.5 py-1 rounded-lg text-xs font-medium transition-colors flex-shrink-0"
+          style={{
+            backgroundColor: filters.transcriptStatus === 'done' ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.06)',
+            color: filters.transcriptStatus === 'done' ? '#22c55e' : 'rgba(255,255,255,0.4)',
+          }}
+        >
+          자막있음
+        </button>
+        <button
+          onClick={handleSyncAudioUrls}
+          disabled={syncing}
+          className="px-2.5 py-1 rounded-lg text-xs font-medium transition-colors flex-shrink-0 disabled:opacity-50"
+          style={{
+            backgroundColor: 'rgba(255,255,255,0.06)',
+            color: 'rgba(255,255,255,0.4)',
+          }}
+        >
+          {syncing ? '동기화중...' : '스토리지동기화'}
+        </button>
+      </div>
+
       {/* ── flat 뷰 ── */}
       {viewMode === 'flat' && (
         <>
@@ -347,6 +453,7 @@ export default function AdminSessionListPage() {
                 session={session}
                 selected={selectedIds.has(session.id)}
                 onToggle={toggleSelect}
+                hasTranscript={transcriptIds?.has(session.id)}
               />
             ))}
           </motion.div>

@@ -54,6 +54,7 @@ export type Session = {
   visibilityChangedAt: string | null           // 변경 날짜 day bucket 'YYYY-MM-DD'
   status: SessionStatus
   isPiiCleaned: boolean          // 개인정보 비식별화 완료 여부
+  hasDiarization?: boolean       // 화자분리 완료 여부 (Supabase has_diarization)
   chunkCount: number             // 생성된 1분 청크 수
   audioUrl?: string              // 정제된 오디오 재생 URL (Supabase Storage)
   callRecordId?: string          // 원본 통화 파일 ID

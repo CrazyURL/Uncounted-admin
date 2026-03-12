@@ -47,6 +47,9 @@ export type DatasetFilterCriteria = {
   labelStatus: 'all' | 'labeled' | 'unlabeled'
   publicStatus: 'all' | 'public' | 'private'
   piiCleanedOnly: boolean
+  hasAudioUrl: boolean               // Supabase storage WAV 있는 것만
+  diarizationStatus: 'all' | 'done' | 'none'
+  transcriptStatus: 'all' | 'done' | 'none'
   dateRange: { from: string; to: string } | null
   uploadStatuses: UploadStatus[]     // LOCAL/UPLOADED/FAILED
 }

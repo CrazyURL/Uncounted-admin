@@ -1,5 +1,6 @@
+import { useState } from 'react'
 import { type Session } from '../../types/session'
-import { qualityGradeFromScore, isSessionPublic, LABEL_FIELDS, countFilledLabelFields } from '../../lib/adminHelpers'
+import { qualityGradeFromScore, isSessionPublic, LABEL_FIELDS, countFilledLabelFields, downloadWavFromStorage } from '../../lib/adminHelpers'
 import { formatDuration } from '../../lib/earnings'
 import { maskSessionTitle } from '../../lib/displayMask'
 
@@ -7,6 +8,7 @@ type Props = {
   session: Session
   selected: boolean
   onToggle: (id: string) => void
+  hasTranscript?: boolean
 }
 
 const GRADE_COLORS: Record<string, string> = {
@@ -15,11 +17,21 @@ const GRADE_COLORS: Record<string, string> = {
   C: '#ef4444',
 }
 
-export default function AdminSessionRow({ session, selected, onToggle }: Props) {
+export default function AdminSessionRow({ session, selected, onToggle, hasTranscript }: Props) {
   const grade = qualityGradeFromScore(session.qaScore ?? 0)
   const gradeColor = GRADE_COLORS[grade]
   const filledCount = countFilledLabelFields(session.labels)
   const isPublic = isSessionPublic(session)
+  const [downloading, setDownloading] = useState(false)
+
+  async function handleWavDownload(e: React.MouseEvent) {
+    e.stopPropagation()
+    if (!session.audioUrl || downloading) return
+    setDownloading(true)
+    const { error } = await downloadWavFromStorage(session.audioUrl, session.id)
+    if (error) alert(`다운로드 실패: ${error}`)
+    setDownloading(false)
+  }
 
   return (
     <button
@@ -81,6 +93,45 @@ export default function AdminSessionRow({ session, selected, onToggle }: Props) 
             />
           ))}
         </div>
+        {session.audioUrl && (
+          <span
+            className="material-symbols-outlined text-base"
+            style={{ color: '#60a5fa' }}
+            title="비식별화 완료 (WAV 업로드됨)"
+          >
+            shield
+          </span>
+        )}
+        {session.hasDiarization && (
+          <span
+            className="material-symbols-outlined text-base"
+            style={{ color: '#a78bfa' }}
+            title="화자분리 완료"
+          >
+            record_voice_over
+          </span>
+        )}
+        {hasTranscript && (
+          <span
+            className="material-symbols-outlined text-base"
+            style={{ color: '#22c55e' }}
+            title="STT 자막 있음"
+          >
+            subtitles
+          </span>
+        )}
+        {session.audioUrl && (
+          <button
+            onClick={handleWavDownload}
+            title="WAV 다운로드"
+            className="flex items-center justify-center w-6 h-6 rounded"
+            style={{ color: downloading ? 'rgba(255,255,255,0.2)' : '#a78bfa' }}
+          >
+            <span className="material-symbols-outlined text-base">
+              {downloading ? 'hourglass_empty' : 'download'}
+            </span>
+          </button>
+        )}
         {session.isPiiCleaned && (
           <span
             className="material-symbols-outlined text-base"
