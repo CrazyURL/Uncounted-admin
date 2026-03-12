@@ -17,6 +17,9 @@ const DEFAULT_FILTERS: DatasetFilterCriteria = {
   labelStatus: 'all',
   publicStatus: 'all',
   piiCleanedOnly: false,
+  hasAudioUrl: false,
+  diarizationStatus: 'all',
+  transcriptStatus: 'all',
   dateRange: null,
   uploadStatuses: [],
 }

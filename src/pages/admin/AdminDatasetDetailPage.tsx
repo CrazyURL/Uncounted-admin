@@ -18,6 +18,8 @@ import {
   exportAsCsv,
   downloadBlob,
   exportSanitizedWavs,
+  exportTranscriptJsonl,
+  exportWavWithTranscript,
   type WavExportProgress,
 } from '../../lib/adminHelpers'
 import { formatDuration } from '../../lib/earnings'
@@ -118,7 +120,7 @@ export default function AdminDatasetDetailPage() {
     setEditing(false)
   }
 
-  function handleExport(type: 'json' | 'jsonl' | 'csv' | 'audio' | 'wav', fieldSelection: ExportFieldSelection) {
+  async function handleExport(type: string, fieldSelection: ExportFieldSelection) {
     if (!dataset) return
     const name = dataset.name
     switch (type) {
@@ -137,6 +139,28 @@ export default function AdminDatasetDetailPage() {
       case 'wav':
         handleWavExport()
         break
+      case 'transcript': {
+        const { jsonl, count, error } = await exportTranscriptJsonl(datasetSessions)
+        if (error) {
+          showToast({ message: `자막 내보내기 오류: ${error}` })
+        } else if (count === 0) {
+          showToast({ message: '자막이 있는 세션이 없습니다' })
+        } else {
+          downloadBlob(jsonl, `${name}_transcript.jsonl`, 'application/x-ndjson')
+          showToast({ message: `${count}건 자막 내보내기 완료` })
+        }
+        break
+      }
+      case 'wav+transcript': {
+        const cancelRef = { current: false }
+        const result = await exportWavWithTranscript(
+          datasetSessions,
+          (done, total) => console.log(`[wav+transcript] ${done}/${total}`),
+          cancelRef,
+        )
+        showToast({ message: `WAV+자막 ZIP: ${result.processed}건 처리 (음성없음: ${result.noAudio}, 자막없음: ${result.noTranscript})` })
+        break
+      }
     }
     setShowExport(false)
   }

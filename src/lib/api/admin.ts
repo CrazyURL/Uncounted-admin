@@ -252,6 +252,52 @@ export async function insertDeliveryRecordsApi(
   })
 }
 
+// ── Admin Storage ───────────────────────────────────────────────────────
+
+export type StorageWavEntry = {
+  userId: string
+  sessionId: string
+  path: string
+}
+
+/** 전체 유저 WAV 목록 조회 (어드민 전용) */
+export async function listStorageWavsApi() {
+  return apiFetch<StorageWavEntry[]>('/api/admin/storage/wavs')
+}
+
+/** Admin signed URL 생성 (RLS 우회) */
+export async function getAdminSignedUrlApi(storagePath: string, expiresIn = 300) {
+  return apiFetch<{ signedUrl: string }>('/api/admin/storage/signed-url', {
+    method: 'POST',
+    body: JSON.stringify({ storagePath, expiresIn }),
+  })
+}
+
+/** storage WAV → sessions.audio_url 동기화 */
+export async function syncAudioUrlsApi() {
+  return apiFetch<{ updated: number; total: number }>('/api/admin/sync-audio-urls', {
+    method: 'POST',
+  })
+}
+
+// ── Admin Transcripts ───────────────────────────────────────────────────
+
+/** transcript 있는 session_id 목록 반환 */
+export async function fetchTranscriptIdsApi() {
+  return apiFetch<string[]>('/api/admin/transcript-ids')
+}
+
+/** 세션별 transcript 일괄 조회 */
+export async function bulkFetchTranscriptsApi(sessionIds: string[]) {
+  return apiFetch<{ sessionId: string; text: string; words?: unknown[]; summary?: string; source?: string }[]>(
+    '/api/admin/transcripts/bulk',
+    {
+      method: 'POST',
+      body: JSON.stringify({ sessionIds }),
+    },
+  )
+}
+
 // ── Reset All ───────────────────────────────────────────────────────────
 
 export async function resetAllApi() {

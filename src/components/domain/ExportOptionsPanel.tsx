@@ -3,7 +3,7 @@ import { type ExportFieldSelection, type ExportFieldGroup } from '../../types/da
 import { type SkuId, SKU_CATALOG } from '../../types/sku'
 import { EXPORT_FIELD_CATALOG, FIELD_GROUP_LABELS, SKU_FIELD_PRESETS, resolveExportFields } from '../../lib/exportFields'
 
-type ExportFormat = 'json' | 'jsonl' | 'csv' | 'audio' | 'wav'
+type ExportFormat = 'json' | 'jsonl' | 'csv' | 'audio' | 'wav' | 'transcript' | 'wav+transcript'
 
 type Props = {
   isOpen: boolean
@@ -18,6 +18,8 @@ const FORMAT_OPTIONS: { key: ExportFormat; label: string; icon: string }[] = [
   { key: 'csv', label: 'CSV', icon: 'table_chart' },
   { key: 'audio', label: '오디오', icon: 'audio_file' },
   { key: 'wav', label: 'WAV', icon: 'music_note' },
+  { key: 'transcript', label: 'STT 자막', icon: 'subtitles' },
+  { key: 'wav+transcript', label: 'WAV+자막', icon: 'movie' },
 ]
 
 const MVP_SKUS = SKU_CATALOG.filter(s => s.isAvailableMvp && SKU_FIELD_PRESETS[s.id])
