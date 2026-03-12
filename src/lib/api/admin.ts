@@ -298,6 +298,65 @@ export async function bulkFetchTranscriptsApi(sessionIds: string[]) {
   )
 }
 
+// ── Admin Sessions (필터 + 페이징) ──────────────────────────────────────
+
+import { type Session } from '../../types/session'
+import { type UserGroupSummary } from '../adminHelpers'
+
+export type AdminSessionsQuery = {
+  limit?: number
+  offset?: number
+  domains?: string[]
+  qualityGrades?: string[]
+  labelStatus?: 'labeled' | 'unlabeled'
+  publicStatus?: 'public' | 'private'
+  piiCleanedOnly?: boolean
+  hasAudioUrl?: boolean
+  diarizationStatus?: 'done' | 'none'
+  transcriptStatus?: 'done' | 'none'
+  uploadStatuses?: string[]
+  dateFrom?: string
+  dateTo?: string
+  sortBy?: 'date' | 'qaScore' | 'duration'
+  sortDir?: 'asc' | 'desc'
+}
+
+export type AdminUsersStatsQuery = Omit<AdminSessionsQuery, 'sortBy'> & {
+  sortBy?: 'sessionCount' | 'totalDuration' | 'avgQaScore'
+}
+
+function buildAdminSessionParams(query: AdminSessionsQuery | AdminUsersStatsQuery): URLSearchParams {
+  const params = new URLSearchParams()
+  if (query.limit != null) params.set('limit', String(query.limit))
+  if (query.offset != null) params.set('offset', String(query.offset))
+  if (query.domains?.length) query.domains.forEach(d => params.append('domains', d))
+  if (query.qualityGrades?.length) query.qualityGrades.forEach(g => params.append('qualityGrades', g))
+  if (query.labelStatus) params.set('labelStatus', query.labelStatus)
+  if (query.publicStatus) params.set('publicStatus', query.publicStatus)
+  if (query.piiCleanedOnly) params.set('piiCleanedOnly', 'true')
+  if (query.hasAudioUrl) params.set('hasAudioUrl', 'true')
+  if (query.diarizationStatus) params.set('diarizationStatus', query.diarizationStatus)
+  if (query.transcriptStatus) params.set('transcriptStatus', query.transcriptStatus)
+  if (query.uploadStatuses?.length) query.uploadStatuses.forEach(s => params.append('uploadStatuses', s))
+  if (query.dateFrom) params.set('dateFrom', query.dateFrom)
+  if (query.dateTo) params.set('dateTo', query.dateTo)
+  if (query.sortBy) params.set('sortBy', query.sortBy)
+  if (query.sortDir) params.set('sortDir', query.sortDir)
+  return params
+}
+
+/** GET /api/admin/sessions — 필터·정렬·페이징 지원 (flat 탭용) */
+export async function fetchAdminSessionsApi(query: AdminSessionsQuery = {}) {
+  const params = buildAdminSessionParams(query)
+  return apiFetch<Session[]>(`/api/admin/sessions?${params}`)
+}
+
+/** GET /api/admin/users/stats — 사용자별 집계 + 페이징 (byUser 탭용) */
+export async function fetchAdminUserStatsApi(query: AdminUsersStatsQuery = {}) {
+  const params = buildAdminSessionParams(query)
+  return apiFetch<UserGroupSummary[]>(`/api/admin/users/stats?${params}`)
+}
+
 // ── Reset All ───────────────────────────────────────────────────────────
 
 export async function resetAllApi() {

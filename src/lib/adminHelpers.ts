@@ -13,6 +13,25 @@ import { calcQualityGrade } from './valueEngine'
 // ── 품질 등급 (통합: valueEngine.calcQualityGrade 사용) ──
 export const qualityGradeFromScore = calcQualityGrade
 
+// ── 필터 → 쿼리 파라미터 변환 ──────────────────────────────────────────────
+import { type AdminSessionsQuery } from './api/admin'
+
+export function filtersToQuery(f: DatasetFilterCriteria): Partial<AdminSessionsQuery> {
+  return {
+    domains: f.domains.length ? f.domains : undefined,
+    qualityGrades: f.qualityGrades.length ? f.qualityGrades : undefined,
+    labelStatus: f.labelStatus !== 'all' ? f.labelStatus : undefined,
+    publicStatus: f.publicStatus !== 'all' ? f.publicStatus : undefined,
+    piiCleanedOnly: f.piiCleanedOnly || undefined,
+    hasAudioUrl: f.hasAudioUrl || undefined,
+    diarizationStatus: f.diarizationStatus !== 'all' ? f.diarizationStatus : undefined,
+    transcriptStatus: f.transcriptStatus !== 'all' ? f.transcriptStatus : undefined,
+    uploadStatuses: f.uploadStatuses.length ? f.uploadStatuses : undefined,
+    dateFrom: f.dateRange?.from,
+    dateTo: f.dateRange?.to,
+  }
+}
+
 // ── 라벨 필드 분석 ──
 
 export const LABEL_FIELDS: { key: LabelFieldKey; labelKo: string; options: readonly string[] }[] = [
