@@ -179,10 +179,15 @@ export default function AdminDatasetDetailPage() {
       if (wavCancelledRef.current) {
         showToast({ message: 'WAV 추출이 취소되었습니다', icon: 'cancel' })
       } else if (r.processed > 0) {
-        const extra = r.failed > 0 ? ` · ${r.failed}건 실패` : ''
+        const parts = []
+        if (r.failed > 0) parts.push(`${r.failed}건 실패`)
+        if (r.notUploaded > 0) parts.push(`${r.notUploaded}건 Storage 미업로드`)
+        const extra = parts.length > 0 ? ` · ${parts.join(' · ')}` : ''
         showToast({ message: `${r.processed}건 저장 완료 (Download/uncounted_wav)${extra}`, icon: 'check_circle' })
+      } else if (r.notUploaded > 0 && r.eligible === 0) {
+        showToast({ message: `${r.notUploaded}건 모두 Storage 미업로드 세션입니다. 모바일 앱에서 업로드 후 다시 시도해주세요.`, icon: 'warning', duration: 6000 })
       } else if (r.eligible === 0) {
-        showToast({ message: `오디오 경로 없음 (callRecordId·audioUrl 모두 없는 세션 ${r.noAudio}건)`, icon: 'warning', duration: 5000 })
+        showToast({ message: `오디오 경로 없음 (audioUrl 없는 세션 ${r.noAudio}건)`, icon: 'warning', duration: 5000 })
       } else {
         showToast({ message: `${r.eligible}건 모두 실패: ${r.firstError ?? '알 수 없는 오류'}`, icon: 'error', duration: 5000 })
       }

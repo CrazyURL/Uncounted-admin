@@ -636,6 +636,7 @@ export type WavExportResult = {
   processed: number
   failed: number
   noAudio: number
+  notUploaded: number
   firstError: string | null
 }
 
@@ -644,9 +645,10 @@ export async function exportSanitizedWavs(
   onProgress: (p: WavExportProgress) => void,
   cancelled: { current: boolean },
 ): Promise<WavExportResult> {
-  // callRecordId 또는 audioUrl 있는 세션만 처리 대상
-  const eligible = sessions.filter(s => s.callRecordId || s.audioUrl)
-  const noAudio = sessions.length - eligible.length
+  // audioUrl 있는 세션만 처리 대상 (callRecordId는 모바일 로컬 파일 — 웹에서 접근 불가)
+  const eligible = sessions.filter(s => s.audioUrl)
+  const notUploaded = sessions.filter(s => s.callRecordId && !s.audioUrl).length
+  const noAudio = sessions.length - eligible.length - notUploaded
   const total = eligible.length
   let processed = 0
   let failed = 0
@@ -698,7 +700,7 @@ export async function exportSanitizedWavs(
     }
   }
 
-  return { eligible: total, processed, failed, noAudio, firstError }
+  return { eligible: total, processed, failed, noAudio, notUploaded, firstError }
 }
 
 async function saveWavToDevice(wav: ArrayBuffer, filename: string): Promise<void> {
