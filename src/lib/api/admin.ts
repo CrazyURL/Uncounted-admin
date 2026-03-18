@@ -273,6 +273,30 @@ export async function listStorageWavsApi() {
   return apiFetch<StorageWavEntry[]>('/api/admin/storage/wavs')
 }
 
+// ── Session Chunks ───────────────────────────────────────────────────────
+
+export type ChunkSignedUrlEntry = {
+  sessionId: string
+  minuteIndex: number
+  storagePath: string
+  signedUrl: string
+  durationSeconds: number
+}
+
+/**
+ * session_chunks 테이블의 청크 목록을 조회하고 각 storage_path의 Signed URL을 일괄 반환
+ * 백엔드: POST /api/admin/session-chunks/batch-signed-urls
+ */
+export async function fetchChunkSignedUrlsApi(sessionIds: string[]) {
+  return apiFetch<ChunkSignedUrlEntry[]>(
+    '/api/admin/session-chunks/batch-signed-urls',
+    {
+      method: 'POST',
+      body: JSON.stringify({ sessionIds }),
+    },
+  )
+}
+
 /** Admin signed URL 생성 (RLS 우회) */
 export async function getAdminSignedUrlApi(storagePath: string, expiresIn = 300) {
   return apiFetch<{ signedUrl: string }>('/api/admin/storage/signed-url', {

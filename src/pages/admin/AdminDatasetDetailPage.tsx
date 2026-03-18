@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { type Session } from '../../types/session'
 import { type Dataset, type DatasetStatus, type ExportFieldSelection } from '../../types/dataset'
-import { loadAllSessions, invalidateSessionCache, saveAllSessions } from '../../lib/sessionMapper'
+import { loadAllSessions, invalidateSessionCache } from '../../lib/sessionMapper'
 import { maskSessionTitle } from '../../lib/displayMask'
 import { getDatasetById, saveDataset, deleteDataset } from '../../lib/datasetStore'
 import {
@@ -17,10 +17,9 @@ import {
   exportAudioManifest,
   exportAsCsv,
   downloadBlob,
-  exportSanitizedWavs,
+  exportChunksAsZip,
   exportTranscriptJsonl,
-  exportWavWithTranscript,
-  type WavExportProgress,
+  type ChunkZipProgress,
 } from '../../lib/adminHelpers'
 import { formatDuration } from '../../lib/earnings'
 import { useToast } from '../../lib/toastContext'
@@ -49,7 +48,7 @@ export default function AdminDatasetDetailPage() {
   const [editName, setEditName] = useState('')
   const [editDesc, setEditDesc] = useState('')
   const [showExport, setShowExport] = useState(false)
-  const [wavProgress, setWavProgress] = useState<WavExportProgress | null>(null)
+  const [wavProgress, setWavProgress] = useState<ChunkZipProgress | null>(null)
   const wavCancelledRef = useState(() => ({ current: false }))[0]
 
   useEffect(() => {
@@ -152,13 +151,24 @@ export default function AdminDatasetDetailPage() {
         break
       }
       case 'wav+transcript': {
-        const cancelRef = { current: false }
-        const result = await exportWavWithTranscript(
-          datasetSessions,
-          (done, total) => console.log(`[wav+transcript] ${done}/${total}`),
-          cancelRef,
-        )
-        showToast({ message: `WAV+자막 ZIP: ${result.processed}건 처리 (음성없음: ${result.noAudio}, 자막없음: ${result.noTranscript})` })
+        wavCancelledRef.current = false
+        setWavProgress({ phase: 'starting', done: 0, total: 0 })
+        try {
+          const r = await exportChunksAsZip(datasetSessions, setWavProgress, wavCancelledRef, true)
+          if (wavCancelledRef.current) {
+            showToast({ message: 'ZIP 생성이 취소되었습니다', icon: 'cancel' })
+          } else if (r.processed > 0) {
+            const parts = []
+            if (r.failed > 0) parts.push(`${r.failed}건 실패`)
+            if (r.noChunks > 0) parts.push(`청크없음 ${r.noChunks}건`)
+            showToast({ message: `WAV+자막 ZIP: ${r.processed}개 청크 완료${parts.length ? ' · ' + parts.join(' · ') : ''}`, icon: 'check_circle' })
+          } else {
+            showToast({ message: `처리 가능한 청크가 없습니다 (청크없음: ${r.noChunks}건)`, icon: 'warning', duration: 5000 })
+          }
+        } catch (err) {
+          showToast({ message: `ZIP 생성 오류: ${err instanceof Error ? err.message : String(err)}`, icon: 'error', duration: 5000 })
+        }
+        setWavProgress(null)
         break
       }
     }
@@ -167,32 +177,22 @@ export default function AdminDatasetDetailPage() {
 
   async function handleWavExport() {
     wavCancelledRef.current = false
-    setWavProgress({ done: 0, total: datasetSessions.length, phase: 'starting', currentSessionId: null })
+    setWavProgress({ phase: 'starting', done: 0, total: 0 })
     try {
-      const r = await exportSanitizedWavs(datasetSessions, setWavProgress, wavCancelledRef)
-
-      // Storage 업로드로 audioUrl이 갱신된 세션 저장
-      if (r.processed > 0) {
-        await saveAllSessions(allSessions)
-      }
-
+      const r = await exportChunksAsZip(datasetSessions, setWavProgress, wavCancelledRef, false)
       if (wavCancelledRef.current) {
-        showToast({ message: 'WAV 추출이 취소되었습니다', icon: 'cancel' })
+        showToast({ message: 'ZIP 생성이 취소되었습니다', icon: 'cancel' })
       } else if (r.processed > 0) {
         const parts = []
         if (r.failed > 0) parts.push(`${r.failed}건 실패`)
-        if (r.notUploaded > 0) parts.push(`${r.notUploaded}건 Storage 미업로드`)
+        if (r.noChunks > 0) parts.push(`청크없음 ${r.noChunks}건`)
         const extra = parts.length > 0 ? ` · ${parts.join(' · ')}` : ''
-        showToast({ message: `${r.processed}건 저장 완료 (Download/uncounted_wav)${extra}`, icon: 'check_circle' })
-      } else if (r.notUploaded > 0 && r.eligible === 0) {
-        showToast({ message: `${r.notUploaded}건 모두 Storage 미업로드 세션입니다. 모바일 앱에서 업로드 후 다시 시도해주세요.`, icon: 'warning', duration: 6000 })
-      } else if (r.eligible === 0) {
-        showToast({ message: `오디오 경로 없음 (audioUrl 없는 세션 ${r.noAudio}건)`, icon: 'warning', duration: 5000 })
+        showToast({ message: `${r.processed}개 청크 ZIP 완료${extra}`, icon: 'check_circle' })
       } else {
-        showToast({ message: `${r.eligible}건 모두 실패: ${r.firstError ?? '알 수 없는 오류'}`, icon: 'error', duration: 5000 })
+        showToast({ message: `처리 가능한 청크가 없습니다 (청크없음: ${r.noChunks}건)`, icon: 'warning', duration: 5000 })
       }
     } catch (err) {
-      showToast({ message: `WAV 추출 오류: ${err instanceof Error ? err.message : String(err)}`, icon: 'error', duration: 5000 })
+      showToast({ message: `ZIP 생성 오류: ${err instanceof Error ? err.message : String(err)}`, icon: 'error', duration: 5000 })
     }
     setWavProgress(null)
   }
@@ -491,7 +491,7 @@ export default function AdminDatasetDetailPage() {
           >
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-xl" style={{ color: '#1337ec' }}>graphic_eq</span>
-              <p className="text-sm font-semibold text-white">정제 WAV 추출 중</p>
+              <p className="text-sm font-semibold text-white">청크 ZIP 생성 중</p>
             </div>
 
             <div className="space-y-2">
@@ -510,11 +510,9 @@ export default function AdminDatasetDetailPage() {
               </div>
               <p className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>
                 {wavProgress.phase === 'starting' && '준비 중...'}
-                {wavProgress.phase === 'loading' && '파일 로드 중...'}
-                {wavProgress.phase === 'resampling' && '리샘플링 중...'}
-                {wavProgress.phase === 'silence_removal' && '무음 제거 중...'}
-                {wavProgress.phase === 'encoding' && 'WAV 인코딩 중...'}
-                {wavProgress.phase === 'downloading' && '다운로드 중...'}
+                {wavProgress.phase === 'fetching_urls' && 'URL 조회 중...'}
+                {wavProgress.phase === 'downloading' && '청크 다운로드 중...'}
+                {wavProgress.phase === 'compressing' && 'ZIP 압축 중...'}
                 {wavProgress.phase === 'done' && '완료'}
               </p>
             </div>

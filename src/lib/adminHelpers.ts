@@ -622,97 +622,113 @@ export function exportAsCsv(sessions: Session[], fieldSelection?: ExportFieldSel
   return BOM + [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
 }
 
-// ── 내보내기: 정제 WAV (비식별화 + 무음제거 + 16kHz 모노) ──
+// ── 내보내기: 청크 ZIP ────────────────────────────────────────────────────
 
-export type WavExportProgress = {
+export type ChunkZipProgress = {
   done: number
   total: number
-  phase: string
-  currentSessionId: string | null
+  phase: 'starting' | 'fetching_urls' | 'downloading' | 'compressing' | 'done'
 }
 
-export type WavExportResult = {
-  eligible: number
-  processed: number
-  failed: number
-  noAudio: number
-  notUploaded: number
-  firstError: string | null
-}
+/** @deprecated WavExportProgress → ChunkZipProgress 로 교체됨 */
+export type WavExportProgress = ChunkZipProgress
 
-export async function exportSanitizedWavs(
+export async function exportChunksAsZip(
   sessions: Session[],
-  onProgress: (p: WavExportProgress) => void,
+  onProgress: (p: ChunkZipProgress) => void,
   cancelled: { current: boolean },
-): Promise<WavExportResult> {
-  // audioUrl 있는 세션만 처리 대상 (callRecordId는 모바일 로컬 파일 — 웹에서 접근 불가)
-  const eligible = sessions.filter(s => s.audioUrl)
-  const notUploaded = sessions.filter(s => s.callRecordId && !s.audioUrl).length
-  const noAudio = sessions.length - eligible.length - notUploaded
-  const total = eligible.length
+  includeTranscript = false,
+): Promise<{ processed: number; failed: number; noChunks: number }> {
+  const { fetchChunkSignedUrlsApi } = await import('./api/admin')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const jszip = await import('jszip') as any
+  const JSZip = jszip.default ?? jszip
+
+  onProgress({ phase: 'fetching_urls', done: 0, total: 0 })
+
+  const sessionIds = sessions.map(s => s.id)
+
+  // session_chunks signed URL 일괄 조회 + (옵션) transcript 병렬 조회
+  const [{ data: chunks }, transcriptData] = await Promise.all([
+    fetchChunkSignedUrlsApi(sessionIds),
+    includeTranscript
+      ? import('./api/admin').then(m => m.bulkFetchTranscriptsApi(sessionIds))
+      : Promise.resolve({ data: [] }),
+  ])
+
+  const chunkList = chunks ?? []
+  const sessionIdsWithChunks = new Set(chunkList.map(c => c.sessionId))
+  const noChunks = sessions.filter(s => !sessionIdsWithChunks.has(s.id)).length
+
+  const transcriptMap = new Map<string, { text: string; words?: unknown[]; summary?: string }>()
+  for (const row of transcriptData?.data ?? []) {
+    transcriptMap.set(row.sessionId, { text: row.text, words: row.words, summary: row.summary })
+  }
+
+  // sessionId → Session 매핑 (파일명 생성에 date 필요)
+  const sessionMap = new Map(sessions.map(s => [s.id, s]))
+
+  const zip = new JSZip()
   let processed = 0
   let failed = 0
-  let firstError: string | null = null
+  const total = chunkList.length
 
   for (let i = 0; i < total; i++) {
     if (cancelled.current) break
-    const s = eligible[i]
+    const chunk = chunkList[i]
+    const session = sessionMap.get(chunk.sessionId)
+    const date = session?.date ?? chunk.sessionId.slice(0, 10)
+    const idPrefix = chunk.sessionId.slice(0, 8)
+    const idx = String(chunk.minuteIndex).padStart(3, '0')
+    const baseName = `${date}_${idPrefix}_${idx}`
 
-    onProgress({ done: i, total, phase: 'processing', currentSessionId: s.id })
-
-    const source: AudioSource = {
-      callRecordId: s.callRecordId,
-      audioUrl: s.audioUrl,
-      sessionId: s.id,
-    }
+    onProgress({ phase: 'downloading', done: i, total })
 
     try {
-      const { result, storagePath } = await sanitizeAndUpload(
-        source,
-        undefined, // PII intervals — 추후 STT 타임스탬프 연동 시 추가
-        (phase: string) => onProgress({ done: i, total, phase, currentSessionId: s.id }),
-      )
+      const res = await fetch(chunk.signedUrl)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      zip.file(`${baseName}.wav`, await res.arrayBuffer())
 
-      // Storage 업로드 성공 시 세션에 audioUrl 기록
-      if (storagePath && !s.audioUrl) {
-        s.audioUrl = storagePath
+      if (includeTranscript) {
+        const t = transcriptMap.get(chunk.sessionId)
+        if (t?.text) {
+          zip.file(`${baseName}.json`, JSON.stringify({
+            session_id: chunk.sessionId,
+            minute_index: chunk.minuteIndex,
+            date,
+            duration_seconds: chunk.durationSeconds,
+            labels: session?.labels ?? null,
+            text: t.text,
+            words: t.words ?? [],
+            summary: t.summary ?? null,
+          }, null, 2))
+        }
       }
-
-      // 비식별화된 파일명 생성 (세션ID + 날짜)
-      const filename = `${s.id}_${s.date}.wav`
-      await saveWavToDevice(result.wav, filename)
 
       processed++
     } catch (err) {
+      console.warn(`[exportChunksAsZip] chunk ${baseName} 실패:`, err)
       failed++
-      if (!firstError) {
-        const msg = err instanceof Error ? err.message : String(err)
-        const ref = s.callRecordId ?? s.audioUrl ?? s.id
-        firstError = `[${ref}] ${msg}`
-      }
-    }
-
-    onProgress({ done: i + 1, total, phase: 'done', currentSessionId: null })
-
-    // 브라우저 다운로드 큐 과부하 방지 (200ms 간격)
-    if (i < total - 1) {
-      await new Promise(r => setTimeout(r, 200))
     }
   }
 
-  return { eligible: total, processed, failed, noAudio, notUploaded, firstError }
-}
+  onProgress({ phase: 'compressing', done: processed, total })
 
-async function saveWavToDevice(wav: ArrayBuffer, filename: string): Promise<void> {
-  const blob = new Blob([wav], { type: 'audio/wav' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  setTimeout(() => URL.revokeObjectURL(url), 3000)
+  if (processed > 0) {
+    const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } })
+    const url = URL.createObjectURL(zipBlob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `uncounted_chunks_${new Date().toISOString().slice(0, 10)}.zip`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    setTimeout(() => URL.revokeObjectURL(url), 15000)
+  }
+
+  onProgress({ phase: 'done', done: processed, total })
+
+  return { processed, failed, noChunks }
 }
 
 // ── 사용자별 그룹핑 ──
@@ -842,96 +858,3 @@ export async function exportTranscriptJsonl(
   return { jsonl: lines.join('\n'), count: lines.length }
 }
 
-// ── WAV + 자막 ZIP 내보내기 (API 경유) ──────────────────────────────────
-
-export async function exportWavWithTranscript(
-  sessions: Session[],
-  onProgress: (done: number, total: number) => void,
-  cancelled: { current: boolean },
-): Promise<{ processed: number; noAudio: number; noTranscript: number }> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const jszip = await import('jszip') as any
-  const JSZip = jszip.default ?? jszip
-  const { getAdminSignedUrlApi, bulkFetchTranscriptsApi } = await import('./api/admin')
-
-  // 1. Transcripts 일괄 조회 (API 경유)
-  const sessionIds = sessions.map(s => s.id)
-  const transcriptMap = new Map<string, { text: string; words?: unknown[]; summary?: string }>()
-  try {
-    const { data } = await bulkFetchTranscriptsApi(sessionIds)
-    for (const row of data ?? []) {
-      transcriptMap.set(row.sessionId, {
-        text: row.text,
-        words: row.words,
-        summary: row.summary,
-      })
-    }
-  } catch (e) {
-    console.warn('[exportWavWithTranscript] transcript fetch failed:', e)
-  }
-
-  // 2. audioUrl 있는 세션만 처리
-  const eligible = sessions.filter(s => !!s.audioUrl)
-  const noAudio = sessions.length - eligible.length
-  let processed = 0
-  let noTranscript = 0
-
-  const zip = new JSZip()
-
-  for (let i = 0; i < eligible.length; i++) {
-    if (cancelled.current) break
-    const s = eligible[i]
-    const audioUrl = s.audioUrl as string
-    onProgress(processed, eligible.length)
-
-    const baseName = `${s.date}_${s.id.slice(0, 8)}`
-
-    // WAV: Signed URL로 fetch → ZIP에 추가
-    try {
-      const { data } = await getAdminSignedUrlApi(audioUrl, 600)
-      if (data?.signedUrl) {
-        const res = await fetch(data.signedUrl)
-        if (res.ok) {
-          zip.file(`${baseName}.wav`, await res.arrayBuffer())
-        }
-      }
-    } catch (e) {
-      console.warn(`[exportWavWithTranscript] WAV error for ${s.id}:`, e)
-    }
-
-    // 자막 JSON
-    const t = transcriptMap.get(s.id)
-    if (t?.text) {
-      const row = {
-        session_id: s.id,
-        date: s.date,
-        duration_sec: s.duration,
-        labels: s.labels ?? null,
-        text: t.text,
-        words: t.words ?? [],
-        summary: t.summary ?? null,
-      }
-      zip.file(`${baseName}.json`, JSON.stringify(row, null, 2))
-    } else {
-      noTranscript++
-    }
-
-    processed++
-  }
-
-  onProgress(processed, eligible.length)
-
-  if (processed > 0) {
-    const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } })
-    const url = URL.createObjectURL(zipBlob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `uncounted_wav_transcript_${new Date().toISOString().slice(0, 10)}.zip`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    setTimeout(() => URL.revokeObjectURL(url), 15000)
-  }
-
-  return { processed, noAudio, noTranscript }
-}
