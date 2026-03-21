@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: uncounted-admin-dev
+    runtime: node
+    branch: main
+    buildCommand: yarn --frozen-lockfile install; yarn build
+    startCommand: yarn start
+    envVars:
+      - key: NODE_ENV
+        value: development
+      - key: VITE_API_URL
+        sync: false
+
+  - type: web
+    name: uncounted-admin-prod
+    runtime: node
+    branch: 1.0.0
+    buildCommand: yarn --frozen-lockfile install; yarn build
+    startCommand: yarn start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: VITE_API_URL
+        sync: false

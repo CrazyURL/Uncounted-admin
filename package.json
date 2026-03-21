@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 15173",
     "build": "tsc -b && vite build",
+    "start": "serve -s dist -l 80",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -16,7 +17,8 @@
     "jszip": "^3.10.1",
     "react": "19.0.0",
     "react-dom": "19.0.0",
-    "react-router-dom": "7.3.0"
+    "react-router-dom": "7.3.0",
+    "serve": "^14.2.4"
   },
   "devDependencies": {
     "@types/node": "^25.3.3",
