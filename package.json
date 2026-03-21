@@ -8,7 +8,10 @@
     "build": "tsc -b && vite build",
     "start": "serve -s dist -l 80",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy:dev": "render deploys create srv-d6v4f7ngi27c73epd510",
+    "deploy:prod": "render deploys create srv-d6v4ii7fte5s73dl1k4g",
+    "logs": "render logs"
   },
   "dependencies": {
     "@huggingface/transformers": "^3.8.1",
