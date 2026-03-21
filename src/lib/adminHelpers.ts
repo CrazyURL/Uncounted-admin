@@ -6,7 +6,6 @@ import { type UserProfile, loadProfile } from '../types/userProfile'
 import { getPid } from './auth'
 import { formatDuration } from './earnings'
 import { maskSessionTitle, maskFilePath } from './displayMask'
-import { sanitizeAndUpload, type AudioSource } from './audioSanitizer'
 import { resolveExportFields } from './exportFields'
 import { calcQualityGrade } from './valueEngine'
 
