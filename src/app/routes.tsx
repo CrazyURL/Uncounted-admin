@@ -21,6 +21,7 @@ import AdminClientsPage from '../pages/admin/AdminClientsPage'
 import AdminDeliveryProfilesPage from '../pages/admin/AdminDeliveryProfilesPage'
 import AdminClientSkuMapPage from '../pages/admin/AdminClientSkuMapPage'
 import AdminSettlementPage from '../pages/admin/AdminSettlementPage'
+import AdminMetaStoragePage from '../pages/admin/AdminMetaStoragePage'
 
 const routes: RouteObject[] = [
   {
@@ -42,6 +43,7 @@ const routes: RouteObject[] = [
       { path: '/admin/units', element: <AdminBillableUnitsPage /> },
       { path: '/admin/labels', element: <AdminLabelCatalogPage /> },
       { path: '/admin/consents', element: <AdminConsentsPage /> },
+      { path: '/admin/meta-storage', element: <AdminMetaStoragePage /> },
       // catalog
       { path: '/admin/sku-catalog', element: <AdminSkuCatalogPage /> },
       { path: '/admin/sku-components', element: <AdminSkuComponentsPage /> },

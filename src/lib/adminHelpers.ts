@@ -812,6 +812,32 @@ export async function downloadWavFromStorage(
   }
 }
 
+export async function downloadMetaJsonlFromStorage(
+  storagePath: string,
+  filename: string,
+): Promise<{ error: string | null }> {
+  const { getAdminMetaSignedUrlApi } = await import('./api/admin')
+  const { data, error: apiErr } = await getAdminMetaSignedUrlApi(storagePath, 300)
+  if (apiErr || !data?.signedUrl) return { error: apiErr ?? 'Signed URL 생성 실패' }
+
+  try {
+    const res = await fetch(data.signedUrl)
+    if (!res.ok) return { error: `다운로드 실패: ${res.status}` }
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename.endsWith('.jsonl') ? filename : `${filename}.jsonl`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    setTimeout(() => URL.revokeObjectURL(url), 10000)
+    return { error: null }
+  } catch (e) {
+    return { error: String(e) }
+  }
+}
+
 // ── STT 자막 JSONL 내보내기 (API 경유) ──────────────────────────────────
 
 export async function exportTranscriptJsonl(

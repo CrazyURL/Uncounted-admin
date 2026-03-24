@@ -273,6 +273,25 @@ export async function listStorageWavsApi() {
   return apiFetch<StorageWavEntry[]>('/api/admin/storage/wavs')
 }
 
+export type StorageMetaEntry = {
+  userId: string
+  batchId: string
+  path: string
+}
+
+/** 전체 유저 Meta JSONL 목록 조회 (어드민 전용) */
+export async function listStorageMetasApi() {
+  return apiFetch<StorageMetaEntry[]>('/api/admin/storage/metas')
+}
+
+/** Admin Meta JSONL signed URL 생성 */
+export async function getAdminMetaSignedUrlApi(storagePath: string, expiresIn = 300) {
+  return apiFetch<{ signedUrl: string }>('/api/admin/storage/signed-url', {
+    method: 'POST',
+    body: JSON.stringify({ storagePath, expiresIn, bucket: 'meta' }),
+  })
+}
+
 // ── Session Chunks ───────────────────────────────────────────────────────
 
 export type ChunkSignedUrlEntry = {

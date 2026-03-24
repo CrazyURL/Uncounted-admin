@@ -11,6 +11,7 @@ const ADMIN_MENU: MenuGroup[] = [
       { path: '/admin/units', labelKo: '유닛', icon: 'grid_view' },
       { path: '/admin/labels', labelKo: '라벨', icon: 'label' },
       { path: '/admin/consents', labelKo: '동의', icon: 'verified_user' },
+      { path: '/admin/meta-storage', labelKo: '메타', icon: 'description' },
     ],
   },
   {
