@@ -1,6 +1,6 @@
 // ── 오디오 정제 파이프라인 ─────────────────────────────────────────────────
 // 소스: 로컬 파일(callRecordId) 또는 Supabase Storage(audioUrl)
-// 파이프라인: 원본 → 16kHz 모노 리샘플링 → 무음 제거 → PII 비프 마스킹 → WAV 인코딩
+// 파이프라인: 원본 → 16kHz 모노 리샘플링 → PII 비프 마스킹 → 무음 제거 → WAV 인코딩
 
 import { resampleTo16kMono, removeSilence, applyBeepMask, pcmToWav } from './wavEncoder'
 import { getAudioSignedUrl, uploadSanitizedAudio } from './storageUpload'
@@ -76,20 +76,20 @@ export async function sanitizeAudio(
   const resampled = await resampleTo16kMono(raw)
   const originalDurationSec = resampled.length / RATE
 
-  // 3) 무음 제거
+  // 3) PII 비프 마스킹 (무음 제거 전 — piiIntervals가 원본 타임라인 기준)
+  const masked = piiIntervals?.length
+    ? applyBeepMask(resampled, RATE, piiIntervals)
+    : resampled
+
+  // 4) 무음 제거
   onProgress?.('silence_removal')
-  const trimmed = removeSilence(resampled, RATE)
+  const trimmed = removeSilence(masked, RATE)
   const sanitizedDurationSec = trimmed.length / RATE
   const silenceRemovedSec = originalDurationSec - sanitizedDurationSec
 
-  // 4) PII 비프 마스킹
-  const masked = piiIntervals && piiIntervals.length > 0
-    ? applyBeepMask(trimmed, RATE, piiIntervals)
-    : trimmed
-
   // 5) WAV 인코딩
   onProgress?.('encoding')
-  const wav = pcmToWav(masked, RATE)
+  const wav = pcmToWav(trimmed, RATE)
 
   return { wav, originalDurationSec, sanitizedDurationSec, silenceRemovedSec, fromStorage: false }
 }

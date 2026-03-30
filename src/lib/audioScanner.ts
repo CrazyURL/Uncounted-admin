@@ -145,8 +145,8 @@ export function calcQualityScore(params: {
 }
 
 export function calcQualityGrade(score: number): AudioQualityGrade {
-  if (score >= 75) return 'A'
-  if (score >= 50) return 'B'
+  if (score >= 80) return 'A'
+  if (score >= 60) return 'B'
   return 'C'
 }
 
