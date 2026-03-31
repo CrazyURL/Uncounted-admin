@@ -26,6 +26,37 @@ export function getAuthToken(): string | null {
   return _authToken
 }
 
+let _refreshPromise: Promise<boolean> | null = null
+
+async function refreshTokenOnce(): Promise<boolean> {
+  if (_refreshPromise) return _refreshPromise
+
+  _refreshPromise = (async () => {
+    try {
+      const refreshRes = await fetch(`${API_BASE}/api/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include',
+      })
+
+      if (refreshRes.ok) {
+        const refreshJson = await refreshRes.json()
+        const newToken = (decryptResponse(refreshJson) as any)?.data?.session?.access_token
+        if (newToken) {
+          setAuthToken(newToken)
+          return true
+        }
+      }
+      return false
+    } catch {
+      return false
+    } finally {
+      _refreshPromise = null
+    }
+  })()
+
+  return _refreshPromise
+}
+
 /**
  * 쿠키 기반 인증 fetch 래퍼 (내부 구현)
  * isRetry=true 이면 401 시 재시도하지 않음 (무한 루프 방지)
@@ -58,24 +89,12 @@ async function _apiFetch<T = any>(
       credentials: 'include',
     })
 
-    // 401: Access token 만료 → refresh cookie로 갱신 후 1회 재시도
+    // 401: Access token 만료 → refresh mutex로 직렬화 후 1회 재시도
     if (response.status === 401 && !isRetry) {
-      try {
-        const refreshRes = await fetch(`${API_BASE}/api/auth/refresh`, {
-          method: 'POST',
-          credentials: 'include',
-        })
-        if (refreshRes.ok) {
-          const refreshJson = await refreshRes.json()
-          const newToken = (decryptResponse(refreshJson) as any)?.data?.session?.access_token
-          if (newToken) {
-            setAuthToken(newToken)
-            return _apiFetch<T>(endpoint, options, true)
-          }
-        }
-      } catch { /* refresh 요청 자체 실패 → 하단 SIGNED_OUT 처리 */ }
-
-      // refresh 실패 → 세션 만료 처리
+      const refreshed = await refreshTokenOnce()
+      if (refreshed) {
+        return _apiFetch<T>(endpoint, options, true)
+      }
       setAuthToken(null)
       window.dispatchEvent(new CustomEvent('uncounted:auth', {
         detail: { event: 'SIGNED_OUT', session: null },
