@@ -352,9 +352,13 @@ export async function upsertBillableUnits(units: BillableUnit[]): Promise<void> 
   if (!isApiConfigured() || units.length === 0) return
 
   const rows = units.map(buToRow)
-  const { error } = await AdminAPI.upsertBillableUnitsApi(rows)
-  if (error) {
-    console.warn('upsertBillableUnits error:', error)
+  const BATCH = 200
+  for (let i = 0; i < rows.length; i += BATCH) {
+    const batch = rows.slice(i, i + BATCH)
+    const { error } = await AdminAPI.upsertBillableUnitsApi(batch)
+    if (error) {
+      throw new Error(`upsertBillableUnits: ${error}`)
+    }
   }
 }
 
@@ -570,4 +574,83 @@ function drFromRow(row: Record<string, unknown>): DeliveryRecord {
     exportJobId: row.export_job_id as string,
     deliveredAt: (row.delivered_at as string) ?? new Date().toISOString(),
   }
+}
+
+// ── Bulk Label Update ──────────────────────────────────────────────────
+
+export async function bulkUpdateLabels(
+  unitIds: string[],
+  labels: Record<string, string | null>,
+): Promise<number> {
+  if (!isApiConfigured() || unitIds.length === 0) return 0
+  const { data, error } = await AdminAPI.bulkUpdateLabelsApi(unitIds, labels)
+  if (error) throw new Error(`bulkUpdateLabels: ${error}`)
+  return data?.updated ?? 0
+}
+
+// ── Export Requests (Phase 1) ──────────────────────────────────────────
+
+import type {
+  ExportRequest,
+  ExportPreview,
+  ExportUtterance,
+  SkuInventory,
+} from '../types/export'
+
+export async function previewExportRequest(id: string): Promise<ExportPreview> {
+  if (!isApiConfigured()) throw new Error('API not configured')
+  const { data, error } = await AdminAPI.previewExportRequestApi(id)
+  if (error || !data) throw new Error(`previewExportRequest: ${error ?? 'no data'}`)
+  return data
+}
+
+export async function confirmExportRequest(id: string): Promise<ExportRequest> {
+  if (!isApiConfigured()) throw new Error('API not configured')
+  const { data, error } = await AdminAPI.confirmExportRequestApi(id)
+  if (error || !data) throw new Error(`confirmExportRequest: ${error ?? 'no data'}`)
+  return data
+}
+
+export async function processExportRequest(id: string): Promise<ExportRequest> {
+  if (!isApiConfigured()) throw new Error('API not configured')
+  const { data, error } = await AdminAPI.processExportRequestApi(id)
+  if (error || !data) throw new Error(`processExportRequest: ${error ?? 'no data'}`)
+  return data
+}
+
+export async function loadExportUtterances(id: string): Promise<ExportUtterance[]> {
+  if (!isApiConfigured()) return []
+  const { data, error } = await AdminAPI.loadExportUtterancesApi(id)
+  if (error) throw new Error(`loadExportUtterances: ${error}`)
+  return data ?? []
+}
+
+export async function reviewExportUtterances(
+  id: string,
+  updates: Array<{ utteranceId: string; isIncluded: boolean; excludeReason?: string }>,
+): Promise<void> {
+  if (!isApiConfigured()) return
+  const { error } = await AdminAPI.reviewExportUtterancesApi(id, updates)
+  if (error) throw new Error(`reviewExportUtterances: ${error}`)
+}
+
+export async function finalizeExportRequest(id: string): Promise<ExportRequest> {
+  if (!isApiConfigured()) throw new Error('API not configured')
+  const { data, error } = await AdminAPI.finalizeExportRequestApi(id)
+  if (error || !data) throw new Error(`finalizeExportRequest: ${error ?? 'no data'}`)
+  return data
+}
+
+export async function downloadExportRequest(id: string): Promise<{ downloadUrl: string; expiresAt: string }> {
+  if (!isApiConfigured()) throw new Error('API not configured')
+  const { data, error } = await AdminAPI.downloadExportRequestApi(id)
+  if (error || !data) throw new Error(`downloadExportRequest: ${error ?? 'no data'}`)
+  return data
+}
+
+export async function loadSkuInventory(): Promise<SkuInventory[]> {
+  if (!isApiConfigured()) return []
+  const { data, error } = await AdminAPI.loadSkuInventoryApi()
+  if (error) throw new Error(`loadSkuInventory: ${error}`)
+  return Array.isArray(data) ? data : []
 }

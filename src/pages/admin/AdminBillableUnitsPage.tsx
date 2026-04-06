@@ -1,12 +1,13 @@
-import { useEffect, useState, useMemo, useRef } from 'react'
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import { type Session } from '../../types/session'
 import { type BillableUnit } from '../../types/admin'
 import { loadAllSessions } from '../../lib/sessionMapper'
 import { deriveUnitsFromSessions, summarizeUnits } from '../../lib/billableUnitEngine'
-import { upsertBillableUnits } from '../../lib/adminStore'
+import { upsertBillableUnits, bulkUpdateLabels } from '../../lib/adminStore'
 import { loadBillableUnitsApi } from '../../lib/api/admin'
 import UnitSummaryBar from '../../components/domain/UnitSummaryBar'
 import BillableUnitRow from '../../components/domain/BillableUnitRow'
+import BulkLabelEditor from '../../components/domain/BulkLabelEditor'
 
 const PAGE_SIZE = 200
 
@@ -21,6 +22,7 @@ export default function AdminBillableUnitsPage() {
   const [offset, setOffset] = useState(0)
   const [hasMore, setHasMore] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
+  const [labelingSessionId, setLabelingSessionId] = useState<string | null>(null)
 
   const offsetRef = useRef(0)
   offsetRef.current = offset
@@ -94,6 +96,31 @@ export default function AdminBillableUnitsPage() {
 
   const summary = useMemo(() => summarizeUnits(units), [units])
 
+  // Group units by sessionId for bulk labeling
+  const sessionGroups = useMemo(() => {
+    const groups = new Map<string, BillableUnit[]>()
+    for (const u of units) {
+      const existing = groups.get(u.sessionId)
+      if (existing) {
+        existing.push(u)
+      } else {
+        groups.set(u.sessionId, [u])
+      }
+    }
+    return groups
+  }, [units])
+
+  const handleBulkLabelSave = useCallback(async (
+    sessionId: string,
+    labels: { relationship: string | null; purpose: string | null; domain: string | null; tone: string | null; noise: string | null },
+  ) => {
+    const sessionUnits = sessionGroups.get(sessionId)
+    if (!sessionUnits?.length) return
+    const unitIds = sessionUnits.map(u => u.id)
+    await bulkUpdateLabels(unitIds, labels)
+    setLabelingSessionId(null)
+  }, [sessionGroups])
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -159,10 +186,44 @@ export default function AdminBillableUnitsPage() {
         {syncing ? '동기화 중...' : '세션에서 새로고침'}
       </button>
 
-      {/* 유닛 리스트 */}
-      <div className="space-y-1">
-        {units.map(u => (
-          <BillableUnitRow key={u.id} unit={u} />
+      {/* 유닛 리스트 (세션별 그룹) */}
+      <div className="space-y-3">
+        {[...sessionGroups.entries()].map(([sessionId, groupUnits]) => (
+          <div key={sessionId}>
+            {/* 세션 그룹 헤더 */}
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-medium" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                {sessionId.slice(0, 8)}... ({groupUnits.length}건)
+              </span>
+              <button
+                onClick={() => setLabelingSessionId(labelingSessionId === sessionId ? null : sessionId)}
+                className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full transition-colors"
+                style={{
+                  backgroundColor: labelingSessionId === sessionId ? 'rgba(139,92,246,0.2)' : 'rgba(255,255,255,0.06)',
+                  color: labelingSessionId === sessionId ? '#a78bfa' : 'rgba(255,255,255,0.4)',
+                }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>label</span>
+                라벨링
+              </button>
+            </div>
+            {/* BulkLabelEditor */}
+            {labelingSessionId === sessionId && (
+              <BulkLabelEditor
+                sessionId={sessionId}
+                audioUrl={groupUnits[0]?.sessionId ? `${groupUnits[0].userId ?? ''}/${groupUnits[0].sessionId}.wav` : null}
+                units={groupUnits}
+                onSave={handleBulkLabelSave}
+                onClose={() => setLabelingSessionId(null)}
+              />
+            )}
+            {/* BU 행들 */}
+            <div className="space-y-1">
+              {groupUnits.map(u => (
+                <BillableUnitRow key={u.id} unit={u} />
+              ))}
+            </div>
+          </div>
         ))}
       </div>
 

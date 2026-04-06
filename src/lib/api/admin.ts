@@ -292,6 +292,48 @@ export async function getAdminMetaSignedUrlApi(storagePath: string, expiresIn = 
   })
 }
 
+// ── Metadata Events (DB) ────────────────────────────────────────────────
+
+export type MetadataEventEntry = {
+  id: string
+  schema_id: string
+  pseudo_id: string
+  user_id: string | null
+  date_bucket: string | null
+  payload: Record<string, unknown>
+  received_at: string
+}
+
+export type MetadataSummary = {
+  totalEvents: number
+  uniqueUsers: number
+  bySchema: Array<{ schemaId: string; count: number }>
+}
+
+/** 메타데이터 요약 조회 (메타 탭 대시보드용) */
+export async function fetchMetadataSummary() {
+  return apiFetch<MetadataSummary>('/api/admin/metadata/summary')
+}
+
+/** 메타데이터 이벤트 조회 (페이지네이션 + 필터) */
+export async function fetchMetadataEvents(opts?: {
+  schema?: string
+  pseudoId?: string
+  limit?: number
+  offset?: number
+}) {
+  const params = new URLSearchParams()
+  if (opts?.schema) params.set('schema', opts.schema)
+  if (opts?.pseudoId) params.set('pseudo_id', opts.pseudoId)
+  if (opts?.limit) params.set('limit', String(opts.limit))
+  if (opts?.offset) params.set('offset', String(opts.offset))
+
+  const qs = params.toString()
+  return apiFetch<MetadataEventEntry[]>(
+    `/api/admin/metadata/events${qs ? `?${qs}` : ''}`,
+  )
+}
+
 // ── Session Chunks ───────────────────────────────────────────────────────
 
 export type ChunkSignedUrlEntry = {
@@ -406,6 +448,71 @@ export async function fetchAdminSessionsApi(query: AdminSessionsQuery = {}) {
 export async function fetchAdminUserStatsApi(query: AdminUsersStatsQuery = {}) {
   const params = buildAdminSessionParams(query)
   return apiFetch<UserGroupSummary[]>(`/api/admin/users/stats?${params}`)
+}
+
+// ── Bulk Label Update ──────────────────────────────────────────────────
+
+export async function bulkUpdateLabelsApi(
+  unitIds: string[],
+  labels: Record<string, string | null>,
+) {
+  return apiFetch<{ updated: number }>('/api/admin/billable-units/bulk-labels', {
+    method: 'POST',
+    body: JSON.stringify({ unitIds, labels }),
+  })
+}
+
+// ── Export Requests (Phase 1) ──────────────────────────────────────────
+
+import type {
+  ExportRequest,
+  ExportPreview,
+  ExportUtterance,
+  SkuInventory,
+} from '../../types/export'
+
+export async function previewExportRequestApi(id: string) {
+  return apiFetch<ExportPreview>(`/api/admin/export-requests/${id}/preview`)
+}
+
+export async function confirmExportRequestApi(id: string) {
+  return apiFetch<ExportRequest>(`/api/admin/export-requests/${id}/confirm`, {
+    method: 'PUT',
+  })
+}
+
+export async function processExportRequestApi(id: string) {
+  return apiFetch<ExportRequest>(`/api/admin/export-requests/${id}/process`, {
+    method: 'POST',
+  })
+}
+
+export async function loadExportUtterancesApi(id: string) {
+  return apiFetch<ExportUtterance[]>(`/api/admin/export-requests/${id}/utterances`)
+}
+
+export async function reviewExportUtterancesApi(
+  id: string,
+  updates: Array<{ utteranceId: string; isIncluded: boolean; excludeReason?: string }>,
+) {
+  return apiFetch<void>(`/api/admin/export-requests/${id}/utterances/review`, {
+    method: 'PUT',
+    body: JSON.stringify({ updates }),
+  })
+}
+
+export async function finalizeExportRequestApi(id: string) {
+  return apiFetch<ExportRequest>(`/api/admin/export-requests/${id}/finalize`, {
+    method: 'POST',
+  })
+}
+
+export async function downloadExportRequestApi(id: string) {
+  return apiFetch<{ downloadUrl: string; expiresAt: string }>(`/api/admin/export-requests/${id}/download`)
+}
+
+export async function loadSkuInventoryApi() {
+  return apiFetch<SkuInventory[]>('/api/admin/inventory')
 }
 
 // ── Reset All ───────────────────────────────────────────────────────────

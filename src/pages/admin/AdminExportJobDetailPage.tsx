@@ -1,13 +1,17 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { getExportJob, saveExportJob, confirmJobLedgerEntries, loadLedgerEntries, appendJobLog } from '../../lib/adminStore'
+import { getExportJob, saveExportJob, confirmJobLedgerEntries, loadLedgerEntries, appendJobLog, loadExportUtterances, reviewExportUtterances, finalizeExportRequest } from '../../lib/adminStore'
 import { type ExportJob } from '../../types/admin'
+import { type ExportUtterance } from '../../types/export'
 import JobLogTimeline from '../../components/domain/JobLogTimeline'
+import UtteranceReviewTable from '../../components/domain/UtteranceReviewTable'
+import UtteranceReviewGuide from '../../components/domain/UtteranceReviewGuide'
 
 const STATUS_LABELS: Record<string, { text: string; color: string }> = {
   draft: { text: '초안', color: '#6b7280' },
   queued: { text: '대기', color: '#3b82f6' },
   running: { text: '실행 중', color: '#f59e0b' },
+  reviewing: { text: '검수 중', color: '#8b5cf6' },
   completed: { text: '완료', color: '#22c55e' },
   failed: { text: '실패', color: '#ef4444' },
   cancelled: { text: '취소', color: '#6b7280' },
@@ -26,6 +30,12 @@ export default function AdminExportJobDetailPage() {
   const [confirmResult, setConfirmResult] = useState<string | null>(null)
   const [ledgerCount, setLedgerCount] = useState<number | null>(null)
 
+  // 발화 검수
+  const [utterances, setUtterances] = useState<ExportUtterance[]>([])
+  const [utterancesLoading, setUtterancesLoading] = useState(false)
+  const [reviewOpen, setReviewOpen] = useState(false)
+  const [reviewResult, setReviewResult] = useState<string | null>(null)
+
   useEffect(() => {
     if (!jobId) return
     getExportJob(jobId).then(j => { setJob(j); setLoading(false) }).catch(() => setLoading(false))
@@ -36,6 +46,67 @@ export default function AdminExportJobDetailPage() {
     if (!jobId) return
     loadLedgerEntries({ exportJobId: jobId }).then(entries => setLedgerCount(entries.length))
   }, [jobId, confirmResult])
+
+  const handleLoadUtterances = useCallback(async () => {
+    if (!jobId) return
+    setUtterancesLoading(true)
+    try {
+      const data = await loadExportUtterances(jobId)
+      setUtterances(data)
+    } catch (err) {
+      console.error('[ExportJobDetail] loadUtterances failed:', err)
+      setUtterances([])
+    } finally {
+      setUtterancesLoading(false)
+      setReviewOpen(true)
+    }
+  }, [jobId])
+
+  // 개별 발화 토글
+  const handleToggle = useCallback((utteranceId: string, isIncluded: boolean, reason?: string) => {
+    setUtterances(prev =>
+      prev.map(u =>
+        u.utteranceId === utteranceId
+          ? { ...u, isIncluded, excludeReason: isIncluded ? undefined : (reason ?? 'manual') }
+          : u
+      )
+    )
+  }, [])
+
+  // 자동 필터
+  const handleAutoFilter = useCallback((type: 'short' | 'gradeC' | 'highBeep') => {
+    setUtterances(prev =>
+      prev.map(u => {
+        if (!u.isIncluded) return u
+        const match =
+          (type === 'short' && u.durationSec < 3) ||
+          (type === 'gradeC' && u.qualityGrade === 'C') ||
+          (type === 'highBeep' && u.beepMaskRatio >= 0.3)
+        if (!match) return u
+        const reason = type === 'short' ? 'too_short' : type === 'gradeC' ? 'low_grade' : 'high_beep'
+        return { ...u, isIncluded: false, excludeReason: reason }
+      })
+    )
+  }, [])
+
+  // 패키징 확정
+  const handleFinalize = useCallback(async () => {
+    if (!jobId) return
+    try {
+      // 검수 결과 먼저 저장
+      const updates = utterances.map(u => ({
+        utteranceId: u.utteranceId,
+        isIncluded: u.isIncluded,
+        excludeReason: u.excludeReason,
+      }))
+      await reviewExportUtterances(jobId, updates)
+      await finalizeExportRequest(jobId)
+      setReviewResult('패키징 확정 완료')
+    } catch (err) {
+      console.error('[ExportJobDetail] finalize failed:', err)
+      setReviewResult('패키징 확정 실패')
+    }
+  }, [jobId, utterances])
 
   async function handleConfirmDelivery() {
     if (!job || !jobId) return
@@ -184,6 +255,55 @@ export default function AdminExportJobDetailPage() {
           <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
             {job.selectionManifest.length.toLocaleString()}개 유닛 선택됨
           </p>
+        </div>
+      )}
+
+      {/* 발화 검수 섹션 — reviewing 상태 또는 수동 열기 */}
+      {job.status !== 'draft' && job.status !== 'cancelled' && (
+        <div className="space-y-3">
+          <div className="rounded-xl p-4" style={{ backgroundColor: '#1b1e2e' }}>
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.7)' }}>발화 검수</h3>
+              <button
+                onClick={reviewOpen ? () => setReviewOpen(false) : handleLoadUtterances}
+                disabled={utterancesLoading}
+                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-colors"
+                style={{ backgroundColor: 'rgba(139,92,246,0.15)', color: '#a78bfa' }}
+              >
+                {utterancesLoading ? (
+                  <span className="material-symbols-outlined text-sm animate-spin">progress_activity</span>
+                ) : (
+                  <span className="material-symbols-outlined text-sm">{reviewOpen ? 'expand_less' : 'fact_check'}</span>
+                )}
+                {utterancesLoading ? '로딩...' : reviewOpen ? '접기' : '검수 열기'}
+              </button>
+            </div>
+          </div>
+
+          {reviewOpen && utterances.length > 0 && (
+            <>
+              <UtteranceReviewGuide />
+              <UtteranceReviewTable
+                utterances={utterances}
+                onToggle={handleToggle}
+                onAutoFilter={handleAutoFilter}
+                onFinalize={handleFinalize}
+              />
+              {reviewResult && (
+                <p className="text-xs px-4" style={{ color: reviewResult.includes('실패') ? '#ef4444' : '#22c55e' }}>
+                  {reviewResult}
+                </p>
+              )}
+            </>
+          )}
+
+          {reviewOpen && utterances.length === 0 && !utterancesLoading && (
+            <div className="rounded-xl p-4" style={{ backgroundColor: '#1b1e2e' }}>
+              <p className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                발화 데이터가 없습니다. 처리(process)가 먼저 완료되어야 합니다.
+              </p>
+            </div>
+          )}
         </div>
       )}
 
