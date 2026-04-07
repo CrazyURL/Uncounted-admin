@@ -24,6 +24,7 @@ export interface ExportRequest {
   downloadUrl?: string
   downloadExpiresAt?: string
   qualitySummary?: QualitySummary
+  demographicActual?: Record<string, Record<string, number>>
   // Timestamps
   createdAt: string
   queuedAt?: string
