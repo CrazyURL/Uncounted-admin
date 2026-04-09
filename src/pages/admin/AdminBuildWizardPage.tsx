@@ -505,7 +505,7 @@ export default function AdminBuildWizardPage() {
             <div className="rounded-xl p-3" style={{ backgroundColor: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.2)' }}>
               <p className="text-xs font-medium mb-1" style={{ color: '#22c55e' }}>팀 내부 통화 납품 가능 처리</p>
               <p className="text-[11px] mb-2" style={{ color: 'rgba(255,255,255,0.4)' }}>
-                팀원 간 통화 세션의 동의 상태(consent_status)를 consented로 강제 설정합니다.
+                팀원 간 통화 세션의 동의 상태(consent_status)를 both_agreed로 강제 설정합니다.
                 납품 대상에 포함하려면 추출 전 실행하세요.
               </p>
               <div className="flex items-center justify-between">
