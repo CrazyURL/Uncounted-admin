@@ -120,6 +120,47 @@ export function applyRecipeFilters(sessions: Session[], recipe: SkuRecipe): Sess
   })
 }
 
+// ── 레시피 → API 필터 변환 ──────────────────────────────────────────────────────
+
+export interface RecipeApiFilters {
+  labelStatus?: 'labeled' | 'unlabeled'
+  qualityGrades?: string[]
+  piiCleanedOnly?: boolean
+  domains?: string[]
+}
+
+/**
+ * SKU 레시피의 필터 조건을 /api/admin/sessions 쿼리 파라미터로 변환한다.
+ * requireLabels가 true 또는 배열이면 labelStatus=labeled 를 전달하여
+ * 서버에서 labels IS NOT NULL 조건으로 필터링한다.
+ *
+ * 주의: requireAudio는 클라이언트에서 callRecordId|audioUrl|localSanitizedWavPath
+ * 3개 필드를 확인하므로 API hasAudioUrl로 매핑하지 않는다.
+ */
+export function recipeToApiFilters(recipe: SkuRecipe): RecipeApiFilters {
+  const filters: RecipeApiFilters = {}
+
+  if (recipe.filters.requireLabels === true || Array.isArray(recipe.filters.requireLabels)) {
+    filters.labelStatus = 'labeled'
+  }
+
+  if (recipe.filters.requirePiiCleaned) {
+    filters.piiCleanedOnly = true
+  }
+
+  if (recipe.filters.domainFilter.length > 0) {
+    filters.domains = recipe.filters.domainFilter
+  }
+
+  if (recipe.filters.minQualityGrade) {
+    const gradeOrder = ['C', 'B', 'A'] as const
+    const minIdx = gradeOrder.indexOf(recipe.filters.minQualityGrade)
+    filters.qualityGrades = gradeOrder.slice(minIdx)
+  }
+
+  return filters
+}
+
 // ── SKU Studio 대시보드 계산 ────────────────────────────────────────────────────
 
 export function computeSkuStudio(sessions: Session[]): SkuStudioEntry[] {

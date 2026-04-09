@@ -68,7 +68,6 @@ export default function AdminSessionListPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('flat')
   const [resetting, setResetting] = useState(false)
   const [syncing, setSyncing] = useState(false)
-
   // flat 탭 state
   const [sessions, setSessions] = useState<Session[]>([])
   const [totalSessions, setTotalSessions] = useState(0)
@@ -594,14 +593,16 @@ export default function AdminSessionListPage() {
           }}
         >
           <span className="text-sm text-white font-medium">{selectedIds.size}건 선택됨</span>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="px-4 py-2.5 rounded-xl text-sm font-semibold text-white flex items-center gap-1.5"
-            style={{ backgroundColor: '#1337ec' }}
-          >
-            <span className="material-symbols-outlined text-base">add_box</span>
-            데이터셋 생성
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowCreate(true)}
+              className="px-4 py-2.5 rounded-xl text-sm font-semibold text-white flex items-center gap-1.5"
+              style={{ backgroundColor: '#1337ec' }}
+            >
+              <span className="material-symbols-outlined text-base">add_box</span>
+              데이터셋 생성
+            </button>
+          </div>
         </div>
       )}
 

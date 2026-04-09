@@ -9,14 +9,19 @@ import {
   type SamplingStrategy,
   type Client,
 } from '../../types/admin'
-import { type SkuInventory, type ExportUtterance } from '../../types/export'
+import { type SkuInventory, type ExportUtterance, type UtteranceLabels } from '../../types/export'
 import { loadAllSessions } from '../../lib/sessionMapper'
 import { deriveUnitsFromSessions, filterUnitsForJob, sampleUnits, summarizeUnits } from '../../lib/billableUnitEngine'
-import { loadClients, saveExportJob, upsertBillableUnits, loadDeliveredBuIdsForClient, loadSkuInventory, confirmExportRequest, processExportRequest, loadExportUtterances, downloadExportRequest } from '../../lib/adminStore'
+import { getDefaultRecipe, recipeToApiFilters } from '../../lib/skuStudio'
+import { fetchAllSessionsAdminApi } from '../../lib/api/sessions'
+import { loadClients, saveExportJob, upsertBillableUnits, loadDeliveredBuIdsForClient, loadSkuInventory, confirmExportRequest, processExportRequest, loadExportUtterances, finalizeExportRequest, downloadExportRequest } from '../../lib/adminStore'
+import { forceUpdateConsentApi, fetchTranscriptIdsApi } from '../../lib/api/admin'
 import { generateUUID } from '../../lib/uuid'
 import SkuInventoryCard from '../../components/domain/SkuInventoryCard'
 import UtteranceReviewTable from '../../components/domain/UtteranceReviewTable'
 import UtteranceReviewGuide from '../../components/domain/UtteranceReviewGuide'
+import UtteranceLabelingPanel from '../../components/domain/UtteranceLabelingPanel'
+import PiiMaskingEditor from '../../components/domain/PiiMaskingEditor'
 
 const STEPS = ['납품처', 'SKU + 옵션', '수량 + 조건', '시뮬레이션', '미리보기', '처리 진행', '검수', '다운로드']
 const MVP_SKUS = SKU_CATALOG.filter(s => s.isAvailableMvp)
@@ -55,6 +60,12 @@ export default function AdminBuildWizardPage() {
   // Per-client 기납품 BU 제외
   const [excludeBuIds, setExcludeBuIds] = useState<Set<string>>(new Set())
 
+  // 서버 하드코딩 제약 동기화: 전사 보유 세션 ID
+  const [transcriptSessionIds, setTranscriptSessionIds] = useState<Set<string>>(new Set())
+
+  // Step 2: 양자동의 전환 (F6)
+  const [consentUpdating, setConsentUpdating] = useState(false)
+
   // Step 3: 시뮬레이션
   const [executing, setExecuting] = useState(false)
   const [createdJobId, setCreatedJobId] = useState<string | null>(null)
@@ -65,6 +76,8 @@ export default function AdminBuildWizardPage() {
 
   // Step 6: 검수
   const [reviewUtterances, setReviewUtterances] = useState<ExportUtterance[]>([])
+  const [reviewSelectedIds, setReviewSelectedIds] = useState<Set<string>>(new Set())
+  const [piiEditId, setPiiEditId] = useState<string | null>(null)
 
   const loadedRef = useRef(false)
 
@@ -74,18 +87,37 @@ export default function AdminBuildWizardPage() {
 
     Promise.all([
       loadClients(),
-      loadAllSessions({ skipUserFilter: true }).then((sessions: Session[]) => deriveUnitsFromSessions(sessions)),
+      loadAllSessions({ skipUserFilter: true }).then((sessions: Session[]) => {
+        return deriveUnitsFromSessions(sessions)
+      }),
       loadSkuInventory().catch(() => []),
-    ]).then(([c, units, inv]) => {
+      fetchTranscriptIdsApi().then(({ data }) => data ?? []),
+    ]).then(([c, units, inv, transcriptIds]) => {
       setClients(c)
       setAllUnits(units)
       setInventory(Array.isArray(inv) ? inv : [])
+      setTranscriptSessionIds(new Set(transcriptIds as string[]))
       setLoading(false)
     }).catch(err => {
       console.error('[AdminBuildWizard] loadAllSessions failed:', err)
       setLoading(false)
     })
   }, [])
+
+  // SKU 선택 시 해당 SKU 조건에 맞는 세션만 API에서 재조회
+  useEffect(() => {
+    if (!selectedSkuId) return
+    const recipe = getDefaultRecipe(selectedSkuId)
+    const apiFilters = recipeToApiFilters(recipe)
+
+    fetchAllSessionsAdminApi(apiFilters).then(({ data }) => {
+      if (!data) return
+      const units = deriveUnitsFromSessions(data)
+      setAllUnits(units)
+    }).catch(err => {
+      console.error('[AdminBuildWizard] SKU session fetch failed:', err)
+    })
+  }, [selectedSkuId])
 
   useEffect(() => {
     if (!selectedClientId) {
@@ -100,9 +132,23 @@ export default function AdminBuildWizardPage() {
       })
   }, [selectedClientId])
 
-  // Step 3 시뮬레이션
+  // Step 3 시뮬레이션 — 서버 하드코딩 제약(requirePiiCleaned, minQaScore=50, requireTranscript)을 동일 적용
   const eligible = selectedSkuId
-    ? filterUnitsForJob(allUnits, filters, selectedComponents, excludeBuIds.size > 0 ? excludeBuIds : undefined)
+    ? (() => {
+        const strictFilters = { ...filters, requirePiiCleaned: true }
+        const filtered = filterUnitsForJob(
+          allUnits,
+          strictFilters,
+          selectedComponents,
+          excludeBuIds.size > 0 ? excludeBuIds : undefined,
+          { minQaScore: 50, transcriptSessionIds },
+        )
+        const recipe = getDefaultRecipe(selectedSkuId)
+        if (recipe.filters.requireLabels === true) {
+          return filtered.filter(u => u.hasLabels)
+        }
+        return filtered
+      })()
     : []
   const eligibleSummary = summarizeUnits(eligible)
   const sampled = selectedSkuId
@@ -114,6 +160,34 @@ export default function AdminBuildWizardPage() {
     setSelectedComponents(prev =>
       prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id],
     )
+  }
+
+  // F6: 팀 내부 통화 양자동의 전환
+  async function handleForceConsent() {
+    const nonConsentedIds = [...new Set(
+      allUnits
+        .filter(u => u.consentStatus !== 'PUBLIC_CONSENTED')
+        .map(u => u.sessionId)
+    )]
+    if (nonConsentedIds.length === 0) {
+      alert('이미 모든 세션이 PUBLIC_CONSENTED 상태입니다.')
+      return
+    }
+    if (!confirm(`${nonConsentedIds.length}개 세션을 납품 가능 상태로 설정하시겠습니까?\n공개 동의(visibility_status)가 업데이트되며 추출 대상에 포함됩니다.`)) return
+    setConsentUpdating(true)
+    try {
+      const { data, error } = await forceUpdateConsentApi(nonConsentedIds, 'PUBLIC_CONSENTED')
+      if (error) {
+        alert(`동의 전환 실패: ${error}`)
+      } else {
+        const skipped = data?.skipped ?? 0
+        const updated = data?.updated ?? 0
+        alert(`완료: ${updated}개 세션 PUBLIC_CONSENTED 전환${skipped > 0 ? `\n업로드 미완료 ${skipped}건 제외됨` : ''}`)
+      }
+    } catch (err) {
+      alert(`오류: ${err}`)
+    }
+    setConsentUpdating(false)
   }
 
   // Step 5: 처리 실행
@@ -136,6 +210,8 @@ export default function AdminBuildWizardPage() {
       console.error('[AdminBuildWizard] process failed:', err)
       setProcessPhase('idle')
       setProcessProgress(0)
+      const msg = err instanceof Error ? err.message : String(err)
+      alert(`처리 실패: ${msg}`)
     }
   }, [createdJobId])
 
@@ -162,6 +238,16 @@ export default function AdminBuildWizardPage() {
         const reason = type === 'short' ? 'too_short' : type === 'gradeC' ? 'low_grade' : 'high_beep'
         return { ...u, isIncluded: false, excludeReason: reason }
       })
+    )
+  }, [])
+
+  const handleUpdateLabels = useCallback((utteranceIds: string[], labels: Partial<UtteranceLabels>) => {
+    setReviewUtterances(prev =>
+      prev.map(u =>
+        utteranceIds.includes(u.utteranceId)
+          ? { ...u, labels: { ...u.labels, ...labels } }
+          : u
+      )
     )
   }, [])
 
@@ -200,6 +286,9 @@ export default function AdminBuildWizardPage() {
 
       await confirmExportRequest(jobId)
       setCreatedJobId(jobId)
+      setReviewUtterances([])
+      setProcessPhase('idle')
+      setProcessProgress(0)
       setStep(4)
       setExecuting(false)
     } catch (err) {
@@ -227,16 +316,22 @@ export default function AdminBuildWizardPage() {
           <div key={s} className="flex items-center gap-1 flex-shrink-0">
             <div
               className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold"
+              onClick={() => { if (i < step) setStep(i) }}
               style={{
                 backgroundColor: i <= step ? '#1337ec' : 'rgba(255,255,255,0.08)',
                 color: i <= step ? 'white' : 'rgba(255,255,255,0.3)',
+                cursor: i < step ? 'pointer' : 'default',
               }}
             >
               {i + 1}
             </div>
             <span
               className="text-[9px] truncate max-w-[56px]"
-              style={{ color: i === step ? 'white' : 'rgba(255,255,255,0.3)' }}
+              onClick={() => { if (i < step) setStep(i) }}
+              style={{
+                color: i === step ? 'white' : 'rgba(255,255,255,0.3)',
+                cursor: i < step ? 'pointer' : 'default',
+              }}
             >
               {s}
             </span>
@@ -406,6 +501,28 @@ export default function AdminBuildWizardPage() {
                 />
               </button>
             </div>
+            {/* F6: 팀 내부 통화 납품 가능 처리 */}
+            <div className="rounded-xl p-3" style={{ backgroundColor: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.2)' }}>
+              <p className="text-xs font-medium mb-1" style={{ color: '#22c55e' }}>팀 내부 통화 납품 가능 처리</p>
+              <p className="text-[11px] mb-2" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                팀원 간 통화 세션의 공개 동의(visibility_status)를 PUBLIC_CONSENTED로 설정합니다.
+                납품 대상에 포함하려면 추출 전 실행하세요.
+              </p>
+              <div className="flex items-center justify-between">
+                <span className="text-[11px]" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                  납품 미설정 세션: {new Set(allUnits.filter(u => u.consentStatus !== 'PUBLIC_CONSENTED').map(u => u.sessionId)).size}건 (업로드 완료 기준 적용)
+                </span>
+                <button
+                  onClick={handleForceConsent}
+                  disabled={consentUpdating}
+                  className="text-xs px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1 disabled:opacity-50"
+                  style={{ backgroundColor: 'rgba(34,197,94,0.15)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.3)' }}
+                >
+                  <span className="material-symbols-outlined text-sm">verified_user</span>
+                  {consentUpdating ? '처리중...' : '납품 가능으로 설정'}
+                </button>
+              </div>
+            </div>
             <div>
               <p className="text-xs mb-1" style={{ color: 'rgba(255,255,255,0.5)' }}>샘플링 전략</p>
               <div className="flex gap-2">
@@ -550,18 +667,46 @@ export default function AdminBuildWizardPage() {
         {/* Step 5: 처리 진행 */}
         {step === 5 && (
           <div className="space-y-4">
+            {/* 클라이언트 발화 존재 시 segmentation 스킵 안내 */}
+            {reviewUtterances.length > 0 && processPhase === 'idle' && (
+              <div className="rounded-xl p-4 flex items-center gap-3" style={{ backgroundColor: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.15)' }}>
+                <span className="material-symbols-outlined text-lg" style={{ color: '#22c55e' }}>check_circle</span>
+                <div>
+                  <p className="text-xs font-medium" style={{ color: '#22c55e' }}>클라이언트 발화 사용</p>
+                  <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                    이미 {reviewUtterances.length}건의 발화가 존재합니다. Segmentation을 건너뛰고 검수로 진행할 수 있습니다.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div className="rounded-xl p-6 text-center" style={{ backgroundColor: '#1b1e2e' }}>
               {processPhase === 'idle' ? (
                 <>
                   <span className="material-symbols-outlined text-4xl mb-3 block" style={{ color: '#1337ec' }}>rocket_launch</span>
-                  <p className="text-xs mb-4" style={{ color: 'rgba(255,255,255,0.5)' }}>처리를 시작하면 추출 → 분석 → 분할 순서로 진행됩니다</p>
-                  <button
-                    onClick={handleStartProcess}
-                    className="text-xs px-6 py-2 rounded-lg font-medium text-white"
-                    style={{ backgroundColor: '#1337ec' }}
-                  >
-                    처리 시작
-                  </button>
+                  <p className="text-xs mb-4" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                    {reviewUtterances.length > 0
+                      ? '기존 발화를 사용하거나 다시 처리할 수 있습니다'
+                      : '처리를 시작하면 추출 → 분석 → 분할 순서로 진행됩니다'}
+                  </p>
+                  <div className="flex items-center justify-center gap-2">
+                    <button
+                      onClick={handleStartProcess}
+                      className="text-xs px-6 py-2 rounded-lg font-medium text-white"
+                      style={{ backgroundColor: '#1337ec' }}
+                    >
+                      {reviewUtterances.length > 0 ? '다시 처리' : '처리 시작'}
+                    </button>
+                    {reviewUtterances.length > 0 && (
+                      <button
+                        onClick={() => setStep(6)}
+                        className="text-xs px-6 py-2 rounded-lg font-medium text-white"
+                        style={{ backgroundColor: '#22c55e' }}
+                      >
+                        검수로 건너뛰기
+                      </button>
+                    )}
+                  </div>
                 </>
               ) : (
                 <>
@@ -622,13 +767,70 @@ export default function AdminBuildWizardPage() {
         {/* Step 6: 검수 */}
         {step === 6 && (
           <div className="space-y-3">
+            {(() => {
+              const totalAvailableSec = reviewUtterances.reduce((acc, u) => acc + u.durationSec, 0)
+              const totalAvailableMin = totalAvailableSec / 60
+              if (totalAvailableMin < requestedUnits) {
+                return (
+                  <div
+                    className="rounded-xl px-4 py-3 flex items-start gap-3"
+                    style={{ backgroundColor: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.25)' }}
+                  >
+                    <span className="material-symbols-outlined text-sm mt-0.5" style={{ color: '#f59e0b' }}>warning</span>
+                    <div>
+                      <p className="text-xs font-medium" style={{ color: '#f59e0b' }}>발화량 부족 — 패키징 확정 불가</p>
+                      <p className="text-[11px] mt-0.5" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                        전체 발화를 포함해도 <strong style={{ color: 'rgba(255,255,255,0.8)' }}>{totalAvailableMin.toFixed(1)}분</strong>으로,
+                        요청 수량 <strong style={{ color: 'rgba(255,255,255,0.8)' }}>{requestedUnits}분</strong>에 미달합니다.
+                      </p>
+                      <button
+                        onClick={() => setStep(2)}
+                        className="mt-2 text-[11px] px-3 py-1 rounded-lg font-medium"
+                        style={{ backgroundColor: 'rgba(245,158,11,0.2)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.3)' }}
+                      >
+                        수량 + 조건 단계로 돌아가기
+                      </button>
+                    </div>
+                  </div>
+                )
+              }
+              return null
+            })()}
             <UtteranceReviewGuide />
             <UtteranceReviewTable
               utterances={reviewUtterances}
               onToggle={handleReviewToggle}
               onAutoFilter={handleReviewAutoFilter}
-              onFinalize={() => setStep(7)}
+              onFinalize={async () => {
+                if (!createdJobId) return
+                try {
+                  await finalizeExportRequest(createdJobId)
+                  setStep(7)
+                } catch (err) {
+                  alert('패키징 확정에 실패했습니다. 다시 시도해 주세요.')
+                }
+              }}
               requestedMinutes={requestedUnits}
+              onSelectionChange={setReviewSelectedIds}
+              skuId={selectedSkuId ?? undefined}
+              onPiiEdit={setPiiEditId}
+            />
+            {piiEditId && (
+              <PiiMaskingEditor
+                utteranceId={piiEditId}
+                onMaskApplied={async () => {
+                  setPiiEditId(null)
+                  if (createdJobId) {
+                    const utts = await loadExportUtterances(createdJobId)
+                    setReviewUtterances(utts)
+                  }
+                }}
+              />
+            )}
+            <UtteranceLabelingPanel
+              utterances={reviewUtterances}
+              selectedIds={reviewSelectedIds}
+              onUpdateLabels={handleUpdateLabels}
             />
           </div>
         )}

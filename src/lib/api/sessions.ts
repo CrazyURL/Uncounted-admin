@@ -132,10 +132,20 @@ export async function updateDiarizationStatus(sessionId: string, hasDiarization:
 export async function fetchAllSessionsAdminApi(opts?: {
   limit?: number
   offset?: number
+  labelStatus?: 'labeled' | 'unlabeled'
+  qualityGrades?: string[]
+  piiCleanedOnly?: boolean
+  hasAudioUrl?: boolean
+  domains?: string[]
 }) {
   const params = new URLSearchParams()
   if (opts?.limit) params.set('limit', String(opts.limit))
   if (opts?.offset) params.set('offset', String(opts.offset))
+  if (opts?.labelStatus) params.set('labelStatus', opts.labelStatus)
+  if (opts?.piiCleanedOnly) params.set('piiCleanedOnly', 'true')
+  if (opts?.hasAudioUrl) params.set('hasAudioUrl', 'true')
+  if (opts?.qualityGrades?.length) opts.qualityGrades.forEach(g => params.append('qualityGrades', g))
+  if (opts?.domains?.length) opts.domains.forEach(d => params.append('domains', d))
   const qs = params.toString()
   return apiFetch<Session[]>(`/api/admin/sessions${qs ? `?${qs}` : ''}`)
 }

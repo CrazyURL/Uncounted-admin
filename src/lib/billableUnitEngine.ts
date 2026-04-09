@@ -340,12 +340,14 @@ export function deriveUnitsWithAccumulation(
 const GRADE_ORDER: Record<string, number> = { A: 3, B: 2, C: 1 }
 
 /** ExportJob 필터 + SKU 컴포넌트 조건으로 유닛 필터링.
- *  excludeBuIds: per-client 기납품 BU ID Set (optional) */
+ *  excludeBuIds: per-client 기납품 BU ID Set (optional)
+ *  serverConstraints: 서버 하드코딩 필터를 미리보기에도 동일 적용 */
 export function filterUnitsForJob(
   units: BillableUnit[],
   filters: ExportJobFilters,
   componentIds: SkuComponentId[],
   excludeBuIds?: Set<string>,
+  serverConstraints?: { minQaScore?: number; transcriptSessionIds?: Set<string> },
 ): BillableUnit[] {
   // 컴포넌트 필터 조건 병합
   const mergedFilter = mergeComponentFilters(componentIds)
@@ -403,6 +405,12 @@ export function filterUnitsForJob(
 
     // 컴포넌트 필터: 동의
     if (mergedFilter.requireConsent && u.consentStatus !== 'PUBLIC_CONSENTED') return false
+
+    // 서버 하드코딩 제약: 최소 QA 점수
+    if (serverConstraints?.minQaScore && u.qaScore < serverConstraints.minQaScore) return false
+
+    // 서버 하드코딩 제약: 전사 보유 세션만
+    if (serverConstraints?.transcriptSessionIds && !serverConstraints.transcriptSessionIds.has(u.sessionId)) return false
 
     return true
   })

@@ -1,7 +1,7 @@
 // ── Admin API Client ───────────────────────────────────────────────────
 // 백엔드 Admin API 호출 레이어
 
-import { apiFetch } from './client'
+import { apiFetch, getAuthToken } from './client'
 
 // ── Admin Auth ───────────────────────────────────────────────────────────
 
@@ -513,6 +513,104 @@ export async function downloadExportRequestApi(id: string) {
 
 export async function loadSkuInventoryApi() {
   return apiFetch<SkuInventory[]>('/api/admin/inventory')
+}
+
+// ── PII Masking ────────────────────────────────────────────────────────
+
+export interface PiiInterval {
+  id: string
+  startSec: number
+  endSec: number
+  piiType: string
+  maskType: 'beep' | 'silence'
+  source: 'auto' | 'manual'
+}
+
+export async function loadUtterancePiiApi(utteranceId: string, signal?: AbortSignal) {
+  return apiFetch<{ piiIntervals: PiiInterval[]; piiReviewedAt: string | null; piiReviewedBy: string | null }>(
+    `/api/admin/utterances/${utteranceId}/pii`,
+    { signal },
+  )
+}
+
+export async function saveUtterancePiiApi(utteranceId: string, intervals: PiiInterval[]) {
+  return apiFetch<{ ok: boolean }>(`/api/admin/utterances/${utteranceId}/pii`, {
+    method: 'PUT',
+    body: JSON.stringify({ piiIntervals: intervals }),
+  })
+}
+
+export async function applyUtteranceMaskApi(utteranceId: string) {
+  return apiFetch<{ success: boolean }>(`/api/admin/utterances/${utteranceId}/apply-mask`, {
+    method: 'POST',
+  })
+}
+
+export async function checkUtteranceOriginalBackupApi(utteranceId: string, signal?: AbortSignal) {
+  return apiFetch<{ hasBackup: boolean }>(`/api/admin/utterances/${utteranceId}/original-backup`, { signal })
+}
+
+export async function restoreUtteranceOriginalApi(utteranceId: string) {
+  return apiFetch<{ ok: boolean }>(`/api/admin/utterances/${utteranceId}/restore-original`, {
+    method: 'POST',
+  })
+}
+
+export async function loadUtteranceAudioUrlApi(utteranceId: string) {
+  return apiFetch<{ signedUrl: string }>(`/api/admin/utterances/${utteranceId}/audio`)
+}
+
+/**
+ * WAV 바이너리를 Blob으로 프록시 로드 (wavesurfer.js CORS 우회)
+ */
+export async function loadUtteranceAudioBlobApi(utteranceId: string, signal?: AbortSignal): Promise<Blob> {
+  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+  const token = getAuthToken()
+
+  const res = await fetch(`${API_BASE}/api/admin/utterances/${utteranceId}/audio/stream`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    credentials: 'include',
+    signal,
+  })
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    throw new Error(`Audio stream failed: ${res.status}${body ? ` — ${body}` : ''}`)
+  }
+
+  return res.blob()
+}
+
+/**
+ * PII 구간이 적용된 마스킹 미리보기 WAV Blob 반환 (DB/S3 변경 없음)
+ */
+export async function previewUtteranceMaskApi(utteranceId: string): Promise<Blob> {
+  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+  const token = getAuthToken()
+
+  const res = await fetch(`${API_BASE}/api/admin/utterances/${utteranceId}/preview-mask`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    credentials: 'include',
+  })
+
+  if (!res.ok) {
+    const json = await res.json().catch(() => ({}))
+    throw new Error((json as { error?: string }).error || '미리보기 로드 실패')
+  }
+
+  return res.blob()
+}
+
+// ── Consent Force Update ────────────────────────────────────────────────
+
+export async function forceUpdateConsentApi(
+  sessionIds: string[],
+  consentStatus: 'PUBLIC_CONSENTED' | 'PRIVATE' | 'WITHDRAWN',
+) {
+  return apiFetch<{ updated: number; skipped: number; consentStatus: string }>('/api/admin/sessions/consent-force-update', {
+    method: 'PUT',
+    body: JSON.stringify({ sessionIds, consentStatus }),
+  })
 }
 
 // ── Reset All ───────────────────────────────────────────────────────────

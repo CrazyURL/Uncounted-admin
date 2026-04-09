@@ -21,7 +21,8 @@
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "react-router-dom": "7.3.0",
-    "serve": "^14.2.4"
+    "serve": "^14.2.4",
+    "wavesurfer.js": "^7.12.5"
   },
   "devDependencies": {
     "@types/node": "^25.3.3",

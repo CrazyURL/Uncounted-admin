@@ -73,6 +73,28 @@ export interface ExportUtterance {
   isIncluded: boolean
   excludeReason?: string
   audioUrl?: string  // signed URL for playback
+  // chunk mapping fields (utterances 테이블 연동)
+  chunkIndex?: number
+  sequenceInChunk?: number
+  speakerId?: string
+  isUser?: boolean
+  volumeLufs?: number
+  // labeling fields
+  labels?: UtteranceLabels
+  // PII fields
+  piiIntervals?: Array<{ startSec: number; endSec: number; piiType: string; maskType: string }>
+  piiReviewedAt?: string
+}
+
+export interface UtteranceLabels {
+  relationship?: string
+  purpose?: string
+  domain?: string
+  tone?: string
+  noise?: string
+  dialogAct?: string
+  dialogIntensity?: number
+  labelSource?: string
 }
 
 export interface SkuInventory {

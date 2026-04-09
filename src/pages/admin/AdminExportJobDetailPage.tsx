@@ -6,6 +6,7 @@ import { type ExportUtterance } from '../../types/export'
 import JobLogTimeline from '../../components/domain/JobLogTimeline'
 import UtteranceReviewTable from '../../components/domain/UtteranceReviewTable'
 import UtteranceReviewGuide from '../../components/domain/UtteranceReviewGuide'
+import PiiMaskingEditor from '../../components/domain/PiiMaskingEditor'
 
 const STATUS_LABELS: Record<string, { text: string; color: string }> = {
   draft: { text: '초안', color: '#6b7280' },
@@ -35,6 +36,9 @@ export default function AdminExportJobDetailPage() {
   const [utterancesLoading, setUtterancesLoading] = useState(false)
   const [reviewOpen, setReviewOpen] = useState(false)
   const [reviewResult, setReviewResult] = useState<string | null>(null)
+
+  // PII 편집
+  const [piiEditId, setPiiEditId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!jobId) return
@@ -88,6 +92,20 @@ export default function AdminExportJobDetailPage() {
       })
     )
   }, [])
+
+  // PII 편집 열기
+  const handlePiiEdit = useCallback((utteranceId: string) => {
+    setPiiEditId(utteranceId)
+  }, [])
+
+  // PII 마스킹 적용 완료
+  const handlePiiMaskApplied = useCallback(() => {
+    setPiiEditId(null)
+    // 발화 목록 새로고침
+    if (jobId) {
+      loadExportUtterances(jobId).then(data => setUtterances(data)).catch(() => {})
+    }
+  }, [jobId])
 
   // 패키징 확정
   const handleFinalize = useCallback(async () => {
@@ -288,7 +306,31 @@ export default function AdminExportJobDetailPage() {
                 onToggle={handleToggle}
                 onAutoFilter={handleAutoFilter}
                 onFinalize={handleFinalize}
+                onPiiEdit={handlePiiEdit}
               />
+
+              {/* PII 마스킹 에디터 (인라인 패널) */}
+              {piiEditId && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between px-1">
+                    <span className="text-xs font-medium text-white">
+                      PII 마스킹 — {piiEditId.slice(0, 16)}
+                    </span>
+                    <button
+                      onClick={() => setPiiEditId(null)}
+                      className="text-[10px] px-2 py-1 rounded-lg"
+                      style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)' }}
+                    >
+                      닫기
+                    </button>
+                  </div>
+                  <PiiMaskingEditor
+                    utteranceId={piiEditId}
+                    onMaskApplied={handlePiiMaskApplied}
+                  />
+                </div>
+              )}
+
               {reviewResult && (
                 <p className="text-xs px-4" style={{ color: reviewResult.includes('실패') ? '#ef4444' : '#22c55e' }}>
                   {reviewResult}

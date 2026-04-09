@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useMemo, useEffect } from 'react'
+import { useState, useRef, useCallback, useMemo, useEffect, Fragment } from 'react'
 import { type ExportUtterance } from '../../types/export'
 
 type Props = {
@@ -7,7 +7,18 @@ type Props = {
   onAutoFilter: (type: 'short' | 'gradeC' | 'highBeep') => void
   onFinalize?: () => void
   requestedMinutes?: number
+  onSelectionChange?: (selectedIds: Set<string>) => void
+  skuId?: string
+  onPiiEdit?: (utteranceId: string) => void
 }
+
+const LABEL_FIELDS: Array<{ key: string; label: string }> = [
+  { key: 'tone', label: '어조' },
+  { key: 'domain', label: '도메인' },
+  { key: 'purpose', label: '목적' },
+  { key: 'relationship', label: '관계' },
+  { key: 'noise', label: '소음' },
+]
 
 const GRADE_COLORS: Record<string, string> = { A: '#22c55e', B: '#f59e0b', C: '#6b7280' }
 
@@ -18,7 +29,8 @@ const REASON_LABELS: Record<string, { text: string; color: string }> = {
   manual: { text: '수동 제외', color: '#ef4444' },
 }
 
-export default function UtteranceReviewTable({ utterances, onToggle, onAutoFilter, onFinalize, requestedMinutes }: Props) {
+export default function UtteranceReviewTable({ utterances, onToggle, onAutoFilter, onFinalize, requestedMinutes, onSelectionChange, skuId, onPiiEdit }: Props) {
+  const showLabels = skuId === 'U-A02' || skuId === 'U-A03'
   const [playingId, setPlayingId] = useState<string | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const audioRef = useRef<HTMLAudioElement>(null)
@@ -31,6 +43,10 @@ export default function UtteranceReviewTable({ utterances, onToggle, onAutoFilte
       }
     }
   }, [])
+
+  useEffect(() => {
+    onSelectionChange?.(selectedIds)
+  }, [selectedIds, onSelectionChange])
 
   // Counts for auto-filter buttons
   const autoFilterCounts = useMemo(() => ({
@@ -169,19 +185,21 @@ export default function UtteranceReviewTable({ utterances, onToggle, onAutoFilte
         <div
           className="grid items-center gap-2 px-3 py-2 text-[10px] font-medium"
           style={{
-            gridTemplateColumns: '28px 1fr 56px 56px 44px 40px 52px 52px 60px 32px',
+            gridTemplateColumns: onPiiEdit ? '28px 1fr 52px 48px 56px 44px 40px 52px 52px 40px 60px 32px' : '28px 1fr 52px 48px 56px 44px 40px 52px 52px 60px 32px',
             color: 'rgba(255,255,255,0.4)',
             borderBottom: '1px solid rgba(255,255,255,0.06)',
           }}
         >
           <span />
           <span>발화ID</span>
+          <span>청크</span>
           <span>화자</span>
           <span>구간</span>
           <span>길이</span>
           <span>등급</span>
           <span>SNR</span>
           <span>beep%</span>
+          {onPiiEdit && <span>PII</span>}
           <span>상태</span>
           <span>재생</span>
         </div>
@@ -194,100 +212,167 @@ export default function UtteranceReviewTable({ utterances, onToggle, onAutoFilte
             const isSelected = selectedIds.has(u.utteranceId)
 
             return (
-              <div
-                key={u.utteranceId}
-                className="grid items-center gap-2 px-3 py-1.5 transition-colors"
-                style={{
-                  gridTemplateColumns: '28px 1fr 56px 56px 44px 40px 52px 52px 60px 32px',
-                  backgroundColor: !u.isIncluded ? 'rgba(239,68,68,0.04)' : isSelected ? 'rgba(139,92,246,0.06)' : 'transparent',
-                  borderBottom: '1px solid rgba(255,255,255,0.03)',
-                  opacity: u.isIncluded ? 1 : 0.4,
-                }}
-              >
-                {/* Checkbox */}
-                <button onClick={() => handleToggleSelect(u.utteranceId)} className="flex items-center justify-center">
-                  <span className="material-symbols-outlined" style={{ fontSize: '16px', color: isSelected ? '#8b5cf6' : 'rgba(255,255,255,0.2)' }}>
-                    {isSelected ? 'check_box' : 'check_box_outline_blank'}
-                  </span>
-                </button>
-
-                {/* ID + pseudo */}
-                <div className="min-w-0">
-                  <p
-                    className="text-[10px] text-white truncate"
-                    style={{ textDecoration: u.isIncluded ? 'none' : 'line-through' }}
-                  >
-                    {u.utteranceId.slice(0, 12)}
-                  </p>
-                  <p className="text-[9px]" style={{ color: 'rgba(255,255,255,0.3)' }}>{u.pseudoId.slice(0, 8)}</p>
-                </div>
-
-                {/* Speaker */}
-                <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.5)' }}>
-                  {u.pseudoId === 'self' ? '본인' : '상대'}
-                </span>
-
-                {/* Range */}
-                <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.5)' }}>
-                  {u.startSec.toFixed(1)}-{u.endSec.toFixed(1)}
-                </span>
-
-                {/* Duration */}
-                <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.6)' }}>
-                  {formatDuration(u.durationSec)}
-                </span>
-
-                {/* Grade badge */}
-                <span
-                  className="text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded"
-                  style={{ backgroundColor: `${gradeColor}20`, color: gradeColor }}
+              <Fragment key={u.utteranceId}>
+                <div
+                  className="grid items-center gap-2 px-3 py-1.5 transition-colors"
+                  style={{
+                    gridTemplateColumns: onPiiEdit ? '28px 1fr 52px 48px 56px 44px 40px 52px 52px 40px 60px 32px' : '28px 1fr 52px 48px 56px 44px 40px 52px 52px 60px 32px',
+                    backgroundColor: !u.isIncluded ? 'rgba(239,68,68,0.04)' : isSelected ? 'rgba(139,92,246,0.06)' : 'transparent',
+                    borderBottom: showLabels ? 'none' : '1px solid rgba(255,255,255,0.03)',
+                    opacity: u.isIncluded ? 1 : 0.4,
+                  }}
                 >
-                  {u.qualityGrade}
-                </span>
-
-                {/* SNR */}
-                <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.5)' }}>
-                  {u.snrDb.toFixed(1)}dB
-                </span>
-
-                {/* Beep */}
-                <span
-                  className="text-[10px]"
-                  style={{ color: u.beepMaskRatio >= 0.3 ? '#f97316' : 'rgba(255,255,255,0.5)' }}
-                >
-                  {(u.beepMaskRatio * 100).toFixed(0)}%
-                </span>
-
-                {/* Status */}
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => onToggle(u.utteranceId, !u.isIncluded, u.isIncluded ? 'manual' : undefined)}
-                    className="material-symbols-outlined"
-                    style={{ fontSize: '14px', color: u.isIncluded ? '#22c55e' : '#ef4444' }}
-                  >
-                    {u.isIncluded ? 'check_circle' : 'cancel'}
+                  {/* Checkbox */}
+                  <button onClick={() => handleToggleSelect(u.utteranceId)} className="flex items-center justify-center">
+                    <span className="material-symbols-outlined" style={{ fontSize: '16px', color: isSelected ? '#8b5cf6' : 'rgba(255,255,255,0.2)' }}>
+                      {isSelected ? 'check_box' : 'check_box_outline_blank'}
+                    </span>
                   </button>
-                  {reasonInfo && (
-                    <span className="text-[8px] font-medium" style={{ color: reasonInfo.color }}>
-                      {reasonInfo.text}
+
+                  {/* ID + pseudo */}
+                  <div className="min-w-0">
+                    <p
+                      className="text-[10px] text-white truncate"
+                      style={{ textDecoration: u.isIncluded ? 'none' : 'line-through' }}
+                    >
+                      {u.utteranceId.slice(0, 12)}
+                    </p>
+                    <p className="text-[9px]" style={{ color: 'rgba(255,255,255,0.3)' }}>{u.pseudoId?.slice(0, 8) ?? '—'}</p>
+                  </div>
+
+                  {/* Chunk mapping */}
+                  <span className="text-[10px] font-mono" style={{ color: '#a78bfa' }}>
+                    {u.chunkIndex != null && u.sequenceInChunk != null
+                      ? `C${u.chunkIndex}:S${u.sequenceInChunk}`
+                      : '—'}
+                  </span>
+
+                  {/* Speaker */}
+                  {u.isUser != null ? (
+                    <span
+                      className="text-[9px] font-medium px-1.5 py-0.5 rounded"
+                      style={{
+                        backgroundColor: u.isUser ? 'rgba(139,92,246,0.15)' : 'rgba(255,255,255,0.08)',
+                        color: u.isUser ? '#a78bfa' : 'rgba(255,255,255,0.5)',
+                      }}
+                    >
+                      {u.isUser ? '본인' : '상대'}
+                    </span>
+                  ) : (
+                    <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                      {u.pseudoId === 'self' ? '본인' : '상대'}
                     </span>
                   )}
+
+                  {/* Range */}
+                  <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                    {u.startSec.toFixed(1)}-{u.endSec.toFixed(1)}
+                  </span>
+
+                  {/* Duration */}
+                  <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.6)' }}>
+                    {formatDuration(u.durationSec)}
+                  </span>
+
+                  {/* Grade badge */}
+                  <span
+                    className="text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded"
+                    style={{ backgroundColor: `${gradeColor}20`, color: gradeColor }}
+                  >
+                    {u.qualityGrade}
+                  </span>
+
+                  {/* SNR */}
+                  <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                    {u.snrDb.toFixed(1)}dB
+                  </span>
+
+                  {/* Beep */}
+                  <span
+                    className="text-[10px]"
+                    style={{ color: (u.beepMaskRatio ?? 0) >= 0.3 ? '#f97316' : 'rgba(255,255,255,0.5)' }}
+                  >
+                    {((u.beepMaskRatio ?? 0) * 100).toFixed(0)}%
+                  </span>
+
+                  {/* PII */}
+                  {onPiiEdit && (
+                    <button
+                      onClick={() => onPiiEdit(u.utteranceId)}
+                      className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-white/5 transition-colors cursor-pointer"
+                      title={u.piiIntervals && u.piiIntervals.length > 0 ? `PII ${u.piiIntervals.length}건` : 'PII 편집'}
+                    >
+                      <span
+                        className="material-symbols-outlined"
+                        style={{
+                          fontSize: '16px',
+                          color: u.piiReviewedAt ? '#22c55e'
+                            : u.piiIntervals && u.piiIntervals.length > 0 ? '#ef4444'
+                            : 'rgba(255,255,255,0.35)',
+                        }}
+                      >
+                        {u.piiReviewedAt ? 'verified_user' : u.piiIntervals && u.piiIntervals.length > 0 ? 'security' : 'shield'}
+                      </span>
+                    </button>
+                  )}
+
+                  {/* Status */}
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => onToggle(u.utteranceId, !u.isIncluded, u.isIncluded ? 'manual' : undefined)}
+                      className="material-symbols-outlined"
+                      style={{ fontSize: '14px', color: u.isIncluded ? '#22c55e' : '#ef4444' }}
+                    >
+                      {u.isIncluded ? 'check_circle' : 'cancel'}
+                    </button>
+                    {reasonInfo && (
+                      <span className="text-[8px] font-medium" style={{ color: reasonInfo.color }}>
+                        {reasonInfo.text}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Play */}
+                  <button
+                    onClick={() => handlePlay(u.utteranceId, u.audioUrl)}
+                    disabled={!u.audioUrl}
+                    className="flex items-center justify-center disabled:opacity-20"
+                  >
+                    <span
+                      className="material-symbols-outlined"
+                      style={{ fontSize: '16px', color: playingId === u.utteranceId ? '#8b5cf6' : 'rgba(255,255,255,0.4)' }}
+                    >
+                      {playingId === u.utteranceId ? 'pause_circle' : 'play_circle'}
+                    </span>
+                  </button>
                 </div>
 
-                {/* Play */}
-                <button
-                  onClick={() => handlePlay(u.utteranceId, u.audioUrl)}
-                  disabled={!u.audioUrl}
-                  className="flex items-center justify-center disabled:opacity-20"
-                >
-                  <span
-                    className="material-symbols-outlined"
-                    style={{ fontSize: '16px', color: playingId === u.utteranceId ? '#8b5cf6' : 'rgba(255,255,255,0.4)' }}
+                {/* Label sub-row for U-A02 / U-A03 */}
+                {showLabels && (
+                  <div
+                    className="px-3 pb-1.5 flex flex-wrap gap-1"
+                    style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', opacity: u.isIncluded ? 1 : 0.4 }}
                   >
-                    {playingId === u.utteranceId ? 'pause_circle' : 'play_circle'}
-                  </span>
-                </button>
-              </div>
+                    {u.labels && LABEL_FIELDS.some(f => (u.labels as Record<string, unknown>)?.[f.key] != null) ? (
+                      LABEL_FIELDS.map(({ key, label }) => {
+                        const val = (u.labels as Record<string, unknown>)?.[key]
+                        if (val == null) return null
+                        return (
+                          <span
+                            key={key}
+                            className="text-[9px] px-1.5 py-0.5 rounded"
+                            style={{ backgroundColor: 'rgba(139,92,246,0.1)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.2)' }}
+                          >
+                            {label}: {String(val)}
+                          </span>
+                        )
+                      })
+                    ) : (
+                      <span className="text-[9px]" style={{ color: 'rgba(255,255,255,0.2)' }}>라벨 없음</span>
+                    )}
+                  </div>
+                )}
+              </Fragment>
             )
           })}
         </div>
