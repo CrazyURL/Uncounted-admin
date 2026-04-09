@@ -170,19 +170,19 @@ export default function AdminBuildWizardPage() {
         .map(u => u.sessionId)
     )]
     if (nonConsentedIds.length === 0) {
-      alert('이미 모든 세션이 PUBLIC_CONSENTED 상태입니다.')
+      alert('이미 모든 세션이 동의 완료 상태입니다.')
       return
     }
-    if (!confirm(`${nonConsentedIds.length}개 세션을 납품 가능 상태로 설정하시겠습니까?\n공개 동의(visibility_status)가 업데이트되며 추출 대상에 포함됩니다.`)) return
+    if (!confirm(`${nonConsentedIds.length}개 세션을 납품 가능 상태로 설정하시겠습니까?\n동의 상태(consent_status)가 업데이트되며 추출 대상에 포함됩니다.`)) return
     setConsentUpdating(true)
     try {
-      const { data, error } = await forceUpdateConsentApi(nonConsentedIds, 'PUBLIC_CONSENTED')
+      const { data, error } = await forceUpdateConsentApi(nonConsentedIds, 'both_agreed')
       if (error) {
         alert(`동의 전환 실패: ${error}`)
       } else {
         const skipped = data?.skipped ?? 0
         const updated = data?.updated ?? 0
-        alert(`완료: ${updated}개 세션 PUBLIC_CONSENTED 전환${skipped > 0 ? `\n업로드 미완료 ${skipped}건 제외됨` : ''}`)
+        alert(`완료: ${updated}개 세션 동의 전환${skipped > 0 ? `\n업로드 미완료 ${skipped}건 제외됨` : ''}`)
       }
     } catch (err) {
       alert(`오류: ${err}`)

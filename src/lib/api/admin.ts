@@ -605,7 +605,7 @@ export async function previewUtteranceMaskApi(utteranceId: string): Promise<Blob
 
 export async function forceUpdateConsentApi(
   sessionIds: string[],
-  consentStatus: 'PUBLIC_CONSENTED' | 'PRIVATE' | 'WITHDRAWN',
+  consentStatus: 'both_agreed',
 ) {
   return apiFetch<{ updated: number; skipped: number; consentStatus: string }>('/api/admin/sessions/consent-force-update', {
     method: 'PUT',
