@@ -307,6 +307,7 @@ export default function AdminExportJobDetailPage() {
                 onAutoFilter={handleAutoFilter}
                 onFinalize={handleFinalize}
                 onPiiEdit={handlePiiEdit}
+                skuId={job.skuId}
               />
 
               {/* PII 마스킹 에디터 (인라인 패널) */}
