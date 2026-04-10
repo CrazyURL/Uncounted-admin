@@ -292,6 +292,127 @@ export async function getAdminMetaSignedUrlApi(storagePath: string, expiresIn = 
   })
 }
 
+// ── Metadata Inventory (SKU 기반) ───────────────────────────────────────
+
+export interface MetadataSkuInventory {
+  schemaId: string
+  displayName: string
+  totalEvents: number
+  deviceCount: number
+  periodStart: string | null
+  periodEnd: string | null
+  qualityDistribution: { good: number; partial: number; sparse: number }
+  syncStatus: { upToDate: number; stale: number }
+}
+
+/** SKU별 메타데이터 인벤토리 조회 */
+export async function fetchMetadataInventory() {
+  return apiFetch<{ skus: MetadataSkuInventory[] }>('/api/admin/metadata/inventory')
+}
+
+export interface MetadataDeviceStats {
+  pseudoId: string
+  eventCount: number
+  lastSyncAt: string | null
+  syncStatus: 'up_to_date' | 'stale'
+}
+
+export interface MetadataSkuStats {
+  devices: MetadataDeviceStats[]
+  fieldDistributions: Record<string, Record<string, number>>
+  heatmap: Array<{ dateBucket: string; timeBucket: string; count: number }>
+}
+
+/** SKU 상세 통계 (디바이스 목록, 필드 분포, 히트맵) */
+export async function fetchMetadataSkuStats(schemaId: string) {
+  return apiFetch<MetadataSkuStats>(`/api/admin/metadata/${encodeURIComponent(schemaId)}/stats`)
+}
+
+export interface MetadataPreviewResult {
+  events: Array<Record<string, unknown>>
+  fieldDistributions: Record<string, Record<string, number>>
+  total: number
+}
+
+export interface MetadataPreviewQuery {
+  quality?: string
+  dateFrom?: string
+  dateTo?: string
+  pseudoId?: string
+  limit?: number
+  offset?: number
+}
+
+/** SKU 이벤트 프리뷰 (필터 + 분포) */
+export async function fetchMetadataPreview(schemaId: string, query?: MetadataPreviewQuery) {
+  const params = new URLSearchParams()
+  if (query?.quality) params.set('quality', query.quality)
+  if (query?.dateFrom) params.set('dateFrom', query.dateFrom)
+  if (query?.dateTo) params.set('dateTo', query.dateTo)
+  if (query?.pseudoId) params.set('pseudoId', query.pseudoId)
+  if (query?.limit != null) params.set('limit', String(query.limit))
+  if (query?.offset != null) params.set('offset', String(query.offset))
+  const qs = params.toString()
+  return apiFetch<MetadataPreviewResult>(
+    `/api/admin/metadata/${encodeURIComponent(schemaId)}/preview${qs ? `?${qs}` : ''}`,
+  )
+}
+
+// ── Metadata Export (생성/상태/다운로드) ──────────────────────────────────
+
+export interface CreateMetadataExportRequest {
+  schemaIds: string[]
+  filters?: {
+    pseudoIds?: string[]
+    dateFrom?: string
+    dateTo?: string
+    quality?: string
+    excludeQuality?: string
+    excludeStaleDevices?: boolean
+  }
+  clientName: string
+}
+
+export interface MetadataExportJob {
+  jobId: string
+  status: 'ready' | 'failed'
+  storagePath?: string
+  totalEvents?: number
+  error?: string
+}
+
+export interface MetadataExportJobStatus {
+  id: string
+  status: string
+  type: 'metadata'
+  storagePath?: string
+  totalEvents?: number
+  errorMessage?: string
+  createdAt: string
+}
+
+/** 메타데이터 Export 작업 생성 (동기 처리) */
+export async function createMetadataExport(request: CreateMetadataExportRequest) {
+  return apiFetch<MetadataExportJob>('/api/admin/metadata/export', {
+    method: 'POST',
+    body: JSON.stringify(request),
+  })
+}
+
+/** Export 작업 상태 조회 */
+export async function fetchMetadataExportStatus(jobId: string) {
+  return apiFetch<MetadataExportJobStatus>(
+    `/api/admin/metadata/export/${encodeURIComponent(jobId)}/status`,
+  )
+}
+
+/** Export 다운로드 URL 조회 (24시간 유효 서명 URL) */
+export async function fetchMetadataExportDownload(jobId: string) {
+  return apiFetch<{ downloadUrl: string; expiresAt: string }>(
+    `/api/admin/metadata/export/${encodeURIComponent(jobId)}/download`,
+  )
+}
+
 // ── Metadata Events (DB) ────────────────────────────────────────────────
 
 export type MetadataEventEntry = {

@@ -36,7 +36,7 @@ src/
 ├── components/
 │   ├── layout/               # AdminShell, AdminNav, TopBar, BottomNav
 │   ├── common/               # 공통 UI
-│   ├── domain/               # 도메인 특화
+│   ├── domain/               # 도메인 특화 (metadata/ 포함)
 │   └── motion/               # Framer Motion 래퍼
 ├── lib/
 │   ├── api/                  # client.ts, admin.ts, auth.ts, sessions.ts

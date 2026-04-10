@@ -1,5 +1,4 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { type Session } from '../../types/session'
 import { type SkuId, SKU_CATALOG, SKU_COMPONENT_CATALOG } from '../../types/sku'
 import {
@@ -9,26 +8,28 @@ import {
   type SamplingStrategy,
   type Client,
 } from '../../types/admin'
-import { type SkuInventory, type ExportUtterance, type UtteranceLabels } from '../../types/export'
+import { type SkuInventory, type ExportUtterance } from '../../types/export'
 import { loadAllSessions } from '../../lib/sessionMapper'
 import { deriveUnitsFromSessions, filterUnitsForJob, sampleUnits, summarizeUnits } from '../../lib/billableUnitEngine'
 import { getDefaultRecipe, recipeToApiFilters } from '../../lib/skuStudio'
 import { fetchAllSessionsAdminApi } from '../../lib/api/sessions'
-import { loadClients, saveExportJob, upsertBillableUnits, loadDeliveredBuIdsForClient, loadSkuInventory, confirmExportRequest, processExportRequest, loadExportUtterances, finalizeExportRequest, downloadExportRequest } from '../../lib/adminStore'
+import { loadClients, saveExportJob, upsertBillableUnits, loadDeliveredBuIdsForClient, loadSkuInventory, confirmExportRequest, processExportRequest, loadExportUtterances } from '../../lib/adminStore'
 import { forceUpdateConsentApi, fetchTranscriptIdsApi } from '../../lib/api/admin'
 import { generateUUID } from '../../lib/uuid'
 import SkuInventoryCard from '../../components/domain/SkuInventoryCard'
-import UtteranceReviewTable from '../../components/domain/UtteranceReviewTable'
-import UtteranceReviewGuide from '../../components/domain/UtteranceReviewGuide'
-import UtteranceLabelingPanel from '../../components/domain/UtteranceLabelingPanel'
-import PiiMaskingEditor from '../../components/domain/PiiMaskingEditor'
+import { AudioStepProcess, AudioStepReview, AudioStepDownload } from '../../components/domain/AudioProcessingSteps'
+// Metadata flow components
+import { type MetadataFilterState } from '../../components/domain/metadata/MetadataQualityFilter'
+import MetadataExportConfirm from '../../components/domain/metadata/MetadataExportConfirm'
+import { MetadataStepInventory, MetadataStepPreview } from '../../components/domain/metadata/MetadataWizardSteps'
+import { type MetadataSkuInventory, type MetadataSkuStats } from '../../lib/api/admin'
 
-const STEPS = ['납품처', 'SKU + 옵션', '수량 + 조건', '시뮬레이션', '미리보기', '처리 진행', '검수', '다운로드']
+const AUDIO_steps = ['납품처', 'SKU + 옵션', '수량 + 조건', '시뮬레이션', '미리보기', '처리 진행', '검수', '다운로드']
+const META_steps = ['납품처', 'SKU + 옵션', '재고 + 필터', '이벤트 프리뷰', '패키징 + 다운로드']
 const MVP_SKUS = SKU_CATALOG.filter(s => s.isAvailableMvp)
 const MVP_COMPONENTS = SKU_COMPONENT_CATALOG.filter(c => c.isEnabledMvp)
 
 export default function AdminBuildWizardPage() {
-  const navigate = useNavigate()
   const [step, setStep] = useState(0)
 
   // 데이터
@@ -78,6 +79,22 @@ export default function AdminBuildWizardPage() {
   const [reviewUtterances, setReviewUtterances] = useState<ExportUtterance[]>([])
   const [reviewSelectedIds, setReviewSelectedIds] = useState<Set<string>>(new Set())
   const [piiEditId, setPiiEditId] = useState<string | null>(null)
+
+  // ── Metadata flow state ──
+  const [metaSkus, setMetaSkus] = useState<MetadataSkuInventory[]>([])
+  const [selectedMetaSkuIds, setSelectedMetaSkuIds] = useState<Set<string>>(new Set())
+  const [metaFilter, setMetaFilter] = useState<MetadataFilterState>({
+    excludeSparse: false, excludeStaleDevices: false,
+    dateFrom: '', dateTo: '', selectedPseudoIds: [],
+  })
+  const [metaStatsCache, setMetaStatsCache] = useState<Record<string, MetadataSkuStats>>({})
+  const [metaInventoryLoaded, setMetaInventoryLoaded] = useState(false)
+  // Derived: is metadata flow?
+  const selectedSkuCategory = selectedSkuId
+    ? SKU_CATALOG.find(s => s.id === selectedSkuId)?.category ?? 'voice'
+    : null
+  const isMetadataFlow = selectedSkuCategory === 'metadata'
+  const steps = isMetadataFlow ? META_steps : AUDIO_steps
 
   const loadedRef = useRef(false)
 
@@ -215,42 +232,6 @@ export default function AdminBuildWizardPage() {
     }
   }, [createdJobId])
 
-  // Step 6: 검수 핸들러
-  const handleReviewToggle = useCallback((utteranceId: string, isIncluded: boolean, reason?: string) => {
-    setReviewUtterances(prev =>
-      prev.map(u =>
-        u.utteranceId === utteranceId
-          ? { ...u, isIncluded, excludeReason: isIncluded ? undefined : (reason ?? 'manual') }
-          : u
-      )
-    )
-  }, [])
-
-  const handleReviewAutoFilter = useCallback((type: 'short' | 'gradeC' | 'highBeep') => {
-    setReviewUtterances(prev =>
-      prev.map(u => {
-        if (!u.isIncluded) return u
-        const match =
-          (type === 'short' && u.durationSec < 3) ||
-          (type === 'gradeC' && u.qualityGrade === 'C') ||
-          (type === 'highBeep' && u.beepMaskRatio >= 0.3)
-        if (!match) return u
-        const reason = type === 'short' ? 'too_short' : type === 'gradeC' ? 'low_grade' : 'high_beep'
-        return { ...u, isIncluded: false, excludeReason: reason }
-      })
-    )
-  }, [])
-
-  const handleUpdateLabels = useCallback((utteranceIds: string[], labels: Partial<UtteranceLabels>) => {
-    setReviewUtterances(prev =>
-      prev.map(u =>
-        utteranceIds.includes(u.utteranceId)
-          ? { ...u, labels: { ...u.labels, ...labels } }
-          : u
-      )
-    )
-  }, [])
-
   async function handleExecute() {
     if (!selectedSkuId || sampled.length === 0) return
     setExecuting(true)
@@ -312,7 +293,7 @@ export default function AdminBuildWizardPage() {
     <div className="flex flex-col h-full">
       {/* 스텝 인디케이터 */}
       <div className="flex items-center gap-1 px-4 py-3 overflow-x-auto">
-        {STEPS.map((s, i) => (
+        {steps.map((s, i) => (
           <div key={s} className="flex items-center gap-1 flex-shrink-0">
             <div
               className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold"
@@ -335,7 +316,7 @@ export default function AdminBuildWizardPage() {
             >
               {s}
             </span>
-            {i < STEPS.length - 1 && (
+            {i < steps.length - 1 && (
               <div className="w-3 h-px flex-shrink-0" style={{ backgroundColor: 'rgba(255,255,255,0.08)' }} />
             )}
           </div>
@@ -454,8 +435,77 @@ export default function AdminBuildWizardPage() {
           </div>
         )}
 
-        {/* Step 2: 수량 + 조건 */}
-        {step === 2 && (
+        {/* ── Metadata Flow: Step 2m 재고+필터 ── */}
+        {step === 2 && isMetadataFlow && (
+          <MetadataStepInventory
+            selectedSkuId={selectedSkuId!}
+            metaSkus={metaSkus}
+            setMetaSkus={setMetaSkus}
+            selectedMetaSkuIds={selectedMetaSkuIds}
+            setSelectedMetaSkuIds={setSelectedMetaSkuIds}
+            setMetaFilter={setMetaFilter}
+            metaStatsCache={metaStatsCache}
+            setMetaStatsCache={setMetaStatsCache}
+            metaInventoryLoaded={metaInventoryLoaded}
+            setMetaInventoryLoaded={setMetaInventoryLoaded}
+          />
+        )}
+
+        {/* ── Metadata Flow: Step 3m 이벤트 프리뷰 ── */}
+        {step === 3 && isMetadataFlow && (
+          <MetadataStepPreview
+            schemaId={[...selectedMetaSkuIds][0] ?? selectedSkuId!}
+            metaStatsCache={metaStatsCache}
+            filters={{
+              dateFrom: metaFilter.dateFrom,
+              dateTo: metaFilter.dateTo,
+              pseudoId: metaFilter.selectedPseudoIds[0],
+              excludeSparse: metaFilter.excludeSparse,
+            }}
+          />
+        )}
+
+        {/* ── Metadata Flow: Step 4m 패키징+다운로드 ── */}
+        {step === 4 && isMetadataFlow && (() => {
+          const schemaId = [...selectedMetaSkuIds][0] ?? selectedSkuId!
+          const skuInfo = metaSkus.find(s => s.schemaId === schemaId) ?? metaSkus.find(s => s.schemaId.startsWith(selectedSkuId!))
+          const stats = metaStatsCache[schemaId]
+
+          // Compute filter-adjusted values from stats cache
+          let filteredEvents = skuInfo?.totalEvents ?? 0
+          let filteredDevices = skuInfo?.deviceCount ?? 0
+          if (stats) {
+            let devices = stats.devices
+            if (metaFilter.excludeStaleDevices) {
+              devices = devices.filter(d => (d.syncStatus as string) === 'upToDate' || (d.syncStatus as string) === 'up_to_date')
+            }
+            if (metaFilter.selectedPseudoIds.length > 0) {
+              devices = devices.filter(d => metaFilter.selectedPseudoIds.includes(d.pseudoId))
+            }
+            filteredDevices = devices.length
+            filteredEvents = devices.reduce((sum, d) => sum + d.eventCount, 0)
+          }
+
+          const period = metaFilter.dateFrom || metaFilter.dateTo
+            ? `${metaFilter.dateFrom || skuInfo?.periodStart || '?'} ~ ${metaFilter.dateTo || skuInfo?.periodEnd || '?'}`
+            : skuInfo?.periodStart && skuInfo?.periodEnd
+              ? `${skuInfo.periodStart} ~ ${skuInfo.periodEnd}`
+              : '-'
+
+          return (
+            <MetadataExportConfirm
+              selectedSchemaIds={[schemaId]}
+              filter={metaFilter}
+              totalEvents={filteredEvents}
+              deviceCount={filteredDevices}
+              period={period}
+              clientName={selectedClientId ? (clients.find(c => c.id === selectedClientId)?.name ?? '내부 사용') : '내부 사용'}
+            />
+          )
+        })()}
+
+        {/* Step 2: 수량 + 조건 (Audio only) */}
+        {step === 2 && !isMetadataFlow && (
           <div className="space-y-4">
             <div>
               <p className="text-xs mb-1" style={{ color: 'rgba(255,255,255,0.5)' }}>요청 유닛 수</p>
@@ -544,8 +594,8 @@ export default function AdminBuildWizardPage() {
           </div>
         )}
 
-        {/* Step 3: 시뮬레이션 */}
-        {step === 3 && (
+        {/* Step 3: 시뮬레이션 (Audio only) */}
+        {step === 3 && !isMetadataFlow && (
           <div className="space-y-4">
             <div className="rounded-xl p-4" style={{ backgroundColor: '#1b1e2e' }}>
               <p className="text-xs font-medium text-white mb-2">시뮬레이션 결과</p>
@@ -609,8 +659,8 @@ export default function AdminBuildWizardPage() {
           </div>
         )}
 
-        {/* Step 4: 미리보기 */}
-        {step === 4 && (
+        {/* Step 4: 미리보기 (Audio only) */}
+        {step === 4 && !isMetadataFlow && (
           <div className="space-y-4">
             <div className="grid grid-cols-3 gap-3">
               <div className="rounded-xl p-4" style={{ backgroundColor: '#1b1e2e' }}>
@@ -664,240 +714,46 @@ export default function AdminBuildWizardPage() {
           </div>
         )}
 
-        {/* Step 5: 처리 진행 */}
-        {step === 5 && (
-          <div className="space-y-4">
-            {/* 클라이언트 발화 존재 시 segmentation 스킵 안내 */}
-            {reviewUtterances.length > 0 && processPhase === 'idle' && (
-              <div className="rounded-xl p-4 flex items-center gap-3" style={{ backgroundColor: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.15)' }}>
-                <span className="material-symbols-outlined text-lg" style={{ color: '#22c55e' }}>check_circle</span>
-                <div>
-                  <p className="text-xs font-medium" style={{ color: '#22c55e' }}>클라이언트 발화 사용</p>
-                  <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>
-                    이미 {reviewUtterances.length}건의 발화가 존재합니다. Segmentation을 건너뛰고 검수로 진행할 수 있습니다.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            <div className="rounded-xl p-6 text-center" style={{ backgroundColor: '#1b1e2e' }}>
-              {processPhase === 'idle' ? (
-                <>
-                  <span className="material-symbols-outlined text-4xl mb-3 block" style={{ color: '#1337ec' }}>rocket_launch</span>
-                  <p className="text-xs mb-4" style={{ color: 'rgba(255,255,255,0.5)' }}>
-                    {reviewUtterances.length > 0
-                      ? '기존 발화를 사용하거나 다시 처리할 수 있습니다'
-                      : '처리를 시작하면 추출 → 분석 → 분할 순서로 진행됩니다'}
-                  </p>
-                  <div className="flex items-center justify-center gap-2">
-                    <button
-                      onClick={handleStartProcess}
-                      className="text-xs px-6 py-2 rounded-lg font-medium text-white"
-                      style={{ backgroundColor: '#1337ec' }}
-                    >
-                      {reviewUtterances.length > 0 ? '다시 처리' : '처리 시작'}
-                    </button>
-                    {reviewUtterances.length > 0 && (
-                      <button
-                        onClick={() => setStep(6)}
-                        className="text-xs px-6 py-2 rounded-lg font-medium text-white"
-                        style={{ backgroundColor: '#22c55e' }}
-                      >
-                        검수로 건너뛰기
-                      </button>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="flex items-center justify-center gap-2 mb-4">
-                    {processPhase !== 'done' && (
-                      <span className="material-symbols-outlined text-xl animate-spin" style={{ color: '#1337ec' }}>progress_activity</span>
-                    )}
-                    {processPhase === 'done' && (
-                      <span className="material-symbols-outlined text-xl" style={{ color: '#22c55e' }}>check_circle</span>
-                    )}
-                    <span className="text-sm font-medium text-white">
-                      {processPhase === 'extracting' && '음성 추출 중...'}
-                      {processPhase === 'analyzing' && '품질 분석 중...'}
-                      {processPhase === 'splitting' && '발화 분할 중...'}
-                      {processPhase === 'done' && '처리 완료'}
-                    </span>
-                  </div>
-
-                  {/* Progress bar */}
-                  <div className="w-full h-2 rounded-full mb-2" style={{ backgroundColor: 'rgba(255,255,255,0.06)' }}>
-                    <div
-                      className="h-full rounded-full transition-all duration-300"
-                      style={{ width: `${processProgress}%`, backgroundColor: processPhase === 'done' ? '#22c55e' : '#1337ec' }}
-                    />
-                  </div>
-                  <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.3)' }}>{processProgress}%</p>
-
-                  {/* Phase indicators */}
-                  <div className="flex justify-between mt-4 text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>
-                    {['추출', '분석', '분할'].map((label, i) => {
-                      const phases = ['extracting', 'analyzing', 'splitting']
-                      const phaseIdx = phases.indexOf(processPhase)
-                      const done = processPhase === 'done' || phaseIdx > i
-                      const active = phaseIdx === i
-                      return (
-                        <span key={label} style={{ color: done ? '#22c55e' : active ? '#1337ec' : undefined }}>
-                          {done ? '✓ ' : active ? '● ' : '○ '}{label}
-                        </span>
-                      )
-                    })}
-                  </div>
-
-                  {processPhase === 'done' && (
-                    <button
-                      onClick={() => setStep(6)}
-                      className="mt-4 text-xs px-6 py-2 rounded-lg font-medium text-white"
-                      style={{ backgroundColor: '#1337ec' }}
-                    >
-                      검수 진행
-                    </button>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
+        {/* Step 5: 처리 진행 (Audio only) */}
+        {step === 5 && !isMetadataFlow && (
+          <AudioStepProcess
+            reviewUtterances={reviewUtterances}
+            processPhase={processPhase}
+            processProgress={processProgress}
+            onStartProcess={handleStartProcess}
+            onSetStep={setStep}
+          />
         )}
 
-        {/* Step 6: 검수 */}
-        {step === 6 && (
-          <div className="space-y-3">
-            {(() => {
-              const totalAvailableSec = reviewUtterances.reduce((acc, u) => acc + u.durationSec, 0)
-              const totalAvailableMin = totalAvailableSec / 60
-              if (totalAvailableMin < requestedUnits) {
-                return (
-                  <div
-                    className="rounded-xl px-4 py-3 flex items-start gap-3"
-                    style={{ backgroundColor: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.25)' }}
-                  >
-                    <span className="material-symbols-outlined text-sm mt-0.5" style={{ color: '#f59e0b' }}>warning</span>
-                    <div>
-                      <p className="text-xs font-medium" style={{ color: '#f59e0b' }}>발화량 부족 — 패키징 확정 불가</p>
-                      <p className="text-[11px] mt-0.5" style={{ color: 'rgba(255,255,255,0.5)' }}>
-                        전체 발화를 포함해도 <strong style={{ color: 'rgba(255,255,255,0.8)' }}>{totalAvailableMin.toFixed(1)}분</strong>으로,
-                        요청 수량 <strong style={{ color: 'rgba(255,255,255,0.8)' }}>{requestedUnits}분</strong>에 미달합니다.
-                      </p>
-                      <button
-                        onClick={() => setStep(2)}
-                        className="mt-2 text-[11px] px-3 py-1 rounded-lg font-medium"
-                        style={{ backgroundColor: 'rgba(245,158,11,0.2)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.3)' }}
-                      >
-                        수량 + 조건 단계로 돌아가기
-                      </button>
-                    </div>
-                  </div>
-                )
-              }
-              return null
-            })()}
-            <UtteranceReviewGuide />
-            <UtteranceReviewTable
-              utterances={reviewUtterances}
-              onToggle={handleReviewToggle}
-              onAutoFilter={handleReviewAutoFilter}
-              onFinalize={async () => {
-                if (!createdJobId) return
-                try {
-                  await finalizeExportRequest(createdJobId)
-                  setStep(7)
-                } catch (err) {
-                  alert('패키징 확정에 실패했습니다. 다시 시도해 주세요.')
-                }
-              }}
-              requestedMinutes={requestedUnits}
-              onSelectionChange={setReviewSelectedIds}
-              skuId={selectedSkuId ?? undefined}
-              onPiiEdit={setPiiEditId}
-            />
-            {piiEditId && (
-              <PiiMaskingEditor
-                utteranceId={piiEditId}
-                onMaskApplied={async () => {
-                  setPiiEditId(null)
-                  if (createdJobId) {
-                    const utts = await loadExportUtterances(createdJobId)
-                    setReviewUtterances(utts)
-                  }
-                }}
-              />
-            )}
-            <UtteranceLabelingPanel
-              utterances={reviewUtterances}
-              selectedIds={reviewSelectedIds}
-              onUpdateLabels={handleUpdateLabels}
-            />
-          </div>
+        {/* Step 6: 검수 (Audio only) */}
+        {step === 6 && !isMetadataFlow && (
+          <AudioStepReview
+            reviewUtterances={reviewUtterances}
+            setReviewUtterances={setReviewUtterances}
+            requestedUnits={requestedUnits}
+            createdJobId={createdJobId}
+            selectedSkuId={selectedSkuId}
+            reviewSelectedIds={reviewSelectedIds}
+            setReviewSelectedIds={setReviewSelectedIds}
+            piiEditId={piiEditId}
+            setPiiEditId={setPiiEditId}
+            onSetStep={setStep}
+          />
         )}
 
-        {/* Step 7: 다운로드 */}
-        {step === 7 && (
-          <div className="space-y-4">
-            <div className="rounded-xl p-6 text-center" style={{ backgroundColor: '#1b1e2e' }}>
-              <span className="material-symbols-outlined text-4xl mb-3 block" style={{ color: '#22c55e' }}>package_2</span>
-              <p className="text-sm font-medium text-white mb-1">패키징 완료</p>
-              <p className="text-[10px] mb-4" style={{ color: 'rgba(255,255,255,0.4)' }}>다운로드 준비가 완료되었습니다</p>
-
-              <div className="rounded-lg p-4 text-left space-y-2 mb-4" style={{ backgroundColor: 'rgba(255,255,255,0.04)' }}>
-                <div className="flex justify-between text-xs">
-                  <span style={{ color: 'rgba(255,255,255,0.4)' }}>파일명</span>
-                  <span className="text-white font-mono">export_{selectedSkuId}_{new Date().toISOString().slice(0, 10)}.zip</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span style={{ color: 'rgba(255,255,255,0.4)' }}>크기</span>
-                  <span className="text-white">~{(sampled.length * 0.8).toFixed(1)} MB (추정)</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span style={{ color: 'rgba(255,255,255,0.4)' }}>포맷</span>
-                  <span className="text-white">WAV + JSONL manifest</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span style={{ color: 'rgba(255,255,255,0.4)' }}>발화 수</span>
-                  <span className="text-white">{reviewUtterances.filter(u => u.isIncluded).length}건</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span style={{ color: 'rgba(255,255,255,0.4)' }}>SKU</span>
-                  <span className="text-white">{selectedSkuId}</span>
-                </div>
-              </div>
-
-              <button
-                onClick={async () => {
-                  if (!createdJobId) return
-                  try {
-                    const { downloadUrl } = await downloadExportRequest(createdJobId)
-                    window.open(downloadUrl, '_blank')
-                  } catch (err) {
-                    console.error('[AdminBuildWizard] download failed:', err)
-                    alert('다운로드에 실패했습니다')
-                  }
-                }}
-                className="text-xs px-6 py-2 rounded-lg font-medium text-white"
-                style={{ backgroundColor: '#22c55e' }}
-              >
-                <span className="material-symbols-outlined text-sm mr-1" style={{ verticalAlign: 'middle' }}>download</span>
-                ZIP 다운로드
-              </button>
-            </div>
-
-            <button
-              onClick={() => navigate('/admin/jobs')}
-              className="w-full text-xs py-2 rounded-lg"
-              style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)' }}
-            >
-              작업 목록으로
-            </button>
-          </div>
+        {/* Step 7: 다운로드 (Audio only) */}
+        {step === 7 && !isMetadataFlow && (
+          <AudioStepDownload
+            selectedSkuId={selectedSkuId}
+            sampled={sampled}
+            reviewUtterances={reviewUtterances}
+            createdJobId={createdJobId}
+          />
         )}
       </div>
 
-      {/* 하단 네비게이션 (Steps 0-3만) */}
-      {step <= 3 && (
+      {/* 하단 네비게이션 */}
+      {(isMetadataFlow ? step < steps.length - 1 : step <= 3) && (
         <div className="px-4 py-3 border-t flex gap-2" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
           {step > 0 && (
             <button
@@ -908,7 +764,16 @@ export default function AdminBuildWizardPage() {
               이전
             </button>
           )}
-          {step < 3 ? (
+          {isMetadataFlow ? (
+            <button
+              onClick={() => setStep(s => s + 1)}
+              disabled={step === 1 && !selectedSkuId}
+              className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white disabled:opacity-30"
+              style={{ backgroundColor: '#8b5cf6' }}
+            >
+              다음
+            </button>
+          ) : step < 3 ? (
             <button
               onClick={() => setStep(s => s + 1)}
               disabled={step === 1 && !selectedSkuId}
