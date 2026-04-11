@@ -168,9 +168,11 @@ export default function AdminBuildWizardPage() {
       })()
     : []
   const eligibleSummary = summarizeUnits(eligible)
+  const eligibleMinutes = Math.round(eligible.reduce((sum, u) => sum + u.effectiveSeconds, 0) / 60 * 10) / 10
   const sampled = selectedSkuId
     ? sampleUnits(eligible, requestedUnits, samplingStrategy)
     : []
+  const sampledMinutes = Math.round(sampled.reduce((sum, u) => sum + u.effectiveSeconds, 0) / 60 * 10) / 10
 
   function toggleComponent(id: SkuComponentId) {
     if (id === 'BASIC') return
@@ -601,18 +603,18 @@ export default function AdminBuildWizardPage() {
               <p className="text-xs font-medium text-white mb-2">시뮬레이션 결과</p>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>적합 유닛</p>
-                  <p className="text-lg font-bold" style={{ color: eligible.length >= requestedUnits ? '#22c55e' : '#ef4444' }}>
-                    {eligible.length.toLocaleString()}
+                  <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>적합 분량</p>
+                  <p className="text-lg font-bold" style={{ color: eligibleMinutes >= requestedUnits ? '#22c55e' : '#ef4444' }}>
+                    {eligibleMinutes.toLocaleString()}분
                   </p>
                 </div>
                 <div>
-                  <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>요청 유닛</p>
-                  <p className="text-lg font-bold text-white">{requestedUnits.toLocaleString()}</p>
+                  <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>요청 수량</p>
+                  <p className="text-lg font-bold text-white">{requestedUnits.toLocaleString()}분</p>
                 </div>
                 <div>
                   <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>실제 추출</p>
-                  <p className="text-lg font-bold" style={{ color: '#1337ec' }}>{sampled.length.toLocaleString()}</p>
+                  <p className="text-lg font-bold" style={{ color: '#1337ec' }}>{sampledMinutes.toLocaleString()}분</p>
                 </div>
                 <div>
                   <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>유효 시간</p>
@@ -629,10 +631,10 @@ export default function AdminBuildWizardPage() {
               </div>
             )}
 
-            {eligible.length < requestedUnits && (
+            {eligibleMinutes < requestedUnits && (
               <div className="rounded-xl p-3" style={{ backgroundColor: 'rgba(239,68,68,0.1)' }}>
                 <p className="text-xs" style={{ color: '#ef4444' }}>
-                  요청 수량({requestedUnits})보다 적합 유닛({eligible.length})이 부족합니다.
+                  요청 수량({requestedUnits}분)보다 적합 분량({eligibleMinutes}분)이 부족합니다.
                 </p>
               </div>
             )}
