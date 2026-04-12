@@ -185,23 +185,23 @@ export default function UtteranceReviewTable({ utterances, onToggle, onAutoFilte
         <div
           className="grid items-center gap-2 px-3 py-2 text-[10px] font-medium"
           style={{
-            gridTemplateColumns: onPiiEdit ? '28px 1fr 52px 48px 56px 44px 40px 52px 52px 40px 60px 32px' : '28px 1fr 52px 48px 56px 44px 40px 52px 52px 60px 32px',
+            gridTemplateColumns: onPiiEdit ? '28px 15% 40px 80px 56px 44px 40px 52px 52px 40px 60px 32px' : '28px 15% 40px 80px 56px 44px 40px 52px 52px 60px 32px',
             color: 'rgba(255,255,255,0.4)',
             borderBottom: '1px solid rgba(255,255,255,0.06)',
           }}
         >
           <span />
           <span>발화ID</span>
-          <span>청크</span>
-          <span>화자</span>
-          <span>구간</span>
-          <span>길이</span>
-          <span>등급</span>
-          <span>SNR</span>
-          <span>beep%</span>
-          {onPiiEdit && <span>PII</span>}
-          <span>상태</span>
-          <span>재생</span>
+          <span className="text-center">청크</span>
+          <span className="text-center">화자</span>
+          <span className="text-center">구간</span>
+          <span className="text-center">길이</span>
+          <span className="text-center">등급</span>
+          <span className="text-center">SNR</span>
+          <span className="text-center">beep%</span>
+          {onPiiEdit && <span className="text-center">PII</span>}
+          <span className="text-center">상태</span>
+          <span className="text-center">재생</span>
         </div>
 
         {/* Rows */}
@@ -216,7 +216,7 @@ export default function UtteranceReviewTable({ utterances, onToggle, onAutoFilte
                 <div
                   className="grid items-center gap-2 px-3 py-1.5 transition-colors"
                   style={{
-                    gridTemplateColumns: onPiiEdit ? '28px 1fr 52px 48px 56px 44px 40px 52px 52px 40px 60px 32px' : '28px 1fr 52px 48px 56px 44px 40px 52px 52px 60px 32px',
+                    gridTemplateColumns: onPiiEdit ? '28px 15% 40px 80px 56px 44px 40px 52px 52px 40px 60px 32px' : '28px 15% 40px 80px 56px 44px 40px 52px 52px 60px 32px',
                     backgroundColor: !u.isIncluded ? 'rgba(239,68,68,0.04)' : isSelected ? 'rgba(139,92,246,0.06)' : 'transparent',
                     borderBottom: showLabels ? 'none' : '1px solid rgba(255,255,255,0.03)',
                     opacity: u.isIncluded ? 1 : 0.4,
@@ -241,55 +241,41 @@ export default function UtteranceReviewTable({ utterances, onToggle, onAutoFilte
                   </div>
 
                   {/* Chunk mapping */}
-                  <span className="text-[10px] font-mono" style={{ color: '#a78bfa' }}>
-                    {u.chunkIndex != null && u.sequenceInChunk != null
-                      ? `C${u.chunkIndex}:S${u.sequenceInChunk}`
-                      : '—'}
+                  <span className="text-[10px] font-mono text-center" style={{ color: '#a78bfa' }}>
+                    {u.sequenceInChunk != null ? u.sequenceInChunk : '—'}
                   </span>
 
                   {/* Speaker */}
-                  {u.isUser != null ? (
-                    <span
-                      className="text-[9px] font-medium px-1.5 py-0.5 rounded"
-                      style={{
-                        backgroundColor: u.isUser ? 'rgba(139,92,246,0.15)' : 'rgba(255,255,255,0.08)',
-                        color: u.isUser ? '#a78bfa' : 'rgba(255,255,255,0.5)',
-                      }}
-                    >
-                      {u.isUser ? '본인' : '상대'}
-                    </span>
-                  ) : (
-                    <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.5)' }}>
-                      {u.pseudoId === 'self' ? '본인' : '상대'}
-                    </span>
-                  )}
+                  <span className="text-[9px] font-mono text-center" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                    {u.speakerId ?? '—'}
+                  </span>
 
                   {/* Range */}
-                  <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                  <span className="text-[10px] text-center" style={{ color: 'rgba(255,255,255,0.5)' }}>
                     {u.startSec.toFixed(1)}-{u.endSec.toFixed(1)}
                   </span>
 
                   {/* Duration */}
-                  <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.6)' }}>
+                  <span className="text-[10px] text-center" style={{ color: 'rgba(255,255,255,0.6)' }}>
                     {formatDuration(u.durationSec)}
                   </span>
 
                   {/* Grade badge */}
                   <span
-                    className="text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded"
+                    className="text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded mx-auto"
                     style={{ backgroundColor: `${gradeColor}20`, color: gradeColor }}
                   >
                     {u.qualityGrade}
                   </span>
 
                   {/* SNR */}
-                  <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                  <span className="text-[10px] text-center" style={{ color: 'rgba(255,255,255,0.5)' }}>
                     {u.snrDb.toFixed(1)}dB
                   </span>
 
                   {/* Beep */}
                   <span
-                    className="text-[10px]"
+                    className="text-[10px] text-center"
                     style={{ color: (u.beepMaskRatio ?? 0) >= 0.3 ? '#f97316' : 'rgba(255,255,255,0.5)' }}
                   >
                     {((u.beepMaskRatio ?? 0) * 100).toFixed(0)}%
@@ -299,7 +285,7 @@ export default function UtteranceReviewTable({ utterances, onToggle, onAutoFilte
                   {onPiiEdit && (
                     <button
                       onClick={() => onPiiEdit(u.utteranceId)}
-                      className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-white/5 transition-colors cursor-pointer"
+                      className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-white/5 transition-colors cursor-pointer mx-auto"
                       title={u.piiIntervals && u.piiIntervals.length > 0 ? `PII ${u.piiIntervals.length}건` : 'PII 편집'}
                     >
                       <span
@@ -317,7 +303,7 @@ export default function UtteranceReviewTable({ utterances, onToggle, onAutoFilte
                   )}
 
                   {/* Status */}
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center justify-center gap-1">
                     <button
                       onClick={() => onToggle(u.utteranceId, !u.isIncluded, u.isIncluded ? 'manual' : undefined)}
                       className="material-symbols-outlined"
@@ -336,7 +322,7 @@ export default function UtteranceReviewTable({ utterances, onToggle, onAutoFilte
                   <button
                     onClick={() => handlePlay(u.utteranceId, u.audioUrl)}
                     disabled={!u.audioUrl}
-                    className="flex items-center justify-center disabled:opacity-20"
+                    className="flex items-center justify-center disabled:opacity-20 mx-auto"
                   >
                     <span
                       className="material-symbols-outlined"
