@@ -447,8 +447,8 @@ function buToRow(u: BillableUnit) {
     has_labels: u.hasLabels,
     consent_status: u.consentStatus,
     pii_status: u.piiStatus,
-    lock_status: u.lockStatus,
-    locked_by_job_id: u.lockedByJobId,
+    // lock_status / locked_by_job_id 는 전용 엔드포인트(/lock, /unlock, /mark-delivered)로만 관리.
+    // upsert에 포함하면 process 후 locked BU가 available로 덮어씌워지는 버그 발생.
     session_date: u.sessionDate,
     user_id: u.userId,
   }
