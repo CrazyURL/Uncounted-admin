@@ -108,9 +108,9 @@ export interface SkuInventory {
 
 export interface ExportPreview {
   canFulfill: boolean
-  availableBUs: number
-  requestedBUs: number
-  shortfall?: number
+  availableMinutes: number
+  requestedMinutes: number
+  shortfallMinutes?: number
   qualityDistribution: Record<string, number>
   speakerCount: number
   estimatedPackageSizeMb: number

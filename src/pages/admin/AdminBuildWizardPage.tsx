@@ -10,7 +10,7 @@ import {
 } from '../../types/admin'
 import { type SkuInventory, type ExportUtterance } from '../../types/export'
 import { loadAllSessions } from '../../lib/sessionMapper'
-import { deriveUnitsFromSessions, filterUnitsForJob, sampleUnits, summarizeUnits } from '../../lib/billableUnitEngine'
+import { deriveUnitsFromSessions, filterUnitsForJob, sampleUnitsByDuration, summarizeUnits } from '../../lib/billableUnitEngine'
 import { getDefaultRecipe, recipeToApiFilters } from '../../lib/skuStudio'
 import { fetchAllSessionsAdminApi } from '../../lib/api/sessions'
 import { loadClients, saveExportJob, upsertBillableUnits, loadDeliveredBuIdsForClient, loadSkuInventory, confirmExportRequest, processExportRequest, loadExportUtterances } from '../../lib/adminStore'
@@ -170,7 +170,7 @@ export default function AdminBuildWizardPage() {
   const eligibleSummary = summarizeUnits(eligible)
   const eligibleMinutes = Math.round(eligible.reduce((sum, u) => sum + u.effectiveSeconds, 0) / 60 * 10) / 10
   const sampled = selectedSkuId
-    ? sampleUnits(eligible, requestedUnits, samplingStrategy)
+    ? sampleUnitsByDuration(eligible, requestedUnits * 60, samplingStrategy)
     : []
   const sampledMinutes = Math.round(sampled.reduce((sum, u) => sum + u.effectiveSeconds, 0) / 60 * 10) / 10
 
@@ -510,7 +510,7 @@ export default function AdminBuildWizardPage() {
         {step === 2 && !isMetadataFlow && (
           <div className="space-y-4">
             <div>
-              <p className="text-xs mb-1" style={{ color: 'rgba(255,255,255,0.5)' }}>요청 유닛 수</p>
+              <p className="text-xs mb-1" style={{ color: 'rgba(255,255,255,0.5)' }}>요청 분량 (분)</p>
               <input
                 type="number"
                 value={requestedUnits}
@@ -519,7 +519,7 @@ export default function AdminBuildWizardPage() {
                 style={{ backgroundColor: '#1b1e2e', border: '1px solid rgba(255,255,255,0.1)' }}
               />
               <p className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.3)' }}>
-                = 약 {requestedUnits}분 ({(requestedUnits / 60).toFixed(1)}시간)
+                = {requestedUnits}분 ({(requestedUnits / 60).toFixed(1)}시간)
               </p>
             </div>
             <div>
@@ -609,7 +609,7 @@ export default function AdminBuildWizardPage() {
                   </p>
                 </div>
                 <div>
-                  <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>요청 수량</p>
+                  <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>요청 분량</p>
                   <p className="text-lg font-bold text-white">{requestedUnits.toLocaleString()}분</p>
                 </div>
                 <div>

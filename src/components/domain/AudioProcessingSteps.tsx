@@ -1,7 +1,7 @@
 import { useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { type ExportUtterance, type UtteranceLabels } from '../../types/export'
-import { loadExportUtterances, finalizeExportRequest, downloadExportRequest } from '../../lib/adminStore'
+import { loadExportUtterances, reviewExportUtterances, finalizeExportRequest, downloadExportRequest } from '../../lib/adminStore'
 import UtteranceReviewTable from './UtteranceReviewTable'
 import UtteranceReviewGuide from './UtteranceReviewGuide'
 import UtteranceLabelingPanel from './UtteranceLabelingPanel'
@@ -222,6 +222,10 @@ export function AudioStepReview({
         onFinalize={async () => {
           if (!createdJobId) return
           try {
+            await reviewExportUtterances(
+              createdJobId,
+              reviewUtterances.map(u => ({ utteranceId: u.utteranceId, isIncluded: u.isIncluded, excludeReason: u.excludeReason })),
+            )
             await finalizeExportRequest(createdJobId)
             onSetStep(7)
           } catch {

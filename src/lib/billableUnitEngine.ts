@@ -445,7 +445,56 @@ function mergeComponentFilters(componentIds: SkuComponentId[]) {
 
 // ── 샘플링 ───────────────────────────────────────────────────────────────────
 
-/** 수량 제한 샘플링 */
+/** 시간(초) 기준 샘플링 — targetSeconds에 도달할 때까지 BU를 누적 선택 */
+export function sampleUnitsByDuration(
+  eligible: BillableUnit[],
+  targetSeconds: number,
+  strategy: SamplingStrategy,
+): BillableUnit[] {
+  if (eligible.length === 0 || targetSeconds <= 0) return []
+
+  let pool: BillableUnit[]
+
+  switch (strategy) {
+    case 'random':
+      pool = fisherYatesSample(eligible, eligible.length)
+      break
+    case 'quality_first':
+      pool = [...eligible].sort((a, b) => b.qaScore - a.qaScore)
+      break
+    case 'stratified': {
+      const byGrade: Record<string, BillableUnit[]> = { A: [], B: [], C: [] }
+      for (const u of eligible) byGrade[u.qualityGrade].push(u)
+      const totalSecs = eligible.reduce((s, u) => s + u.effectiveSeconds, 0)
+      const result: BillableUnit[] = []
+      for (const grade of ['A', 'B', 'C'] as const) {
+        const gradeSecs = byGrade[grade].reduce((s, u) => s + u.effectiveSeconds, 0)
+        const proportion = totalSecs > 0 ? gradeSecs / totalSecs : 0
+        const gradeTarget = targetSeconds * proportion
+        let accumulated = 0
+        for (const unit of fisherYatesSample(byGrade[grade], byGrade[grade].length)) {
+          if (accumulated >= gradeTarget) break
+          result.push(unit)
+          accumulated += unit.effectiveSeconds
+        }
+      }
+      return result
+    }
+    default:
+      pool = eligible
+  }
+
+  const result: BillableUnit[] = []
+  let accumulated = 0
+  for (const unit of pool) {
+    if (accumulated >= targetSeconds) break
+    result.push(unit)
+    accumulated += unit.effectiveSeconds
+  }
+  return result
+}
+
+/** 수량(BU 개수) 기준 샘플링 */
 export function sampleUnits(
   eligible: BillableUnit[],
   count: number,
