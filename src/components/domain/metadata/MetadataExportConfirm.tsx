@@ -7,6 +7,7 @@ import {
   fetchMetadataPreview,
 } from '../../../lib/api/admin'
 import type { MetadataFilterState } from './MetadataQualityFilter'
+import LoadingOverlay from '../../common/LoadingOverlay'
 
 interface MetadataExportConfirmProps {
   selectedSchemaIds: string[]
@@ -112,6 +113,8 @@ export default function MetadataExportConfirm({
   // Pre-export summary
   if (!job) {
     return (
+      <>
+        <LoadingOverlay isVisible={submitting} message="패키지 생성 중입니다..." />
       <div className="rounded-xl p-4 space-y-3" style={{ backgroundColor: '#1b1e2e' }}>
         <h3 className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.5)' }}>
           패키지 확정
@@ -229,16 +232,10 @@ export default function MetadataExportConfirm({
             color: '#fff',
           }}
         >
-          {submitting ? (
-            <span className="flex items-center justify-center gap-2">
-              <span className="material-symbols-outlined text-base animate-spin">progress_activity</span>
-              요청 중...
-            </span>
-          ) : (
-            '패키지 확정'
-          )}
+          패키지 확정
         </button>
       </div>
+      </>
     )
   }
 

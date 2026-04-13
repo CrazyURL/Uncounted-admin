@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { type ExportUtterance, type UtteranceLabels } from '../../types/export'
 import { loadExportUtterances, reviewExportUtterances, finalizeExportRequest, downloadExportRequest } from '../../lib/adminStore'
@@ -6,6 +6,7 @@ import UtteranceReviewTable from './UtteranceReviewTable'
 import UtteranceReviewGuide from './UtteranceReviewGuide'
 import UtteranceLabelingPanel from './UtteranceLabelingPanel'
 import PiiMaskingEditor from './PiiMaskingEditor'
+import LoadingOverlay from '../common/LoadingOverlay'
 
 // ── Props ──────────────────────────────────────────────────
 
@@ -190,8 +191,11 @@ export function AudioStepReview({
   const totalAvailableSec = reviewUtterances.reduce((acc, u) => acc + u.durationSec, 0)
   const totalAvailableMin = totalAvailableSec / 60
 
+  const [finalizing, setFinalizing] = useState(false)
+
   return (
     <div className="space-y-3">
+      <LoadingOverlay isVisible={finalizing} message="패키징 확정 중입니다..." />
       {totalAvailableMin < requestedUnits && (
         <div
           className="rounded-xl px-4 py-3 flex items-start gap-3"
@@ -221,6 +225,7 @@ export function AudioStepReview({
         onAutoFilter={handleReviewAutoFilter}
         onFinalize={async () => {
           if (!createdJobId) return
+          setFinalizing(true)
           try {
             await reviewExportUtterances(
               createdJobId,
@@ -230,6 +235,8 @@ export function AudioStepReview({
             onSetStep(7)
           } catch {
             alert('패키징 확정에 실패했습니다. 다시 시도해 주세요.')
+          } finally {
+            setFinalizing(false)
           }
         }}
         requestedMinutes={requestedUnits}
