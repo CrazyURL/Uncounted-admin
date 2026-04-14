@@ -220,9 +220,19 @@ export default function AdminBuildWizardPage() {
       await processExportRequest(createdJobId)
       setProcessPhase('splitting')
       setProcessProgress(70)
-      // 처리 완료 후 발화 목록 로드
+      // 처리 완료 후 발화 목록 로드 (requestedUnits * 2분 초과분 제외)
       const utts = await loadExportUtterances(createdJobId)
-      setReviewUtterances(utts)
+      const targetSec = requestedUnits * 2 * 60
+      let accumulated = 0
+      const trimmed = utts.map(u => {
+        if (!u.isIncluded) return u
+        if (accumulated >= targetSec) {
+          return { ...u, isIncluded: false, excludeReason: 'manual' as const }
+        }
+        accumulated += u.durationSec
+        return u
+      })
+      setReviewUtterances(trimmed)
       setProcessPhase('done')
       setProcessProgress(100)
     } catch (err) {
@@ -232,7 +242,7 @@ export default function AdminBuildWizardPage() {
       const msg = err instanceof Error ? err.message : String(err)
       alert(`처리 실패: ${msg}`)
     }
-  }, [createdJobId])
+  }, [createdJobId, requestedUnits])
 
   async function handleExecute() {
     if (!selectedSkuId || sampled.length === 0) return
