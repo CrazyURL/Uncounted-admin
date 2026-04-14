@@ -170,7 +170,7 @@ export default function AdminBuildWizardPage() {
   const eligibleSummary = summarizeUnits(eligible)
   const eligibleMinutes = Math.round(eligible.reduce((sum, u) => sum + u.effectiveSeconds, 0) / 60 * 10) / 10
   const sampled = selectedSkuId
-    ? sampleUnitsByDuration(eligible, requestedUnits * 60, samplingStrategy)
+    ? sampleUnitsByDuration(eligible, requestedUnits * 2 * 60, samplingStrategy)
     : []
   const sampledMinutes = Math.round(sampled.reduce((sum, u) => sum + u.effectiveSeconds, 0) / 60 * 10) / 10
 
@@ -241,7 +241,7 @@ export default function AdminBuildWizardPage() {
     try {
       const jobId = generateUUID()
 
-      await upsertBillableUnits(allUnits)
+      await upsertBillableUnits(sampled)
 
       await saveExportJob({
         id: jobId,
@@ -520,7 +520,7 @@ export default function AdminBuildWizardPage() {
                 style={{ backgroundColor: '#1b1e2e', border: '1px solid rgba(255,255,255,0.1)' }}
               />
               <p className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.3)' }}>
-                = {requestedUnits}분 ({(requestedUnits / 60).toFixed(1)}시간)
+                = 예상 출력 {requestedUnits * 2}분 ({(requestedUnits * 2 / 60).toFixed(1)}시간)
               </p>
             </div>
             <div>
