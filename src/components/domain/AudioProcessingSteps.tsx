@@ -1,12 +1,13 @@
 import { useCallback, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { type ExportUtterance, type UtteranceLabels } from '../../types/export'
-import { loadExportUtterances, reviewExportUtterances, finalizeExportRequest, downloadExportRequest } from '../../lib/adminStore'
+import { loadExportUtterances, reviewExportUtterances, finalizeExportRequest, waitForExportJobReady, downloadExportRequest } from '../../lib/adminStore'
 import UtteranceReviewTable from './UtteranceReviewTable'
 import UtteranceReviewGuide from './UtteranceReviewGuide'
 import UtteranceLabelingPanel from './UtteranceLabelingPanel'
 import PiiMaskingEditor from './PiiMaskingEditor'
 import LoadingOverlay from '../common/LoadingOverlay'
+import PackagingStageChecklist from './PackagingStageChecklist'
 
 // ── Props ──────────────────────────────────────────────────
 
@@ -192,10 +193,13 @@ export function AudioStepReview({
   const totalAvailableMin = totalAvailableSec / 60
 
   const [finalizing, setFinalizing] = useState(false)
+  const [finalizeStage, setFinalizeStage] = useState<string | null>(null)
 
   return (
     <div className="space-y-3">
-      <LoadingOverlay isVisible={finalizing} message="패키징 확정 중입니다..." />
+      <LoadingOverlay isVisible={finalizing} message="패키징 확정 중">
+        <PackagingStageChecklist currentStage={finalizeStage} />
+      </LoadingOverlay>
       {totalAvailableMin < requestedUnits && (
         <div
           className="rounded-xl px-4 py-3 flex items-start gap-3"
@@ -226,17 +230,23 @@ export function AudioStepReview({
         onFinalize={async () => {
           if (!createdJobId) return
           setFinalizing(true)
+          setFinalizeStage(null)
           try {
             await reviewExportUtterances(
               createdJobId,
               reviewUtterances.map(u => ({ utteranceId: u.utteranceId, isIncluded: u.isIncluded, excludeReason: u.excludeReason })),
             )
             await finalizeExportRequest(createdJobId)
+            await waitForExportJobReady(createdJobId, {
+              onProgress: (job) => setFinalizeStage(job.packagingStage),
+            })
             onSetStep(7)
-          } catch {
-            alert('패키징 확정에 실패했습니다. 다시 시도해 주세요.')
+          } catch (err) {
+            const message = err instanceof Error ? err.message : '패키징 확정에 실패했습니다. 다시 시도해 주세요.'
+            alert(message)
           } finally {
             setFinalizing(false)
+            setFinalizeStage(null)
           }
         }}
         requestedMinutes={requestedUnits}

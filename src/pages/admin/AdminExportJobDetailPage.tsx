@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { getExportJob, saveExportJob, confirmJobLedgerEntries, loadLedgerEntries, appendJobLog, loadExportUtterances, reviewExportUtterances, finalizeExportRequest } from '../../lib/adminStore'
+import { getExportJob, saveExportJob, confirmJobLedgerEntries, loadLedgerEntries, appendJobLog, loadExportUtterances, reviewExportUtterances, finalizeExportRequest, waitForExportJobReady } from '../../lib/adminStore'
 import { type ExportJob } from '../../types/admin'
 import { type ExportUtterance } from '../../types/export'
 import JobLogTimeline from '../../components/domain/JobLogTimeline'
 import UtteranceReviewTable from '../../components/domain/UtteranceReviewTable'
 import UtteranceReviewGuide from '../../components/domain/UtteranceReviewGuide'
 import PiiMaskingEditor from '../../components/domain/PiiMaskingEditor'
+import LoadingOverlay from '../../components/common/LoadingOverlay'
+import PackagingStageChecklist from '../../components/domain/PackagingStageChecklist'
 
 const STATUS_LABELS: Record<string, { text: string; color: string }> = {
   draft: { text: '초안', color: '#6b7280' },
@@ -108,8 +110,13 @@ export default function AdminExportJobDetailPage() {
   }, [jobId])
 
   // 패키징 확정
+  const [finalizing, setFinalizing] = useState(false)
+  const [finalizeStage, setFinalizeStage] = useState<string | null>(null)
+
   const handleFinalize = useCallback(async () => {
     if (!jobId) return
+    setFinalizing(true)
+    setFinalizeStage(null)
     try {
       // 검수 결과 먼저 저장
       const updates = utterances.map(u => ({
@@ -119,10 +126,18 @@ export default function AdminExportJobDetailPage() {
       }))
       await reviewExportUtterances(jobId, updates)
       await finalizeExportRequest(jobId)
+      const finalJob = await waitForExportJobReady(jobId, {
+        onProgress: (j) => setFinalizeStage(j.packagingStage),
+      })
+      setJob(finalJob)
       setReviewResult('패키징 확정 완료')
     } catch (err) {
       console.error('[ExportJobDetail] finalize failed:', err)
-      setReviewResult('패키징 확정 실패')
+      const message = err instanceof Error ? err.message : '패키징 확정 실패'
+      setReviewResult(message)
+    } finally {
+      setFinalizing(false)
+      setFinalizeStage(null)
     }
   }, [jobId, utterances])
 
@@ -181,6 +196,9 @@ export default function AdminExportJobDetailPage() {
 
   return (
     <div className="p-4 space-y-4">
+      <LoadingOverlay isVisible={finalizing} message="패키징 확정 중">
+        <PackagingStageChecklist currentStage={finalizeStage} />
+      </LoadingOverlay>
       {/* Header */}
       <div className="rounded-xl p-4" style={{ backgroundColor: '#1b1e2e' }}>
         <div className="flex items-center justify-between mb-3">

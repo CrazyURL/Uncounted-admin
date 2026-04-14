@@ -262,6 +262,7 @@ export default function AdminBuildWizardPage() {
           message: `빌드 생성: ${selectedSkuId} + [${selectedComponents.join(',')}], ${sampled.length}유닛`,
         }],
         errorMessage: null,
+        packagingStage: null,
         createdAt: new Date().toISOString(),
         startedAt: null,
         completedAt: null,

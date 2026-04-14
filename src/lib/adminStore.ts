@@ -15,7 +15,7 @@ import { type LedgerEntry, type LedgerStatus } from '../types/ledger'
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 function isApiConfigured(): boolean {
-  return !!import.meta.env.VITE_API_URL
+  return import.meta.env.VITE_API_URL !== undefined
 }
 
 // ── Clients ──────────────────────────────────────────────────────────────────
@@ -297,6 +297,7 @@ function ejFromRow(row: Record<string, unknown>): ExportJob {
     outputFormat: (row.output_format as ExportJob['outputFormat']) ?? 'jsonl',
     logs: (row.logs as ExportJobLog[]) ?? [],
     errorMessage: (row.error_message as string) ?? null,
+    packagingStage: (row.packaging_stage as string) ?? null,
     createdAt: (row.created_at as string) ?? new Date().toISOString(),
     startedAt: (row.started_at as string) ?? null,
     completedAt: (row.completed_at as string) ?? null,
@@ -634,11 +635,59 @@ export async function reviewExportUtterances(
   if (error) throw new Error(`reviewExportUtterances: ${error}`)
 }
 
-export async function finalizeExportRequest(id: string): Promise<ExportRequest> {
+/**
+ * 패키징 확정 트리거 → 202 Accepted (백그라운드 실행).
+ * 이미 진행 중(409)인 경우에도 throw 하지 않고 폴링으로 진행하도록 한다.
+ *
+ * 완료 여부는 waitForExportJobReady()로 폴링한다.
+ */
+export async function finalizeExportRequest(id: string): Promise<{ status: string }> {
   if (!isApiConfigured()) throw new Error('API not configured')
   const { data, error } = await AdminAPI.finalizeExportRequestApi(id)
-  if (error || !data) throw new Error(`finalizeExportRequest: ${error ?? 'no data'}`)
-  return data
+  if (data) return { status: data.status ?? 'packaging' }
+  // 409: 이미 패키징 진행 중 → 폴링으로 처리
+  if (error && error.includes('이미 패키징')) return { status: 'packaging' }
+  throw new Error(`finalizeExportRequest: ${error ?? 'no data'}`)
+}
+
+/**
+ * export job이 ready/failed/delivered로 전환될 때까지 폴링한다.
+ * @returns 최종 ExportJob (성공 시 status='ready' 또는 'delivered')
+ * @throws 실패 또는 타임아웃 시
+ */
+export async function waitForExportJobReady(
+  id: string,
+  options: {
+    intervalMs?: number
+    timeoutMs?: number
+    onProgress?: (job: ExportJob) => void
+  } = {},
+): Promise<ExportJob> {
+  const intervalMs = options.intervalMs ?? 3000
+  const timeoutMs = options.timeoutMs ?? 30 * 60 * 1000 // 30분
+  const startedAt = Date.now()
+
+  while (true) {
+    if (Date.now() - startedAt > timeoutMs) {
+      throw new Error('패키징이 너무 오래 걸립니다. 페이지를 새로고침해 상태를 확인해 주세요.')
+    }
+
+    const job = await getExportJob(id)
+    if (!job) {
+      throw new Error('작업을 찾을 수 없습니다.')
+    }
+
+    options.onProgress?.(job)
+
+    if (job.status === 'ready' || job.status === 'delivered' || job.status === 'completed') {
+      return job
+    }
+    if (job.status === 'failed') {
+      throw new Error(job.errorMessage ?? '패키징에 실패했습니다.')
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, intervalMs))
+  }
 }
 
 export async function downloadExportRequest(id: string): Promise<{ downloadUrl: string; expiresAt: string }> {

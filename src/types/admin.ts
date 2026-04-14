@@ -172,7 +172,18 @@ export type DeliveryRecord = {
   deliveredAt: string
 }
 
-export type ExportJobStatus = 'draft' | 'queued' | 'running' | 'completed' | 'failed' | 'cancelled' | 'delivered'
+export type ExportJobStatus =
+  | 'draft'
+  | 'queued'
+  | 'processing'
+  | 'running'
+  | 'reviewing'
+  | 'packaging'
+  | 'ready'
+  | 'completed'
+  | 'failed'
+  | 'cancelled'
+  | 'delivered'
 
 export type SamplingStrategy = 'all' | 'random' | 'quality_first' | 'stratified'
 
@@ -207,6 +218,7 @@ export type ExportJob = {
   outputFormat: DeliveryFormat
   logs: ExportJobLog[]
   errorMessage: string | null
+  packagingStage: string | null
   createdAt: string
   startedAt: string | null
   completedAt: string | null

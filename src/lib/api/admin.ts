@@ -623,7 +623,9 @@ export async function reviewExportUtterancesApi(
 }
 
 export async function finalizeExportRequestApi(id: string) {
-  return apiFetch<ExportRequest>(`/api/admin/export-requests/${id}/finalize`, {
+  // 응답: 202 Accepted + { data: { status: 'packaging' } }
+  // 또는 409 Conflict (이미 진행 중) → adminStore에서 폴링으로 처리
+  return apiFetch<{ status: ExportRequest['status'] }>(`/api/admin/export-requests/${id}/finalize`, {
     method: 'POST',
   })
 }
