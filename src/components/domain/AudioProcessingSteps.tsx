@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { type ExportUtterance, type UtteranceLabels } from '../../types/export'
 import { loadExportUtterances, reviewExportUtterances, finalizeExportRequest, waitForExportJobReady, downloadExportRequest } from '../../lib/adminStore'
+import { saveUtteranceLabelsBatchApi } from '../../lib/api/admin'
 import UtteranceReviewTable from './UtteranceReviewTable'
 import UtteranceReviewGuide from './UtteranceReviewGuide'
 import UtteranceLabelingPanel from './UtteranceLabelingPanel'
@@ -179,14 +180,24 @@ export function AudioStepReview({
     )
   }, [setReviewUtterances])
 
-  const handleUpdateLabels = useCallback((utteranceIds: string[], labels: Partial<UtteranceLabels>) => {
-    setReviewUtterances((prev: ExportUtterance[]) =>
-      prev.map(u =>
-        utteranceIds.includes(u.utteranceId)
-          ? { ...u, labels: { ...u.labels, ...labels } }
-          : u
+  const handleUpdateLabels = useCallback(async (utteranceIds: string[], labels: Partial<UtteranceLabels>) => {
+    if (utteranceIds.length === 0) return
+    try {
+      const res = await saveUtteranceLabelsBatchApi(utteranceIds, labels as Record<string, unknown>)
+      if (res.error) {
+        alert(`라벨 저장 실패: ${res.error}`)
+        return
+      }
+      setReviewUtterances((prev: ExportUtterance[]) =>
+        prev.map(u =>
+          utteranceIds.includes(u.utteranceId)
+            ? { ...u, labels: { ...u.labels, ...labels } }
+            : u
+        )
       )
-    )
+    } catch (err) {
+      alert(`라벨 저장 실패: ${err instanceof Error ? err.message : String(err)}`)
+    }
   }, [setReviewUtterances])
 
   const totalAvailableSec = reviewUtterances.reduce((acc, u) => acc + u.durationSec, 0)
@@ -207,10 +218,10 @@ export function AudioStepReview({
         >
           <span className="material-symbols-outlined text-sm mt-0.5" style={{ color: '#f59e0b' }}>warning</span>
           <div>
-            <p className="text-xs font-medium" style={{ color: '#f59e0b' }}>발화량 부족 — 패키징 확정 불가</p>
+            <p className="text-xs font-medium" style={{ color: '#f59e0b' }}>발화량 부족 경고</p>
             <p className="text-[11px] mt-0.5" style={{ color: 'rgba(255,255,255,0.5)' }}>
               전체 발화를 포함해도 <strong style={{ color: 'rgba(255,255,255,0.8)' }}>{totalAvailableMin.toFixed(1)}분</strong>으로,
-              요청 수량 <strong style={{ color: 'rgba(255,255,255,0.8)' }}>{requestedUnits}분</strong>에 미달합니다.
+              요청 수량 <strong style={{ color: 'rgba(255,255,255,0.8)' }}>{requestedUnits}분</strong>에 미달합니다. 그대로 확정하거나 수량 단계로 돌아가 조정할 수 있습니다.
             </p>
             <button
               onClick={() => onSetStep(2)}
@@ -223,19 +234,69 @@ export function AudioStepReview({
         </div>
       )}
       <UtteranceReviewGuide />
+      {piiEditId ? (
+        <PiiMaskingEditor
+          utteranceId={piiEditId}
+          onMaskApplied={async () => {
+            setPiiEditId(null)
+            if (createdJobId) {
+              const utts = await loadExportUtterances(createdJobId)
+              setReviewUtterances(utts)
+            }
+          }}
+        />
+      ) : (
+        <div
+          className="rounded-xl px-4 py-6 text-center"
+          style={{ backgroundColor: '#1b1e2e', border: '1px solid rgba(255,255,255,0.08)' }}
+        >
+          <span className="material-symbols-outlined text-2xl mb-2 block" style={{ color: 'rgba(255,255,255,0.3)' }}>
+            graphic_eq
+          </span>
+          <p className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.6)' }}>PII 마스킹 에디터</p>
+          <p className="text-[11px] mt-1" style={{ color: 'rgba(255,255,255,0.35)' }}>
+            아래 표에서 발화를 선택하면 여기에 파형 에디터가 표시됩니다.
+          </p>
+        </div>
+      )}
       <UtteranceReviewTable
         utterances={reviewUtterances}
         onToggle={handleReviewToggle}
         onAutoFilter={handleReviewAutoFilter}
         onFinalize={async () => {
           if (!createdJobId) return
+          const includedSec = reviewUtterances.reduce((acc, u) => (u.isIncluded ? acc + u.durationSec : acc), 0)
+          const includedMin = includedSec / 60
+          if (includedMin < requestedUnits) {
+            const ok = window.confirm(
+              `선택된 발화 총량이 ${includedMin.toFixed(1)}분으로 요청 수량 ${requestedUnits}분에 미달합니다.\n그대로 패키징을 확정할까요?`,
+            )
+            if (!ok) return
+          }
           setFinalizing(true)
           setFinalizeStage(null)
           try {
-            await reviewExportUtterances(
+            const reviewResult = await reviewExportUtterances(
               createdJobId,
               reviewUtterances.map(u => ({ utteranceId: u.utteranceId, isIncluded: u.isIncluded, excludeReason: u.excludeReason })),
             )
+            if (reviewResult.failed > 0) {
+              const firstFailures = (reviewResult.failures ?? [])
+                .slice(0, 3)
+                .map(f => `  · ${f.utteranceId.slice(0, 8)}: ${f.reason}`)
+                .join('\n')
+              const ok = window.confirm(
+                `검수 상태 저장 중 ${reviewResult.failed}/${reviewResult.total}건 실패했습니다.\n` +
+                `v3Matched=${reviewResult.v3Matched ?? 0}, legacyMatched=${reviewResult.legacyMatched ?? 0}\n` +
+                (firstFailures ? `\n실패 샘플:\n${firstFailures}\n` : '') +
+                `\n그대로 패키징을 진행할까요? (취소 권장)`,
+              )
+              if (!ok) {
+                setFinalizing(false)
+                setFinalizeStage(null)
+                return
+              }
+            }
             await finalizeExportRequest(createdJobId)
             await waitForExportJobReady(createdJobId, {
               onProgress: (job) => setFinalizeStage(job.packagingStage),
@@ -249,23 +310,11 @@ export function AudioStepReview({
             setFinalizeStage(null)
           }
         }}
-        requestedMinutes={requestedUnits}
         onSelectionChange={setReviewSelectedIds}
         skuId={selectedSkuId ?? undefined}
         onPiiEdit={setPiiEditId}
       />
-      {piiEditId && (
-        <PiiMaskingEditor
-          utteranceId={piiEditId}
-          onMaskApplied={async () => {
-            setPiiEditId(null)
-            if (createdJobId) {
-              const utts = await loadExportUtterances(createdJobId)
-              setReviewUtterances(utts)
-            }
-          }}
-        />
-      )}
+
       <UtteranceLabelingPanel
         utterances={reviewUtterances}
         selectedIds={reviewSelectedIds}
@@ -322,7 +371,13 @@ export function AudioStepDownload({
             if (!createdJobId) return
             try {
               const { downloadUrl } = await downloadExportRequest(createdJobId)
-              window.open(downloadUrl, '_blank')
+              const a = document.createElement('a')
+              a.href = downloadUrl
+              a.download = `uncounted_${createdJobId}.zip`
+              a.rel = 'noopener'
+              document.body.appendChild(a)
+              a.click()
+              document.body.removeChild(a)
             } catch {
               alert('다운로드에 실패했습니다')
             }

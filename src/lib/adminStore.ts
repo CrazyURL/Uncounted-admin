@@ -629,10 +629,14 @@ export async function loadExportUtterances(id: string): Promise<ExportUtterance[
 export async function reviewExportUtterances(
   id: string,
   updates: Array<{ utteranceId: string; isIncluded: boolean; excludeReason?: string }>,
-): Promise<void> {
-  if (!isApiConfigured()) return
-  const { error } = await AdminAPI.reviewExportUtterancesApi(id, updates)
+): Promise<AdminAPI.ReviewUtterancesResult> {
+  if (!isApiConfigured()) {
+    return { updated: updates.length, failed: 0, total: updates.length }
+  }
+  const { data, error } = await AdminAPI.reviewExportUtterancesApi(id, updates)
   if (error) throw new Error(`reviewExportUtterances: ${error}`)
+  if (!data) throw new Error('reviewExportUtterances: no data')
+  return data
 }
 
 /**
