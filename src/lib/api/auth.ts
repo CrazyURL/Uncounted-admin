@@ -186,7 +186,7 @@ export async function signInWithOAuth(
     skipBrowserRedirect?: boolean
   }
 ) {
-  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+  const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3001'
   const oauthUrl = `${apiUrl}/api/auth/oauth/${provider}?redirect=${encodeURIComponent(options.redirectTo)}`
 
   if (options.skipBrowserRedirect) {
