@@ -59,7 +59,11 @@ export function encryptData(data: unknown): string {
   combined.set(authTag, 12)
   combined.set(ciphertext, 28)
 
-  return btoa(String.fromCharCode(...combined))
+  let binary = ''
+  for (let i = 0; i < combined.length; i++) {
+    binary += String.fromCharCode(combined[i])
+  }
+  return btoa(binary)
     .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
 }
 
