@@ -3,7 +3,7 @@
 
 import { decryptResponse, encryptData } from '../crypto'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3001'
 
 // ── 인메모리 토큰 스토어 ─────────────────────────────────────────────────
 // 크로스 오리진(localhost vs IP) 환경에서 SameSite=Lax 쿠키가 차단되는 문제 우회
