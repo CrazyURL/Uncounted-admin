@@ -58,6 +58,9 @@ export default function AdminBuildWizardPage() {
   })
   const [samplingStrategy, setSamplingStrategy] = useState<SamplingStrategy>('all')
 
+  // 테스트 모드: 기납품 BU 제외 우회
+  const [isTestMode, setIsTestMode] = useState(false)
+
   // Per-client 기납품 BU 제외
   const [excludeBuIds, setExcludeBuIds] = useState<Set<string>>(new Set())
 
@@ -157,7 +160,7 @@ export default function AdminBuildWizardPage() {
           allUnits,
           strictFilters,
           selectedComponents,
-          excludeBuIds.size > 0 ? excludeBuIds : undefined,
+          !isTestMode && excludeBuIds.size > 0 ? excludeBuIds : undefined,
           { minQaScore: 50, transcriptSessionIds },
         )
         const recipe = getDefaultRecipe(selectedSkuId)
@@ -575,6 +578,22 @@ export default function AdminBuildWizardPage() {
                   {consentUpdating ? '처리중...' : '납품 가능으로 설정'}
                 </button>
               </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>테스트 빌드</span>
+                <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.3)' }}>기납품 BU 제외 우회</p>
+              </div>
+              <button
+                onClick={() => setIsTestMode(m => !m)}
+                className="w-10 h-5 rounded-full transition-colors relative"
+                style={{ backgroundColor: isTestMode ? '#f59e0b' : 'rgba(255,255,255,0.15)' }}
+              >
+                <div
+                  className="w-4 h-4 rounded-full bg-white absolute top-0.5 transition-transform"
+                  style={{ transform: isTestMode ? 'translateX(22px)' : 'translateX(2px)' }}
+                />
+              </button>
             </div>
             <div>
               <p className="text-xs mb-1" style={{ color: 'rgba(255,255,255,0.5)' }}>샘플링 전략</p>

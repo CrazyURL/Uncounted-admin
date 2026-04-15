@@ -315,11 +315,13 @@ export function AudioStepReview({
         onPiiEdit={setPiiEditId}
       />
 
-      <UtteranceLabelingPanel
-        utterances={reviewUtterances}
-        selectedIds={reviewSelectedIds}
-        onUpdateLabels={handleUpdateLabels}
-      />
+      {selectedSkuId !== 'U-A01' && (
+        <UtteranceLabelingPanel
+          utterances={reviewUtterances}
+          selectedIds={reviewSelectedIds}
+          onUpdateLabels={handleUpdateLabels}
+        />
+      )}
     </div>
   )
 }
