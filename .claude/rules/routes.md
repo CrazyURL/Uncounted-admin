@@ -20,7 +20,8 @@ paths: src/pages/**
 | `/admin/delivery-profiles` | 납품 프로파일 |
 | `/admin/sku-rules` | 클라이언트-SKU 규칙 |
 | `/admin/build` | 빌드 위자드 |
-| `/admin/jobs` | 내보내기 작업 |
+| `/admin/jobs` | 내보내기 작업 목록 |
+| `/admin/jobs/:id` | 내보내기 작업 상세 (라벨링 + 다운로드) |
 | `/admin/settlement` | 정산 |
 | `/admin/datasets` | 데이터셋 목록/상세 |
 | `/admin/users/:userId` | 사용자 상세 |

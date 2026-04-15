@@ -1,13 +1,10 @@
-import { useCallback, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { type ExportUtterance, type UtteranceLabels } from '../../types/export'
-import { loadExportUtterances, reviewExportUtterances, finalizeExportRequest, waitForExportJobReady } from '../../lib/adminStore'
+import { type ExportUtterance } from '../../types/export'
+import { reviewExportUtterances, finalizeExportRequest, waitForExportJobReady } from '../../lib/adminStore'
 import ExportDownloadCard from './ExportDownloadCard'
-import { saveUtteranceLabelsBatchApi } from '../../lib/api/admin'
-import UtteranceReviewTable from './UtteranceReviewTable'
-import UtteranceReviewGuide from './UtteranceReviewGuide'
-import UtteranceLabelingPanel from './UtteranceLabelingPanel'
-import PiiMaskingEditor from './PiiMaskingEditor'
+import UtteranceReviewSection from './UtteranceReviewSection'
+import { useUtteranceReview } from '../../hooks/useUtteranceReview'
 import LoadingOverlay from '../common/LoadingOverlay'
 import PackagingStageChecklist from './PackagingStageChecklist'
 
@@ -239,10 +236,22 @@ export function AudioStepReview({
         <PiiMaskingEditor
           utteranceId={piiEditId}
           onMaskApplied={async () => {
+            const editedId = piiEditId
             setPiiEditId(null)
-            if (createdJobId) {
+            if (!createdJobId || !editedId) return
+            try {
               const utts = await loadExportUtterances(createdJobId)
-              setReviewUtterances(utts)
+              const updated = utts.find(u => u.utteranceId === editedId)
+              if (!updated) return
+              setReviewUtterances((prev: ExportUtterance[]) =>
+                prev.map(u =>
+                  u.utteranceId === editedId
+                    ? { ...updated, isIncluded: u.isIncluded, excludeReason: u.excludeReason }
+                    : u
+                )
+              )
+            } catch (err) {
+              console.error('[AudioStepReview] reload after mask failed:', err)
             }
           }}
         />
