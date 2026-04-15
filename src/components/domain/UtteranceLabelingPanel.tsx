@@ -5,6 +5,8 @@ type Props = {
   utterances: ExportUtterance[]
   selectedIds: Set<string>
   onUpdateLabels: (utteranceIds: string[], labels: Partial<UtteranceLabels>) => void
+  /** SKU ID — 기본 탭 결정에 사용 (U-A02→a02, U-A03→a03) */
+  skuId?: string
 }
 
 const LABEL_DEFS = {
@@ -39,9 +41,9 @@ const DIALOG_INTENSITY_OPTIONS = [
 
 type LabelKey = keyof typeof LABEL_DEFS
 
-export default function UtteranceLabelingPanel({ utterances, selectedIds, onUpdateLabels }: Props) {
+export default function UtteranceLabelingPanel({ utterances, selectedIds, onUpdateLabels, skuId }: Props) {
   const [currentLabels, setCurrentLabels] = useState<Partial<UtteranceLabels>>({})
-  const [activeTab, setActiveTab] = useState<'a02' | 'a03'>('a02')
+  const [activeTab, setActiveTab] = useState<'a02' | 'a03'>(skuId === 'U-A03' ? 'a03' : 'a02')
 
   const targetIds = useMemo(() => Array.from(selectedIds), [selectedIds])
 

@@ -2,13 +2,16 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getExportJob, saveExportJob, confirmJobLedgerEntries, loadLedgerEntries, appendJobLog, loadExportUtterances, reviewExportUtterances, finalizeExportRequest, waitForExportJobReady } from '../../lib/adminStore'
 import { type ExportJob } from '../../types/admin'
-import { type ExportUtterance } from '../../types/export'
+import { type ExportUtterance, type UtteranceLabels } from '../../types/export'
+import { saveUtteranceLabelsBatchApi } from '../../lib/api/admin'
 import JobLogTimeline from '../../components/domain/JobLogTimeline'
 import UtteranceReviewTable from '../../components/domain/UtteranceReviewTable'
 import UtteranceReviewGuide from '../../components/domain/UtteranceReviewGuide'
+import UtteranceLabelingPanel from '../../components/domain/UtteranceLabelingPanel'
 import PiiMaskingEditor from '../../components/domain/PiiMaskingEditor'
 import LoadingOverlay from '../../components/common/LoadingOverlay'
 import PackagingStageChecklist from '../../components/domain/PackagingStageChecklist'
+import ExportDownloadCard from '../../components/domain/ExportDownloadCard'
 
 const STATUS_LABELS: Record<string, { text: string; color: string }> = {
   draft: { text: '초안', color: '#6b7280' },
@@ -41,6 +44,9 @@ export default function AdminExportJobDetailPage() {
 
   // PII 편집
   const [piiEditId, setPiiEditId] = useState<string | null>(null)
+
+  // 라벨링 (U-A02 / U-A03)
+  const [labelSelectedIds, setLabelSelectedIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     if (!jobId) return
@@ -108,6 +114,29 @@ export default function AdminExportJobDetailPage() {
       loadExportUtterances(jobId).then(data => setUtterances(data)).catch(() => {})
     }
   }, [jobId])
+
+  const handleUpdateLabels = useCallback(async (utteranceIds: string[], labels: Partial<UtteranceLabels>) => {
+    if (utteranceIds.length === 0) return
+    try {
+      const res = await saveUtteranceLabelsBatchApi(utteranceIds, {
+        ...labels,
+        labelSource: 'admin',
+      } as Record<string, unknown>)
+      if (res.error) {
+        alert(`라벨 저장 실패: ${res.error}`)
+        return
+      }
+      setUtterances(prev =>
+        prev.map(u =>
+          utteranceIds.includes(u.utteranceId)
+            ? { ...u, labels: { ...u.labels, ...labels } }
+            : u
+        )
+      )
+    } catch {
+      alert('라벨 저장 중 오류가 발생했습니다.')
+    }
+  }, [])
 
   // 패키징 확정
   const [finalizing, setFinalizing] = useState(false)
@@ -361,8 +390,18 @@ export default function AdminExportJobDetailPage() {
                 onAutoFilter={handleAutoFilter}
                 onFinalize={handleFinalize}
                 onPiiEdit={handlePiiEdit}
+                onSelectionChange={setLabelSelectedIds}
                 skuId={job.skuId}
               />
+
+              {(job.skuId === 'U-A02' || job.skuId === 'U-A03') && (
+                <UtteranceLabelingPanel
+                  utterances={utterances}
+                  selectedIds={labelSelectedIds}
+                  skuId={job.skuId}
+                  onUpdateLabels={handleUpdateLabels}
+                />
+              )}
 
               {reviewResult && (
                 <p className="text-xs px-4" style={{ color: reviewResult.includes('실패') ? '#ef4444' : '#22c55e' }}>
@@ -380,6 +419,15 @@ export default function AdminExportJobDetailPage() {
             </div>
           )}
         </div>
+      )}
+
+      {/* 다운로드 섹션 */}
+      {job.status === 'ready' && (
+        <ExportDownloadCard
+          jobId={job.id}
+          skuId={job.skuId}
+          utteranceCount={job.actualUnits}
+        />
       )}
 
       {/* 납품 확정 섹션 */}
