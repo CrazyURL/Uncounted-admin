@@ -59,11 +59,16 @@ export function encryptData(data: unknown): string {
   combined.set(authTag, 12)
   combined.set(ciphertext, 28)
 
-  let binary = ''
-  for (let i = 0; i < combined.length; i++) {
-    binary += String.fromCharCode(combined[i])
+  // 대용량 페이로드(수만 건 발화 검수 등)에서 안전하도록 청크 단위로 base64 변환.
+  // 단일 for 루프는 cons-string 깊이가 N에 비례해 btoa 평탄화 시 스택 오버플로우가 발생한다.
+  // String.fromCharCode.apply 는 인자 수 제한이 있어 32KB 청크로 나눠 호출한다.
+  const CHUNK = 0x8000
+  const parts: string[] = []
+  for (let i = 0; i < combined.length; i += CHUNK) {
+    const slice = combined.subarray(i, Math.min(i + CHUNK, combined.length))
+    parts.push(String.fromCharCode.apply(null, slice as unknown as number[]))
   }
-  return btoa(binary)
+  return btoa(parts.join(''))
     .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
 }
 
