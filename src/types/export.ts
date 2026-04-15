@@ -84,6 +84,13 @@ export interface ExportUtterance {
   // PII fields
   piiIntervals?: Array<{ startSec: number; endSec: number; piiType: string; maskType: string }>
   piiReviewedAt?: string
+  piiReviewedBy?: string
+  // 마스킹 적용 감사 메타 (apply-mask 완료 후 채워짐)
+  piiMasked?: boolean
+  piiMaskedAt?: string
+  piiMaskedBy?: string
+  piiMaskedByEmail?: string
+  piiMaskVersion?: number
 }
 
 export interface UtteranceLabels {

@@ -284,6 +284,7 @@ export default function AdminExportJobDetailPage() {
               <UtteranceReviewSection
                 review={review}
                 skuId={job.skuId}
+                jobId={jobId ?? null}
                 onFinalize={handleFinalize}
               />
               {reviewResult && (

@@ -235,6 +235,7 @@ export function AudioStepReview({
       <UtteranceReviewSection
         review={review}
         skuId={selectedSkuId}
+        jobId={createdJobId}
         onFinalize={handleFinalize}
         showLabelingPanel={selectedSkuId !== 'U-A01'}
       />

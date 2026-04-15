@@ -14,7 +14,16 @@ import {
 
 type Props = {
   utteranceId: string
+  jobId?: string
   onMaskApplied?: () => void
+}
+
+interface MaskAuditInfo {
+  piiMasked: boolean
+  piiMaskedAt: string | null
+  piiMaskedBy: string | null
+  piiMaskedByEmail: string | null
+  piiMaskVersion: number
 }
 
 const PII_TYPES = ['이름', '전화번호', '주소', '계좌번호', '주민번호', '기타'] as const
@@ -36,7 +45,8 @@ function generateId(): string {
   return `pii_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 }
 
-export default function PiiMaskingEditor({ utteranceId, onMaskApplied }: Props) {
+export default function PiiMaskingEditor({ utteranceId, jobId, onMaskApplied }: Props) {
+  const [maskAudit, setMaskAudit] = useState<MaskAuditInfo | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const wavesurferRef = useRef<WaveSurfer | null>(null)
   const regionsRef = useRef<RegionsPlugin | null>(null)
@@ -61,6 +71,7 @@ export default function PiiMaskingEditor({ utteranceId, onMaskApplied }: Props) 
   const [applying, setApplying] = useState(false)
   const [hasBackup, setHasBackup] = useState(false)
   const [restoring, setRestoring] = useState(false)
+  const [resetKey, setResetKey] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [isPreviewActive, setIsPreviewActive] = useState(false)
@@ -91,6 +102,15 @@ export default function PiiMaskingEditor({ utteranceId, onMaskApplied }: Props) 
 
         const piiData = piiResult.data?.piiIntervals ?? []
         setIntervals(piiData)
+        if (piiResult.data) {
+          setMaskAudit({
+            piiMasked: piiResult.data.piiMasked ?? false,
+            piiMaskedAt: piiResult.data.piiMaskedAt ?? null,
+            piiMaskedBy: piiResult.data.piiMaskedBy ?? null,
+            piiMaskedByEmail: piiResult.data.piiMaskedByEmail ?? null,
+            piiMaskVersion: piiResult.data.piiMaskVersion ?? 0,
+          })
+        }
         // 로드된 intervals의 첫 번째 maskType으로 전역 기본값 동기화 (intervals는 건드리지 않음)
         if (piiData.length > 0 && piiData[0].maskType) {
           newMaskTypeRef.current = piiData[0].maskType
@@ -123,7 +143,8 @@ export default function PiiMaskingEditor({ utteranceId, onMaskApplied }: Props) 
           ws.on('pause', () => setIsPlaying(false))
           ws.on('finish', () => setIsPlaying(false))
 
-          ws.on('ready', () => {
+          // 초기 1회만 fire — handleSave/loadBlob 재호출 시 regions 중복 추가 방지
+          ws.once('ready', () => {
             // Add existing PII regions
             for (const interval of piiData) {
               regions.addRegion({
@@ -199,8 +220,12 @@ export default function PiiMaskingEditor({ utteranceId, onMaskApplied }: Props) 
       wavesurferRef.current?.destroy()
       wavesurferRef.current = null
       regionsRef.current = null
+      // wavesurfer.destroy()가 남기는 DOM 잔존 제거 (resetKey 재마운트 시 라벨 중첩 방지)
+      if (containerRef.current) {
+        containerRef.current.innerHTML = ''
+      }
     }
-  }, [utteranceId])
+  }, [utteranceId, resetKey])
 
   const handlePlayPause = useCallback(() => {
     wavesurferRef.current?.playPause()
@@ -278,8 +303,12 @@ export default function PiiMaskingEditor({ utteranceId, onMaskApplied }: Props) 
     try {
       const result = await restoreUtteranceOriginalApi(utteranceId)
       if (result.error) throw new Error(result.error)
-      const blob = await loadUtteranceAudioBlobApi(utteranceId)
-      await wavesurferRef.current?.loadBlob(blob)
+      // 서버 저장된 PII 구간 비움 (재적용 시 깨끗한 시작점)
+      await saveUtterancePiiApi(utteranceId, [])
+      // 에디터 전체 remount — 새 wavesurfer 인스턴스로 listener/state 모두 재초기화
+      setIntervals([])
+      setSelectedIntervalId(null)
+      setResetKey(k => k + 1)
     } catch (err) {
       const message = err instanceof Error ? err.message : '원본 초기화 실패'
       setError(message)
@@ -294,8 +323,17 @@ export default function PiiMaskingEditor({ utteranceId, onMaskApplied }: Props) 
     try {
       const saveResult = await saveUtterancePiiApi(utteranceId, intervals)
       if (saveResult.error) throw new Error(`PII 저장 실패: ${saveResult.error}`)
-      const applyResult = await applyUtteranceMaskApi(utteranceId)
+      const applyResult = await applyUtteranceMaskApi(utteranceId, jobId)
       if (applyResult.error) throw new Error(`마스킹 적용 실패: ${applyResult.error}`)
+      if (applyResult.data) {
+        setMaskAudit({
+          piiMasked: applyResult.data.piiMasked,
+          piiMaskedAt: applyResult.data.piiMaskedAt,
+          piiMaskedBy: applyResult.data.piiMaskedBy,
+          piiMaskedByEmail: applyResult.data.piiMaskedByEmail,
+          piiMaskVersion: applyResult.data.piiMaskVersion,
+        })
+      }
       setHasBackup(true)
       onMaskApplied?.()
     } catch (err) {
@@ -304,7 +342,7 @@ export default function PiiMaskingEditor({ utteranceId, onMaskApplied }: Props) 
     } finally {
       setApplying(false)
     }
-  }, [utteranceId, intervals, onMaskApplied])
+  }, [utteranceId, intervals, jobId, onMaskApplied])
 
   return (
     <div className="rounded-xl overflow-hidden" style={{ backgroundColor: '#1b1e2e' }}>
@@ -331,6 +369,38 @@ export default function PiiMaskingEditor({ utteranceId, onMaskApplied }: Props) 
           </span>
         </div>
       </div>
+
+      {maskAudit?.piiMasked ? (
+        <div
+          className="px-4 py-2 flex items-center gap-2 text-[10px]"
+          style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', backgroundColor: 'rgba(34,197,94,0.04)' }}
+        >
+          <span className="material-symbols-outlined text-xs" style={{ color: '#22c55e' }}>verified_user</span>
+          <span style={{ color: 'rgba(255,255,255,0.6)' }}>
+            마지막 적용:{' '}
+            <span style={{ color: 'rgba(255,255,255,0.9)' }}>
+              {maskAudit.piiMaskedByEmail ?? maskAudit.piiMaskedBy ?? 'unknown'}
+            </span>
+            {' · '}
+            {maskAudit.piiMaskedAt ? new Date(maskAudit.piiMaskedAt).toLocaleString('ko-KR', { hour12: false }) : ''}
+            {maskAudit.piiMaskVersion >= 2 && (
+              <span className="ml-1 px-1 rounded" style={{ backgroundColor: '#22c55e', color: '#000' }}>
+                v{maskAudit.piiMaskVersion}
+              </span>
+            )}
+          </span>
+        </div>
+      ) : hasBackup ? (
+        <div
+          className="px-4 py-2 flex items-center gap-2 text-[10px]"
+          style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', backgroundColor: 'rgba(245,158,11,0.04)' }}
+        >
+          <span className="material-symbols-outlined text-xs" style={{ color: '#f59e0b' }}>history</span>
+          <span style={{ color: 'rgba(255,255,255,0.6)' }}>
+            이전에 마스킹된 발화 (작업자 정보 없음 — 036 마이그레이션 이전)
+          </span>
+        </div>
+      ) : null}
 
       {/* Waveform */}
       <div className="px-4 py-3">

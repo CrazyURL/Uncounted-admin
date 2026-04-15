@@ -7,6 +7,7 @@ import { type UseUtteranceReviewReturn } from '../../hooks/useUtteranceReview'
 interface UtteranceReviewSectionProps {
   review: UseUtteranceReviewReturn
   skuId: string | null
+  jobId: string | null
   onFinalize: () => void | Promise<void>
   showLabelingPanel?: boolean
 }
@@ -16,6 +17,7 @@ const SHOW_LABELING_SKUS = new Set(['U-A02', 'U-A03'])
 export default function UtteranceReviewSection({
   review,
   skuId,
+  jobId,
   onFinalize,
   showLabelingPanel,
 }: UtteranceReviewSectionProps) {
@@ -53,6 +55,7 @@ export default function UtteranceReviewSection({
           </div>
           <PiiMaskingEditor
             utteranceId={piiEditId}
+            jobId={jobId ?? undefined}
             onMaskApplied={handlePiiMaskApplied}
           />
         </div>

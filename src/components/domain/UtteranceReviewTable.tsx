@@ -299,25 +299,50 @@ export default function UtteranceReviewTable({ utterances, onToggle, onAutoFilte
                   </span>
 
                   {/* PII */}
-                  {onPiiEdit && (
-                    <button
-                      onClick={() => onPiiEdit(u.utteranceId)}
-                      className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-white/5 transition-colors cursor-pointer mx-auto"
-                      title={u.piiIntervals && u.piiIntervals.length > 0 ? `PII ${u.piiIntervals.length}건` : 'PII 편집'}
-                    >
-                      <span
-                        className="material-symbols-outlined"
-                        style={{
-                          fontSize: '16px',
-                          color: u.piiReviewedAt ? '#22c55e'
-                            : u.piiIntervals && u.piiIntervals.length > 0 ? '#ef4444'
-                            : 'rgba(255,255,255,0.35)',
-                        }}
+                  {onPiiEdit && (() => {
+                    const intervalCount = u.piiIntervals?.length ?? 0
+                    const masked = u.piiMasked === true
+                    const version = u.piiMaskVersion ?? 0
+                    // 4단계 상태 결정
+                    let icon = 'shield'
+                    let color = 'rgba(255,255,255,0.35)'
+                    let tooltip = 'PII 구간 없음'
+                    if (masked) {
+                      icon = 'verified_user'
+                      color = '#22c55e'
+                      const who = u.piiMaskedByEmail ?? u.piiMaskedBy ?? 'unknown'
+                      const when = u.piiMaskedAt ? new Date(u.piiMaskedAt).toLocaleString('ko-KR', { hour12: false }) : ''
+                      tooltip = version >= 2
+                        ? `재적용 v${version} — ${who} · ${when}`
+                        : `마스킹 완료 — ${who} · ${when}`
+                    } else if (intervalCount > 0) {
+                      icon = 'edit_note'
+                      color = '#eab308'
+                      tooltip = `구간 ${intervalCount}건 (마스킹 미적용)`
+                    }
+                    return (
+                      <button
+                        onClick={() => onPiiEdit(u.utteranceId)}
+                        className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-white/5 transition-colors cursor-pointer mx-auto relative"
+                        title={tooltip}
                       >
-                        {u.piiReviewedAt ? 'verified_user' : u.piiIntervals && u.piiIntervals.length > 0 ? 'security' : 'shield'}
-                      </span>
-                    </button>
-                  )}
+                        <span
+                          className="material-symbols-outlined"
+                          style={{ fontSize: '16px', color }}
+                        >
+                          {icon}
+                        </span>
+                        {masked && version >= 2 && (
+                          <span
+                            className="absolute -top-0.5 -right-0.5 text-[8px] font-bold rounded-full px-1"
+                            style={{ backgroundColor: '#22c55e', color: '#000', lineHeight: 1.2 }}
+                          >
+                            v{version}
+                          </span>
+                        )}
+                      </button>
+                    )
+                  })()}
 
                   {/* Status */}
                   <div className="flex items-center justify-center gap-1">

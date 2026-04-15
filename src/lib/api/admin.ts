@@ -667,10 +667,16 @@ export interface PiiInterval {
 }
 
 export async function loadUtterancePiiApi(utteranceId: string, signal?: AbortSignal) {
-  return apiFetch<{ piiIntervals: PiiInterval[]; piiReviewedAt: string | null; piiReviewedBy: string | null }>(
-    `/api/admin/utterances/${utteranceId}/pii`,
-    { signal },
-  )
+  return apiFetch<{
+    piiIntervals: PiiInterval[]
+    piiReviewedAt: string | null
+    piiReviewedBy: string | null
+    piiMasked: boolean
+    piiMaskedAt: string | null
+    piiMaskedBy: string | null
+    piiMaskedByEmail: string | null
+    piiMaskVersion: number
+  }>(`/api/admin/utterances/${utteranceId}/pii`, { signal })
 }
 
 export async function saveUtterancePiiApi(utteranceId: string, intervals: PiiInterval[]) {
@@ -690,10 +696,33 @@ export async function saveUtteranceLabelsBatchApi(
   })
 }
 
-export async function applyUtteranceMaskApi(utteranceId: string) {
-  return apiFetch<{ success: boolean }>(`/api/admin/utterances/${utteranceId}/apply-mask`, {
+export async function applyUtteranceMaskApi(utteranceId: string, jobId?: string) {
+  return apiFetch<{
+    ok: boolean
+    intervalsProcessed: number
+    piiMasked: boolean
+    piiMaskedAt: string
+    piiMaskedBy: string | null
+    piiMaskedByEmail: string | null
+    piiMaskVersion: number
+  }>(`/api/admin/utterances/${utteranceId}/apply-mask`, {
     method: 'POST',
+    body: JSON.stringify(jobId ? { jobId } : {}),
   })
+}
+
+export async function patchUtteranceReviewStatusApi(
+  utteranceId: string,
+  isIncluded: boolean,
+  excludeReason?: string,
+) {
+  return apiFetch<{ ok: boolean; isIncluded: boolean }>(
+    `/api/admin/utterances/${utteranceId}/review-status`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ isIncluded, excludeReason }),
+    },
+  )
 }
 
 export async function checkUtteranceOriginalBackupApi(utteranceId: string, signal?: AbortSignal) {
