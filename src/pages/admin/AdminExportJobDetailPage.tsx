@@ -2,13 +2,10 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getExportJob, saveExportJob, confirmJobLedgerEntries, loadLedgerEntries, appendJobLog, loadExportUtterances, reviewExportUtterances, finalizeExportRequest, waitForExportJobReady } from '../../lib/adminStore'
 import { type ExportJob } from '../../types/admin'
-import { type ExportUtterance, type UtteranceLabels } from '../../types/export'
-import { saveUtteranceLabelsBatchApi } from '../../lib/api/admin'
+import { type ExportUtterance } from '../../types/export'
 import JobLogTimeline from '../../components/domain/JobLogTimeline'
-import UtteranceReviewTable from '../../components/domain/UtteranceReviewTable'
-import UtteranceReviewGuide from '../../components/domain/UtteranceReviewGuide'
-import UtteranceLabelingPanel from '../../components/domain/UtteranceLabelingPanel'
-import PiiMaskingEditor from '../../components/domain/PiiMaskingEditor'
+import UtteranceReviewSection from '../../components/domain/UtteranceReviewSection'
+import { useUtteranceReview } from '../../hooks/useUtteranceReview'
 import LoadingOverlay from '../../components/common/LoadingOverlay'
 import PackagingStageChecklist from '../../components/domain/PackagingStageChecklist'
 import ExportDownloadCard from '../../components/domain/ExportDownloadCard'
@@ -42,11 +39,12 @@ export default function AdminExportJobDetailPage() {
   const [reviewOpen, setReviewOpen] = useState(false)
   const [reviewResult, setReviewResult] = useState<string | null>(null)
 
-  // PII 편집
-  const [piiEditId, setPiiEditId] = useState<string | null>(null)
-
-  // 라벨링 (U-A02 / U-A03)
-  const [labelSelectedIds, setLabelSelectedIds] = useState<Set<string>>(new Set())
+  const review = useUtteranceReview({
+    jobId: jobId ?? null,
+    utterances,
+    setUtterances,
+    labelSource: 'admin',
+  })
 
   useEffect(() => {
     if (!jobId) return
@@ -73,70 +71,6 @@ export default function AdminExportJobDetailPage() {
       setReviewOpen(true)
     }
   }, [jobId])
-
-  // 개별 발화 토글
-  const handleToggle = useCallback((utteranceId: string, isIncluded: boolean, reason?: string) => {
-    setUtterances(prev =>
-      prev.map(u =>
-        u.utteranceId === utteranceId
-          ? { ...u, isIncluded, excludeReason: isIncluded ? undefined : (reason ?? 'manual') }
-          : u
-      )
-    )
-  }, [])
-
-  // 자동 필터
-  const handleAutoFilter = useCallback((type: 'short' | 'gradeC' | 'highBeep') => {
-    setUtterances(prev =>
-      prev.map(u => {
-        if (!u.isIncluded) return u
-        const match =
-          (type === 'short' && u.durationSec < 3) ||
-          (type === 'gradeC' && u.qualityGrade === 'C') ||
-          (type === 'highBeep' && u.beepMaskRatio >= 0.3)
-        if (!match) return u
-        const reason = type === 'short' ? 'too_short' : type === 'gradeC' ? 'low_grade' : 'high_beep'
-        return { ...u, isIncluded: false, excludeReason: reason }
-      })
-    )
-  }, [])
-
-  // PII 편집 열기
-  const handlePiiEdit = useCallback((utteranceId: string) => {
-    setPiiEditId(utteranceId)
-  }, [])
-
-  // PII 마스킹 적용 완료
-  const handlePiiMaskApplied = useCallback(() => {
-    setPiiEditId(null)
-    // 발화 목록 새로고침
-    if (jobId) {
-      loadExportUtterances(jobId).then(data => setUtterances(data)).catch(() => {})
-    }
-  }, [jobId])
-
-  const handleUpdateLabels = useCallback(async (utteranceIds: string[], labels: Partial<UtteranceLabels>) => {
-    if (utteranceIds.length === 0) return
-    try {
-      const res = await saveUtteranceLabelsBatchApi(utteranceIds, {
-        ...labels,
-        labelSource: 'admin',
-      } as Record<string, unknown>)
-      if (res.error) {
-        alert(`라벨 저장 실패: ${res.error}`)
-        return
-      }
-      setUtterances(prev =>
-        prev.map(u =>
-          utteranceIds.includes(u.utteranceId)
-            ? { ...u, labels: { ...u.labels, ...labels } }
-            : u
-        )
-      )
-    } catch {
-      alert('라벨 저장 중 오류가 발생했습니다.')
-    }
-  }, [])
 
   // 패키징 확정
   const [finalizing, setFinalizing] = useState(false)
@@ -347,62 +281,11 @@ export default function AdminExportJobDetailPage() {
 
           {reviewOpen && utterances.length > 0 && (
             <>
-              <UtteranceReviewGuide />
-
-              {/* PII 마스킹 에디터 (검수가이드 아래 고정) */}
-              {piiEditId ? (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between px-1">
-                    <span className="text-xs font-medium text-white">
-                      PII 마스킹 — {piiEditId.slice(0, 16)}
-                    </span>
-                    <button
-                      onClick={() => setPiiEditId(null)}
-                      className="text-[10px] px-2 py-1 rounded-lg"
-                      style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)' }}
-                    >
-                      닫기
-                    </button>
-                  </div>
-                  <PiiMaskingEditor
-                    utteranceId={piiEditId}
-                    onMaskApplied={handlePiiMaskApplied}
-                  />
-                </div>
-              ) : (
-                <div
-                  className="rounded-xl px-4 py-6 text-center"
-                  style={{ backgroundColor: '#1b1e2e', border: '1px solid rgba(255,255,255,0.08)' }}
-                >
-                  <span className="material-symbols-outlined text-2xl mb-2 block" style={{ color: 'rgba(255,255,255,0.3)' }}>
-                    graphic_eq
-                  </span>
-                  <p className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.6)' }}>PII 마스킹 에디터</p>
-                  <p className="text-[11px] mt-1" style={{ color: 'rgba(255,255,255,0.35)' }}>
-                    아래 표에서 발화를 선택하면 여기에 파형 에디터가 표시됩니다.
-                  </p>
-                </div>
-              )}
-
-              <UtteranceReviewTable
-                utterances={utterances}
-                onToggle={handleToggle}
-                onAutoFilter={handleAutoFilter}
-                onFinalize={handleFinalize}
-                onPiiEdit={handlePiiEdit}
-                onSelectionChange={setLabelSelectedIds}
+              <UtteranceReviewSection
+                review={review}
                 skuId={job.skuId}
+                onFinalize={handleFinalize}
               />
-
-              {(job.skuId === 'U-A02' || job.skuId === 'U-A03') && (
-                <UtteranceLabelingPanel
-                  utterances={utterances}
-                  selectedIds={labelSelectedIds}
-                  skuId={job.skuId}
-                  onUpdateLabels={handleUpdateLabels}
-                />
-              )}
-
               {reviewResult && (
                 <p className="text-xs px-4" style={{ color: reviewResult.includes('실패') ? '#ef4444' : '#22c55e' }}>
                   {reviewResult}

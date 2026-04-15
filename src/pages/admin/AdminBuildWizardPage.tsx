@@ -80,8 +80,6 @@ export default function AdminBuildWizardPage() {
 
   // Step 6: 검수
   const [reviewUtterances, setReviewUtterances] = useState<ExportUtterance[]>([])
-  const [reviewSelectedIds, setReviewSelectedIds] = useState<Set<string>>(new Set())
-  const [piiEditId, setPiiEditId] = useState<string | null>(null)
 
   // ── Metadata flow state ──
   const [metaSkus, setMetaSkus] = useState<MetadataSkuInventory[]>([])
@@ -755,10 +753,6 @@ export default function AdminBuildWizardPage() {
             requestedUnits={requestedUnits}
             createdJobId={createdJobId}
             selectedSkuId={selectedSkuId}
-            reviewSelectedIds={reviewSelectedIds}
-            setReviewSelectedIds={setReviewSelectedIds}
-            piiEditId={piiEditId}
-            setPiiEditId={setPiiEditId}
             onSetStep={setStep}
           />
         )}

@@ -20,10 +20,6 @@ interface AudioProcessingStepsProps {
   selectedSkuId: string | null
   sampled: { id: string }[]
   requestedUnits: number
-  reviewSelectedIds: Set<string>
-  setReviewSelectedIds: (ids: Set<string>) => void
-  piiEditId: string | null
-  setPiiEditId: (id: string | null) => void
   onStartProcess: () => void
   onSetStep: (step: number | ((prev: number) => number)) => void
 }
@@ -144,65 +140,70 @@ export function AudioStepReview({
   requestedUnits,
   createdJobId,
   selectedSkuId,
-  reviewSelectedIds,
-  setReviewSelectedIds,
-  piiEditId,
-  setPiiEditId,
   onSetStep,
 }: Pick<AudioProcessingStepsProps,
   'reviewUtterances' | 'setReviewUtterances' | 'requestedUnits' | 'createdJobId' |
-  'selectedSkuId' | 'reviewSelectedIds' | 'setReviewSelectedIds' | 'piiEditId' | 'setPiiEditId' | 'onSetStep'
+  'selectedSkuId' | 'onSetStep'
 >) {
-  const handleReviewToggle = useCallback((utteranceId: string, isIncluded: boolean, reason?: string) => {
-    setReviewUtterances((prev: ExportUtterance[]) =>
-      prev.map(u =>
-        u.utteranceId === utteranceId
-          ? { ...u, isIncluded, excludeReason: isIncluded ? undefined : (reason ?? 'manual') }
-          : u
-      )
-    )
-  }, [setReviewUtterances])
-
-  const handleReviewAutoFilter = useCallback((type: 'short' | 'gradeC' | 'highBeep') => {
-    setReviewUtterances((prev: ExportUtterance[]) =>
-      prev.map(u => {
-        if (!u.isIncluded) return u
-        const match =
-          (type === 'short' && u.durationSec < 3) ||
-          (type === 'gradeC' && u.qualityGrade === 'C') ||
-          (type === 'highBeep' && u.beepMaskRatio >= 0.3)
-        if (!match) return u
-        const reason = type === 'short' ? 'too_short' : type === 'gradeC' ? 'low_grade' : 'high_beep'
-        return { ...u, isIncluded: false, excludeReason: reason }
-      })
-    )
-  }, [setReviewUtterances])
-
-  const handleUpdateLabels = useCallback(async (utteranceIds: string[], labels: Partial<UtteranceLabels>) => {
-    if (utteranceIds.length === 0) return
-    try {
-      const res = await saveUtteranceLabelsBatchApi(utteranceIds, labels as Record<string, unknown>)
-      if (res.error) {
-        alert(`라벨 저장 실패: ${res.error}`)
-        return
-      }
-      setReviewUtterances((prev: ExportUtterance[]) =>
-        prev.map(u =>
-          utteranceIds.includes(u.utteranceId)
-            ? { ...u, labels: { ...u.labels, ...labels } }
-            : u
-        )
-      )
-    } catch (err) {
-      alert(`라벨 저장 실패: ${err instanceof Error ? err.message : String(err)}`)
-    }
-  }, [setReviewUtterances])
+  const review = useUtteranceReview({
+    jobId: createdJobId,
+    utterances: reviewUtterances,
+    setUtterances: setReviewUtterances,
+  })
 
   const totalAvailableSec = reviewUtterances.reduce((acc, u) => acc + u.durationSec, 0)
   const totalAvailableMin = totalAvailableSec / 60
 
   const [finalizing, setFinalizing] = useState(false)
   const [finalizeStage, setFinalizeStage] = useState<string | null>(null)
+
+  const handleFinalize = async () => {
+    if (!createdJobId) return
+    const includedSec = reviewUtterances.reduce((acc, u) => (u.isIncluded ? acc + u.durationSec : acc), 0)
+    const includedMin = includedSec / 60
+    if (includedMin < requestedUnits) {
+      const ok = window.confirm(
+        `선택된 발화 총량이 ${includedMin.toFixed(1)}분으로 요청 수량 ${requestedUnits}분에 미달합니다.\n그대로 패키징을 확정할까요?`,
+      )
+      if (!ok) return
+    }
+    setFinalizing(true)
+    setFinalizeStage(null)
+    try {
+      const reviewResult = await reviewExportUtterances(
+        createdJobId,
+        reviewUtterances.map(u => ({ utteranceId: u.utteranceId, isIncluded: u.isIncluded, excludeReason: u.excludeReason })),
+      )
+      if (reviewResult.failed > 0) {
+        const firstFailures = (reviewResult.failures ?? [])
+          .slice(0, 3)
+          .map(f => `  · ${f.utteranceId.slice(0, 8)}: ${f.reason}`)
+          .join('\n')
+        const ok = window.confirm(
+          `검수 상태 저장 중 ${reviewResult.failed}/${reviewResult.total}건 실패했습니다.\n` +
+          `v3Matched=${reviewResult.v3Matched ?? 0}, legacyMatched=${reviewResult.legacyMatched ?? 0}\n` +
+          (firstFailures ? `\n실패 샘플:\n${firstFailures}\n` : '') +
+          `\n그대로 패키징을 진행할까요? (취소 권장)`,
+        )
+        if (!ok) {
+          setFinalizing(false)
+          setFinalizeStage(null)
+          return
+        }
+      }
+      await finalizeExportRequest(createdJobId)
+      await waitForExportJobReady(createdJobId, {
+        onProgress: (job) => setFinalizeStage(job.packagingStage),
+      })
+      onSetStep(7)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '패키징 확정에 실패했습니다. 다시 시도해 주세요.'
+      alert(message)
+    } finally {
+      setFinalizing(false)
+      setFinalizeStage(null)
+    }
+  }
 
   return (
     <div className="space-y-3">
@@ -231,107 +232,12 @@ export function AudioStepReview({
           </div>
         </div>
       )}
-      <UtteranceReviewGuide />
-      {piiEditId ? (
-        <PiiMaskingEditor
-          utteranceId={piiEditId}
-          onMaskApplied={async () => {
-            const editedId = piiEditId
-            setPiiEditId(null)
-            if (!createdJobId || !editedId) return
-            try {
-              const utts = await loadExportUtterances(createdJobId)
-              const updated = utts.find(u => u.utteranceId === editedId)
-              if (!updated) return
-              setReviewUtterances((prev: ExportUtterance[]) =>
-                prev.map(u =>
-                  u.utteranceId === editedId
-                    ? { ...updated, isIncluded: u.isIncluded, excludeReason: u.excludeReason }
-                    : u
-                )
-              )
-            } catch (err) {
-              console.error('[AudioStepReview] reload after mask failed:', err)
-            }
-          }}
-        />
-      ) : (
-        <div
-          className="rounded-xl px-4 py-6 text-center"
-          style={{ backgroundColor: '#1b1e2e', border: '1px solid rgba(255,255,255,0.08)' }}
-        >
-          <span className="material-symbols-outlined text-2xl mb-2 block" style={{ color: 'rgba(255,255,255,0.3)' }}>
-            graphic_eq
-          </span>
-          <p className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.6)' }}>PII 마스킹 에디터</p>
-          <p className="text-[11px] mt-1" style={{ color: 'rgba(255,255,255,0.35)' }}>
-            아래 표에서 발화를 선택하면 여기에 파형 에디터가 표시됩니다.
-          </p>
-        </div>
-      )}
-      <UtteranceReviewTable
-        utterances={reviewUtterances}
-        onToggle={handleReviewToggle}
-        onAutoFilter={handleReviewAutoFilter}
-        onFinalize={async () => {
-          if (!createdJobId) return
-          const includedSec = reviewUtterances.reduce((acc, u) => (u.isIncluded ? acc + u.durationSec : acc), 0)
-          const includedMin = includedSec / 60
-          if (includedMin < requestedUnits) {
-            const ok = window.confirm(
-              `선택된 발화 총량이 ${includedMin.toFixed(1)}분으로 요청 수량 ${requestedUnits}분에 미달합니다.\n그대로 패키징을 확정할까요?`,
-            )
-            if (!ok) return
-          }
-          setFinalizing(true)
-          setFinalizeStage(null)
-          try {
-            const reviewResult = await reviewExportUtterances(
-              createdJobId,
-              reviewUtterances.map(u => ({ utteranceId: u.utteranceId, isIncluded: u.isIncluded, excludeReason: u.excludeReason })),
-            )
-            if (reviewResult.failed > 0) {
-              const firstFailures = (reviewResult.failures ?? [])
-                .slice(0, 3)
-                .map(f => `  · ${f.utteranceId.slice(0, 8)}: ${f.reason}`)
-                .join('\n')
-              const ok = window.confirm(
-                `검수 상태 저장 중 ${reviewResult.failed}/${reviewResult.total}건 실패했습니다.\n` +
-                `v3Matched=${reviewResult.v3Matched ?? 0}, legacyMatched=${reviewResult.legacyMatched ?? 0}\n` +
-                (firstFailures ? `\n실패 샘플:\n${firstFailures}\n` : '') +
-                `\n그대로 패키징을 진행할까요? (취소 권장)`,
-              )
-              if (!ok) {
-                setFinalizing(false)
-                setFinalizeStage(null)
-                return
-              }
-            }
-            await finalizeExportRequest(createdJobId)
-            await waitForExportJobReady(createdJobId, {
-              onProgress: (job) => setFinalizeStage(job.packagingStage),
-            })
-            onSetStep(7)
-          } catch (err) {
-            const message = err instanceof Error ? err.message : '패키징 확정에 실패했습니다. 다시 시도해 주세요.'
-            alert(message)
-          } finally {
-            setFinalizing(false)
-            setFinalizeStage(null)
-          }
-        }}
-        onSelectionChange={setReviewSelectedIds}
-        skuId={selectedSkuId ?? undefined}
-        onPiiEdit={setPiiEditId}
+      <UtteranceReviewSection
+        review={review}
+        skuId={selectedSkuId}
+        onFinalize={handleFinalize}
+        showLabelingPanel={selectedSkuId !== 'U-A01'}
       />
-
-      {selectedSkuId !== 'U-A01' && (
-        <UtteranceLabelingPanel
-          utterances={reviewUtterances}
-          selectedIds={reviewSelectedIds}
-          onUpdateLabels={handleUpdateLabels}
-        />
-      )}
     </div>
   )
 }
