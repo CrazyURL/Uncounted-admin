@@ -43,10 +43,7 @@ export default function UtteranceLabelingPanel({ utterances, selectedIds, onUpda
   const [currentLabels, setCurrentLabels] = useState<Partial<UtteranceLabels>>({})
   const [activeTab, setActiveTab] = useState<'a02' | 'a03'>('a02')
 
-  const targetIds = useMemo(() => {
-    if (selectedIds.size > 0) return Array.from(selectedIds)
-    return utterances.filter(u => u.isIncluded).map(u => u.utteranceId)
-  }, [selectedIds, utterances])
+  const targetIds = useMemo(() => Array.from(selectedIds), [selectedIds])
 
   const handleChipSelect = useCallback((key: LabelKey, value: string) => {
     setCurrentLabels(prev => ({
@@ -95,7 +92,7 @@ export default function UtteranceLabelingPanel({ utterances, selectedIds, onUpda
           <span className="material-symbols-outlined text-base" style={{ color: '#a78bfa' }}>label</span>
           <span className="text-xs font-medium text-white">라벨링</span>
           <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: 'rgba(139,92,246,0.15)', color: '#a78bfa' }}>
-            {selectedIds.size > 0 ? `${selectedIds.size}건 선택` : `전체 ${targetIds.length}건`}
+            {selectedIds.size > 0 ? `${selectedIds.size}건 선택` : '선택 없음'}
           </span>
         </div>
         {existingLabelSummary.labeled > 0 && (
@@ -212,18 +209,26 @@ export default function UtteranceLabelingPanel({ utterances, selectedIds, onUpda
       </div>
 
       {/* Apply button */}
-      <div className="px-4 py-3" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+      <div className="px-4 py-3 space-y-1.5" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
         <button
           onClick={handleApply}
           disabled={!hasLabels || targetIds.length === 0}
-          className="w-full text-xs py-2 rounded-lg font-medium text-white transition-colors disabled:opacity-30"
-          style={{ backgroundColor: '#8b5cf6' }}
+          className="w-full text-xs py-2 rounded-lg font-medium transition-colors disabled:cursor-not-allowed"
+          style={{
+            backgroundColor: !hasLabels || targetIds.length === 0 ? 'rgba(255,255,255,0.06)' : '#8b5cf6',
+            color: !hasLabels || targetIds.length === 0 ? 'rgba(255,255,255,0.3)' : '#ffffff',
+          }}
         >
           <span className="material-symbols-outlined text-sm mr-1" style={{ verticalAlign: 'middle' }}>check</span>
-          {selectedIds.size > 0
-            ? `선택 ${selectedIds.size}건에 적용`
-            : `전체 ${targetIds.length}건에 적용`}
+          {targetIds.length === 0
+            ? '음성을 체크 해주세요'
+            : `선택 ${targetIds.length}건에 적용`}
         </button>
+        {targetIds.length > 0 && !hasLabels && (
+          <p className="text-[10px] text-center" style={{ color: 'rgba(255,255,255,0.35)' }}>
+            위에서 라벨 칩을 하나 이상 선택하면 적용할 수 있습니다.
+          </p>
+        )}
       </div>
     </div>
   )

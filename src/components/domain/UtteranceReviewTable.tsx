@@ -6,7 +6,6 @@ type Props = {
   onToggle: (utteranceId: string, isIncluded: boolean, reason?: string) => void
   onAutoFilter: (type: 'short' | 'gradeC' | 'highBeep') => void
   onFinalize?: () => void
-  requestedMinutes?: number
   onSelectionChange?: (selectedIds: Set<string>) => void
   skuId?: string
   onPiiEdit?: (utteranceId: string) => void
@@ -18,6 +17,8 @@ const LABEL_FIELDS: Array<{ key: string; label: string }> = [
   { key: 'purpose', label: '목적' },
   { key: 'relationship', label: '관계' },
   { key: 'noise', label: '소음' },
+  { key: 'dialogAct', label: '대화행위' },
+  { key: 'dialogIntensity', label: '강도' },
 ]
 
 const GRADE_COLORS: Record<string, string> = { A: '#22c55e', B: '#f59e0b', C: '#6b7280' }
@@ -29,7 +30,7 @@ const REASON_LABELS: Record<string, { text: string; color: string }> = {
   manual: { text: '수동 제외', color: '#ef4444' },
 }
 
-export default function UtteranceReviewTable({ utterances, onToggle, onAutoFilter, onFinalize, requestedMinutes, onSelectionChange, skuId, onPiiEdit }: Props) {
+export default function UtteranceReviewTable({ utterances, onToggle, onAutoFilter, onFinalize, onSelectionChange, skuId, onPiiEdit }: Props) {
   const showLabels = skuId === 'U-A02' || skuId === 'U-A03'
   const [playingId, setPlayingId] = useState<string | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -72,9 +73,7 @@ export default function UtteranceReviewTable({ utterances, onToggle, onAutoFilte
     }
   }, [utterances])
 
-  const canFinalize = requestedMinutes != null
-    ? summary.totalDurationSec / 60 >= requestedMinutes
-    : summary.included > 0
+  const canFinalize = summary.included > 0
 
   const handleToggleSelect = useCallback((utteranceId: string) => {
     setSelectedIds(prev => {
@@ -97,6 +96,14 @@ export default function UtteranceReviewTable({ utterances, onToggle, onAutoFilte
     if (selectedIds.size === 0) return
     for (const id of selectedIds) {
       onToggle(id, false, 'manual')
+    }
+    setSelectedIds(new Set())
+  }, [selectedIds, onToggle])
+
+  const handleBulkInclude = useCallback(() => {
+    if (selectedIds.size === 0) return
+    for (const id of selectedIds) {
+      onToggle(id, true)
     }
     setSelectedIds(new Set())
   }, [selectedIds, onToggle])
@@ -175,6 +182,16 @@ export default function UtteranceReviewTable({ utterances, onToggle, onAutoFilte
           >
             <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>remove_circle</span>
             선택 {selectedIds.size}건 제외
+          </button>
+        )}
+        {selectedIds.size > 0 && (
+          <button
+            onClick={handleBulkInclude}
+            className="flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-lg transition-colors"
+            style={{ backgroundColor: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.15)', color: '#22c55e' }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>add_circle</span>
+            선택 {selectedIds.size}건 활성화
           </button>
         )}
       </div>

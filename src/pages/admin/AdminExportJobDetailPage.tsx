@@ -319,17 +319,9 @@ export default function AdminExportJobDetailPage() {
           {reviewOpen && utterances.length > 0 && (
             <>
               <UtteranceReviewGuide />
-              <UtteranceReviewTable
-                utterances={utterances}
-                onToggle={handleToggle}
-                onAutoFilter={handleAutoFilter}
-                onFinalize={handleFinalize}
-                onPiiEdit={handlePiiEdit}
-                skuId={job.skuId}
-              />
 
-              {/* PII 마스킹 에디터 (인라인 패널) */}
-              {piiEditId && (
+              {/* PII 마스킹 에디터 (검수가이드 아래 고정) */}
+              {piiEditId ? (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between px-1">
                     <span className="text-xs font-medium text-white">
@@ -348,7 +340,29 @@ export default function AdminExportJobDetailPage() {
                     onMaskApplied={handlePiiMaskApplied}
                   />
                 </div>
+              ) : (
+                <div
+                  className="rounded-xl px-4 py-6 text-center"
+                  style={{ backgroundColor: '#1b1e2e', border: '1px solid rgba(255,255,255,0.08)' }}
+                >
+                  <span className="material-symbols-outlined text-2xl mb-2 block" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                    graphic_eq
+                  </span>
+                  <p className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.6)' }}>PII 마스킹 에디터</p>
+                  <p className="text-[11px] mt-1" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                    아래 표에서 발화를 선택하면 여기에 파형 에디터가 표시됩니다.
+                  </p>
+                </div>
               )}
+
+              <UtteranceReviewTable
+                utterances={utterances}
+                onToggle={handleToggle}
+                onAutoFilter={handleAutoFilter}
+                onFinalize={handleFinalize}
+                onPiiEdit={handlePiiEdit}
+                skuId={job.skuId}
+              />
 
               {reviewResult && (
                 <p className="text-xs px-4" style={{ color: reviewResult.includes('실패') ? '#ef4444' : '#22c55e' }}>

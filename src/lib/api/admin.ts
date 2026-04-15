@@ -612,11 +612,28 @@ export async function loadExportUtterancesApi(id: string) {
   return apiFetch<ExportUtterance[]>(`/api/admin/export-requests/${id}/utterances`)
 }
 
+/**
+ * PUT /export-requests/:id/utterances/review 응답.
+ *
+ * - updated + failed === total 불변식
+ * - v3Matched: utterances 테이블에서 실제 영향 받은 행 수 (합계)
+ * - legacyMatched: export_package_items에서 실제 영향 받은 행 수 (합계)
+ * - failures: 실패한 항목 샘플 (서버에서 최대 10건까지만 내려줌)
+ */
+export interface ReviewUtterancesResult {
+  updated: number
+  failed: number
+  total: number
+  v3Matched?: number
+  legacyMatched?: number
+  failures?: Array<{ utteranceId: string; reason: string }>
+}
+
 export async function reviewExportUtterancesApi(
   id: string,
   updates: Array<{ utteranceId: string; isIncluded: boolean; excludeReason?: string }>,
 ) {
-  return apiFetch<void>(`/api/admin/export-requests/${id}/utterances/review`, {
+  return apiFetch<ReviewUtterancesResult>(`/api/admin/export-requests/${id}/utterances/review`, {
     method: 'PUT',
     body: JSON.stringify({ updates }),
   })
@@ -663,6 +680,16 @@ export async function saveUtterancePiiApi(utteranceId: string, intervals: PiiInt
   })
 }
 
+export async function saveUtteranceLabelsBatchApi(
+  utteranceIds: string[],
+  labels: Record<string, unknown>,
+) {
+  return apiFetch<{ updated: number }>(`/api/admin/utterances/labels`, {
+    method: 'POST',
+    body: JSON.stringify({ utteranceIds, labels }),
+  })
+}
+
 export async function applyUtteranceMaskApi(utteranceId: string) {
   return apiFetch<{ success: boolean }>(`/api/admin/utterances/${utteranceId}/apply-mask`, {
     method: 'POST',
@@ -687,12 +714,15 @@ export async function loadUtteranceAudioUrlApi(utteranceId: string) {
  * WAV 바이너리를 Blob으로 프록시 로드 (wavesurfer.js CORS 우회)
  */
 export async function loadUtteranceAudioBlobApi(utteranceId: string, signal?: AbortSignal): Promise<Blob> {
-  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+  const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3001'
   const token = getAuthToken()
 
-  const res = await fetch(`${API_BASE}/api/admin/utterances/${utteranceId}/audio/stream`, {
+  // cache-bust: 마스킹 적용 후 이전 캐시된 원본이 재사용되는 것 방지
+  const cacheBust = Date.now()
+  const res = await fetch(`${API_BASE}/api/admin/utterances/${utteranceId}/audio/stream?t=${cacheBust}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     credentials: 'include',
+    cache: 'no-store',
     signal,
   })
 
@@ -708,7 +738,7 @@ export async function loadUtteranceAudioBlobApi(utteranceId: string, signal?: Ab
  * PII 구간이 적용된 마스킹 미리보기 WAV Blob 반환 (DB/S3 변경 없음)
  */
 export async function previewUtteranceMaskApi(utteranceId: string): Promise<Blob> {
-  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+  const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3001'
   const token = getAuthToken()
 
   const res = await fetch(`${API_BASE}/api/admin/utterances/${utteranceId}/preview-mask`, {
