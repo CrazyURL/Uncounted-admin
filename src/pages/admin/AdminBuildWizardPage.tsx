@@ -264,6 +264,8 @@ export default function AdminBuildWizardPage() {
         }],
         errorMessage: null,
         packagingStage: null,
+        reviewSyncStatus: null,
+        reviewSyncError: null,
         createdAt: new Date().toISOString(),
         startedAt: null,
         completedAt: null,

@@ -298,6 +298,8 @@ function ejFromRow(row: Record<string, unknown>): ExportJob {
     logs: (row.logs as ExportJobLog[]) ?? [],
     errorMessage: (row.error_message as string) ?? null,
     packagingStage: (row.packaging_stage as string) ?? null,
+    reviewSyncStatus: (row.review_sync_status as ExportJob['reviewSyncStatus']) ?? null,
+    reviewSyncError: (row.review_sync_error as string) ?? null,
     createdAt: (row.created_at as string) ?? new Date().toISOString(),
     startedAt: (row.started_at as string) ?? null,
     completedAt: (row.completed_at as string) ?? null,
@@ -320,6 +322,8 @@ function ejToRow(j: ExportJob) {
     output_format: j.outputFormat,
     logs: j.logs,
     error_message: j.errorMessage,
+    review_sync_status: j.reviewSyncStatus,
+    review_sync_error: j.reviewSyncError,
     created_at: j.createdAt,
     started_at: j.startedAt,
     completed_at: j.completedAt,
@@ -635,8 +639,50 @@ export async function reviewExportUtterances(
   }
   const { data, error } = await AdminAPI.reviewExportUtterancesApi(id, updates)
   if (error) throw new Error(`reviewExportUtterances: ${error}`)
-  // 202 fire-and-forget: data는 { queued: true, updated: 0, failed: 0, total: N }
+  // 202 fire-and-forget: 서버가 백그라운드 실행 예약.
+  // 호출자는 waitForReviewComplete()로 완료를 확인한 뒤 finalize 호출.
   return data ?? { updated: 0, failed: 0, total: updates.length }
+}
+
+/**
+ * review_sync_status가 'done' 또는 'idle'로 전환될 때까지 폴링한다.
+ * @returns 최종 ExportJob
+ * @throws review sync 실패 또는 타임아웃 시
+ */
+export async function waitForReviewComplete(
+  id: string,
+  options: {
+    intervalMs?: number
+    timeoutMs?: number
+    onProgress?: (job: ExportJob) => void
+  } = {},
+): Promise<ExportJob> {
+  const intervalMs = options.intervalMs ?? 2000
+  const timeoutMs = options.timeoutMs ?? 2 * 60 * 1000 // 2분
+  const startedAt = Date.now()
+
+  while (true) {
+    if (Date.now() - startedAt > timeoutMs) {
+      throw new Error('검수 결과 동기화가 너무 오래 걸립니다. 페이지를 새로고침해 상태를 확인해 주세요.')
+    }
+
+    const job = await getExportJob(id)
+    if (!job) {
+      throw new Error('작업을 찾을 수 없습니다.')
+    }
+
+    options.onProgress?.(job)
+
+    const syncStatus = job.reviewSyncStatus
+    if (syncStatus === 'done' || syncStatus === 'idle' || syncStatus === null) {
+      return job
+    }
+    if (syncStatus === 'failed') {
+      throw new Error(job.reviewSyncError ?? '검수 결과 동기화에 실패했습니다.')
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, intervalMs))
+  }
 }
 
 /**
