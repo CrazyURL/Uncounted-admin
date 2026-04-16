@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { getExportJob, saveExportJob, confirmJobLedgerEntries, loadLedgerEntries, appendJobLog, loadExportUtterances, reviewExportUtterances, finalizeExportRequest, waitForExportJobReady } from '../../lib/adminStore'
+import { getExportJob, saveExportJob, confirmJobLedgerEntries, loadLedgerEntries, appendJobLog, loadExportUtterances, reviewExportUtterances, finalizeExportRequest, waitForExportJobReady, waitForReviewComplete } from '../../lib/adminStore'
 import { type ExportJob } from '../../types/admin'
 import { type ExportUtterance } from '../../types/export'
 import JobLogTimeline from '../../components/domain/JobLogTimeline'
@@ -81,13 +81,22 @@ export default function AdminExportJobDetailPage() {
     setFinalizing(true)
     setFinalizeStage(null)
     try {
-      // 검수 결과 먼저 저장
+      // 1. 검수 결과 저장 (202 — 백그라운드 실행)
       const updates = utterances.map(u => ({
         utteranceId: u.utteranceId,
         isIncluded: u.isIncluded,
         excludeReason: u.excludeReason,
       }))
       await reviewExportUtterances(jobId, updates)
+
+      // 2. review sync 완료 대기 (폴링)
+      setFinalizeStage('검수 결과 동기화 중...')
+      await waitForReviewComplete(jobId, {
+        onProgress: () => setFinalizeStage('검수 결과 동기화 중...'),
+      })
+
+      // 3. 패키징 시작
+      setFinalizeStage('패키징 시작...')
       await finalizeExportRequest(jobId)
       const finalJob = await waitForExportJobReady(jobId, {
         onProgress: (j) => setFinalizeStage(j.packagingStage),

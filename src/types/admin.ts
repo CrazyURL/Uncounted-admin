@@ -219,6 +219,8 @@ export type ExportJob = {
   logs: ExportJobLog[]
   errorMessage: string | null
   packagingStage: string | null
+  reviewSyncStatus: 'idle' | 'syncing' | 'done' | 'failed' | null
+  reviewSyncError: string | null
   createdAt: string
   startedAt: string | null
   completedAt: string | null

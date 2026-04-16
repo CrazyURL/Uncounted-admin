@@ -615,11 +615,12 @@ export async function loadExportUtterancesApi(id: string) {
 /**
  * PUT /export-requests/:id/utterances/review 응답.
  *
- * - queued: true 이면 202 fire-and-forget (백그라운드 배치 업데이트 예약됨)
+ * 202 fire-and-forget — 서버가 백그라운드에서 DB 업데이트를 실행.
+ * review_sync_status 컬럼으로 진행 상태 추적.
+ * 클라이언트는 waitForReviewComplete()로 폴링 후 finalize 호출.
+ *
+ * - queued: true (백그라운드 예약됨)
  * - updated + failed === total 불변식 (queued=true 시 updated=0, failed=0)
- * - v3Matched: utterances 테이블에서 실제 영향 받은 행 수 (합계)
- * - legacyMatched: export_package_items에서 실제 영향 받은 행 수 (합계)
- * - failures: 실패한 항목 샘플 (서버에서 최대 10건까지만 내려줌)
  */
 export interface ReviewUtterancesResult {
   queued?: boolean
