@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useMemo, useEffect, Fragment } from 'react'
+import { useState, useRef, useCallback, useMemo, useEffect } from 'react'
 import { type ExportUtterance } from '../../types/export'
 
 type Props = {
@@ -9,6 +9,7 @@ type Props = {
   onSelectionChange?: (selectedIds: Set<string>) => void
   skuId?: string
   onPiiEdit?: (utteranceId: string) => void
+  piiEditId?: string | null
 }
 
 const LABEL_FIELDS: Array<{ key: string; label: string }> = [
@@ -30,7 +31,254 @@ const REASON_LABELS: Record<string, { text: string; color: string }> = {
   manual: { text: '수동 제외', color: '#ef4444' },
 }
 
-export default function UtteranceReviewTable({ utterances, onToggle, onAutoFilter, onFinalize, onSelectionChange, skuId, onPiiEdit }: Props) {
+function formatDuration(sec: number): string {
+  const m = Math.floor(sec / 60)
+  const s = Math.floor(sec % 60)
+  return m > 0 ? `${m}:${s.toString().padStart(2, '0')}` : `${s}초`
+}
+
+function PiiButton({ utterance, onPiiEdit }: { utterance: ExportUtterance; onPiiEdit: (id: string) => void }) {
+  const intervalCount = utterance.piiIntervals?.length ?? 0
+  const masked = utterance.piiMasked === true
+  const version = utterance.piiMaskVersion ?? 0
+
+  let icon = 'shield'
+  let color = 'rgba(255,255,255,0.35)'
+  let tooltip = 'PII 구간 없음'
+  if (masked) {
+    icon = 'verified_user'
+    color = '#22c55e'
+    const who = utterance.piiMaskedByEmail ?? utterance.piiMaskedBy ?? 'unknown'
+    const when = utterance.piiMaskedAt ? new Date(utterance.piiMaskedAt).toLocaleString('ko-KR', { hour12: false }) : ''
+    tooltip = version >= 2
+      ? `재적용 v${version} — ${who} · ${when}`
+      : `마스킹 완료 — ${who} · ${when}`
+  } else if (intervalCount > 0) {
+    icon = 'edit_note'
+    color = '#eab308'
+    tooltip = `구간 ${intervalCount}건 (마스킹 미적용)`
+  }
+
+  return (
+    <button
+      onClick={() => onPiiEdit(utterance.utteranceId)}
+      className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-white/10 transition-colors cursor-pointer relative"
+      title={tooltip}
+    >
+      <span className="material-symbols-outlined" style={{ fontSize: '22px', color }}>
+        {icon}
+      </span>
+      {masked && version >= 2 && (
+        <span
+          className="absolute -top-0.5 -right-0.5 text-[9px] font-bold rounded-full px-1.5"
+          style={{ backgroundColor: '#22c55e', color: '#000', lineHeight: 1.3 }}
+        >
+          v{version}
+        </span>
+      )}
+    </button>
+  )
+}
+
+function UtteranceCard({
+  utterance,
+  isSelected,
+  isPiiEditing,
+  showLabels,
+  playingId,
+  onToggleSelect,
+  onToggle,
+  onPlay,
+  onPiiEdit,
+}: {
+  utterance: ExportUtterance
+  isSelected: boolean
+  isPiiEditing: boolean
+  showLabels: boolean
+  playingId: string | null
+  onToggleSelect: (id: string) => void
+  onToggle: (id: string, isIncluded: boolean, reason?: string) => void
+  onPlay: (id: string, audioUrl?: string) => void
+  onPiiEdit?: (id: string) => void
+}) {
+  const u = utterance
+  const gradeColor = GRADE_COLORS[u.qualityGrade] ?? '#6b7280'
+  const reasonInfo = u.excludeReason ? REASON_LABELS[u.excludeReason] : null
+  const isPlaying = playingId === u.utteranceId
+
+  const speakerMeta = [u.speakerGender, u.speakerAgeBand].filter(Boolean).join(' / ')
+
+  return (
+    <div
+      className="rounded-xl p-4 transition-all"
+      style={{
+        backgroundColor: isPiiEditing
+          ? 'rgba(239,68,68,0.12)'
+          : !u.isIncluded
+            ? 'rgba(239,68,68,0.06)'
+            : isSelected
+              ? 'rgba(139,92,246,0.08)'
+              : '#1b1e2e',
+        border: isPiiEditing
+          ? '3px solid rgba(239,68,68,0.7)'
+          : isSelected
+            ? '1px solid rgba(139,92,246,0.3)'
+            : '1px solid rgba(255,255,255,0.06)',
+        opacity: u.isIncluded ? 1 : 0.5,
+      }}
+    >
+      {/* Row 1: Header — checkbox, ID, grade, actions */}
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <div className="flex items-center gap-3 min-w-0">
+          {/* Checkbox */}
+          <button
+            onClick={() => onToggleSelect(u.utteranceId)}
+            className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-lg hover:bg-white/10 transition-colors"
+          >
+            <span
+              className="material-symbols-outlined"
+              style={{ fontSize: '24px', color: isSelected ? '#8b5cf6' : 'rgba(255,255,255,0.3)' }}
+            >
+              {isSelected ? 'check_box' : 'check_box_outline_blank'}
+            </span>
+          </button>
+
+          {/* ID */}
+          <div className="min-w-0">
+            <p
+              className="text-sm text-white font-medium truncate"
+              style={{ textDecoration: u.isIncluded ? 'none' : 'line-through' }}
+            >
+              {u.utteranceId.slice(0, 16)}
+            </p>
+            <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
+              {u.pseudoId?.slice(0, 10) ?? '—'}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Grade badge */}
+          <span
+            className="text-sm font-bold w-8 h-8 flex items-center justify-center rounded-lg"
+            style={{ backgroundColor: `${gradeColor}20`, color: gradeColor }}
+          >
+            {u.qualityGrade}
+          </span>
+
+          {/* Play */}
+          <button
+            onClick={() => onPlay(u.utteranceId, u.audioUrl)}
+            disabled={!u.audioUrl}
+            className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-white/10 transition-colors disabled:opacity-20"
+          >
+            <span
+              className="material-symbols-outlined"
+              style={{ fontSize: '24px', color: isPlaying ? '#8b5cf6' : 'rgba(255,255,255,0.5)' }}
+            >
+              {isPlaying ? 'pause_circle' : 'play_circle'}
+            </span>
+          </button>
+
+          {/* Status toggle */}
+          <button
+            onClick={() => onToggle(u.utteranceId, !u.isIncluded, u.isIncluded ? 'manual' : undefined)}
+            className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-white/10 transition-colors"
+          >
+            <span
+              className="material-symbols-outlined"
+              style={{ fontSize: '24px', color: u.isIncluded ? '#22c55e' : '#ef4444' }}
+            >
+              {u.isIncluded ? 'check_circle' : 'cancel'}
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {/* Row 2: Meta info — chunk, speaker, range */}
+      <div className="flex items-center gap-4 mb-2 flex-wrap">
+        <span className="text-xs px-2.5 py-1 rounded-md" style={{ backgroundColor: 'rgba(167,139,250,0.1)', color: '#a78bfa' }}>
+          청크 #{u.sequenceInChunk ?? '—'}
+        </span>
+
+        <div className="flex items-center gap-1.5">
+          <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'rgba(255,255,255,0.4)' }}>person</span>
+          <span className="text-xs font-mono" style={{ color: 'rgba(255,255,255,0.6)' }}>
+            {u.speakerId ?? '—'}
+          </span>
+          {speakerMeta && (
+            <span className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>
+              ({speakerMeta})
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'rgba(255,255,255,0.4)' }}>schedule</span>
+          <span className="text-xs" style={{ color: 'rgba(255,255,255,0.6)' }}>
+            {u.startSec.toFixed(1)}s ~ {u.endSec.toFixed(1)}s
+          </span>
+          <span className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.8)' }}>
+            ({formatDuration(u.durationSec)})
+          </span>
+        </div>
+      </div>
+
+      {/* Row 3: Quality metrics — SNR, beep, PII, exclude reason */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <span className="text-xs px-2.5 py-1 rounded-md" style={{ backgroundColor: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.6)' }}>
+          SNR {u.snrDb.toFixed(1)}dB
+        </span>
+
+        <span
+          className="text-xs px-2.5 py-1 rounded-md"
+          style={{
+            backgroundColor: (u.beepMaskRatio ?? 0) >= 0.3 ? 'rgba(249,115,22,0.1)' : 'rgba(255,255,255,0.05)',
+            color: (u.beepMaskRatio ?? 0) >= 0.3 ? '#f97316' : 'rgba(255,255,255,0.6)',
+          }}
+        >
+          beep {((u.beepMaskRatio ?? 0) * 100).toFixed(0)}%
+        </span>
+
+        {onPiiEdit && <PiiButton utterance={u} onPiiEdit={onPiiEdit} />}
+
+        {reasonInfo && (
+          <span
+            className="text-xs px-2.5 py-1 rounded-md font-medium"
+            style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: reasonInfo.color }}
+          >
+            {reasonInfo.text}
+          </span>
+        )}
+      </div>
+
+      {/* Row 4: Labels (only for U-A02 / U-A03) */}
+      {showLabels && (
+        <div className="flex flex-wrap gap-1.5 mt-3 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          {u.labels && LABEL_FIELDS.some(f => (u.labels as Record<string, unknown>)?.[f.key] != null) ? (
+            LABEL_FIELDS.map(({ key, label }) => {
+              const val = (u.labels as Record<string, unknown>)?.[key]
+              if (val == null) return null
+              return (
+                <span
+                  key={key}
+                  className="text-xs px-2.5 py-1 rounded-md"
+                  style={{ backgroundColor: 'rgba(139,92,246,0.1)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.2)' }}
+                >
+                  {label}: {String(val)}
+                </span>
+              )
+            })
+          ) : (
+            <span className="text-xs" style={{ color: 'rgba(255,255,255,0.25)' }}>라벨 없음</span>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default function UtteranceReviewTable({ utterances, onToggle, onAutoFilter, onFinalize, onSelectionChange, skuId, onPiiEdit, piiEditId }: Props) {
   const showLabels = skuId === 'U-A02' || skuId === 'U-A03'
   const [playingId, setPlayingId] = useState<string | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -49,7 +297,6 @@ export default function UtteranceReviewTable({ utterances, onToggle, onAutoFilte
     onSelectionChange?.(selectedIds)
   }, [selectedIds, onSelectionChange])
 
-  // Counts for auto-filter buttons
   const autoFilterCounts = useMemo(() => ({
     short: utterances.filter(u => u.isIncluded && u.durationSec < 3).length,
     gradeC: utterances.filter(u => u.isIncluded && u.qualityGrade === 'C').length,
@@ -122,14 +369,8 @@ export default function UtteranceReviewTable({ utterances, onToggle, onAutoFilte
     }
   }, [playingId])
 
-  function formatDuration(sec: number): string {
-    const m = Math.floor(sec / 60)
-    const s = Math.floor(sec % 60)
-    return m > 0 ? `${m}:${s.toString().padStart(2, '0')}` : `${s}초`
-  }
-
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {/* Hidden audio element */}
       <audio
         ref={audioRef}
@@ -137,39 +378,42 @@ export default function UtteranceReviewTable({ utterances, onToggle, onAutoFilte
         onError={() => setPlayingId(null)}
       />
 
-      {/* Auto Filter Buttons */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>자동 필터:</span>
+      {/* Auto Filter & Bulk Action Buttons */}
+      <div className="flex items-center gap-2.5 flex-wrap">
+        <span className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.5)' }}>자동 필터:</span>
         <button
           onClick={() => onAutoFilter('short')}
           disabled={autoFilterCounts.short === 0}
-          className="flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-lg transition-colors disabled:opacity-30"
-          style={{ backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)' }}
+          className="flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg transition-colors disabled:opacity-30"
+          style={{ backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)' }}
         >
           3초 미만 일괄 제외
-          <span style={{ color: '#ef4444' }}>({autoFilterCounts.short}개)</span>
+          <span style={{ color: '#ef4444' }}>({autoFilterCounts.short})</span>
         </button>
         <button
           onClick={() => onAutoFilter('gradeC')}
           disabled={autoFilterCounts.gradeC === 0}
-          className="flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-lg transition-colors disabled:opacity-30"
-          style={{ backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)' }}
+          className="flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg transition-colors disabled:opacity-30"
+          style={{ backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)' }}
         >
           Grade C 일괄 제외
-          <span style={{ color: '#ef4444' }}>({autoFilterCounts.gradeC}개)</span>
+          <span style={{ color: '#ef4444' }}>({autoFilterCounts.gradeC})</span>
         </button>
         <button
           onClick={() => onAutoFilter('highBeep')}
           disabled={autoFilterCounts.highBeep === 0}
-          className="flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-lg transition-colors disabled:opacity-30"
-          style={{ backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)' }}
+          className="flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg transition-colors disabled:opacity-30"
+          style={{ backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)' }}
         >
           beep 30%+ 일괄 제외
-          <span style={{ color: '#ef4444' }}>({autoFilterCounts.highBeep}개)</span>
+          <span style={{ color: '#ef4444' }}>({autoFilterCounts.highBeep})</span>
         </button>
+
+        <div className="w-px h-5" style={{ backgroundColor: 'rgba(255,255,255,0.1)' }} />
+
         <button
           onClick={handleSelectAll}
-          className="flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-lg transition-colors"
+          className="flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg transition-colors"
           style={{ backgroundColor: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.15)', color: '#a78bfa' }}
         >
           {selectedIds.size === utterances.length ? '전체 해제' : '전체 선택'}
@@ -177,249 +421,57 @@ export default function UtteranceReviewTable({ utterances, onToggle, onAutoFilte
         {selectedIds.size > 0 && (
           <button
             onClick={handleBulkExclude}
-            className="flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-lg transition-colors"
+            className="flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg transition-colors"
             style={{ backgroundColor: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.15)', color: '#ef4444' }}
           >
-            <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>remove_circle</span>
+            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>remove_circle</span>
             선택 {selectedIds.size}건 제외
           </button>
         )}
         {selectedIds.size > 0 && (
           <button
             onClick={handleBulkInclude}
-            className="flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-lg transition-colors"
+            className="flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg transition-colors"
             style={{ backgroundColor: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.15)', color: '#22c55e' }}
           >
-            <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>add_circle</span>
+            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add_circle</span>
             선택 {selectedIds.size}건 활성화
           </button>
         )}
       </div>
 
-      {/* Table */}
-      <div className="rounded-xl overflow-hidden" style={{ backgroundColor: '#1b1e2e' }}>
-        {/* Header */}
-        <div
-          className="grid items-center gap-2 px-3 py-2 text-[10px] font-medium"
-          style={{
-            gridTemplateColumns: onPiiEdit ? '28px 15% 40px 80px 56px 44px 40px 52px 52px 40px 60px 32px' : '28px 15% 40px 80px 56px 44px 40px 52px 52px 60px 32px',
-            color: 'rgba(255,255,255,0.4)',
-            borderBottom: '1px solid rgba(255,255,255,0.06)',
-          }}
-        >
-          <span />
-          <span>발화ID</span>
-          <span className="text-center">청크</span>
-          <span className="text-center">화자</span>
-          <span className="text-center">구간</span>
-          <span className="text-center">길이</span>
-          <span className="text-center">등급</span>
-          <span className="text-center">SNR</span>
-          <span className="text-center">beep%</span>
-          {onPiiEdit && <span className="text-center">PII</span>}
-          <span className="text-center">상태</span>
-          <span className="text-center">재생</span>
-        </div>
-
-        {/* Rows */}
-        <div className="max-h-[480px] overflow-y-auto">
-          {utterances.map(u => {
-            const gradeColor = GRADE_COLORS[u.qualityGrade] ?? '#6b7280'
-            const reasonInfo = u.excludeReason ? REASON_LABELS[u.excludeReason] : null
-            const isSelected = selectedIds.has(u.utteranceId)
-
-            return (
-              <Fragment key={u.utteranceId}>
-                <div
-                  className="grid items-center gap-2 px-3 py-1.5 transition-colors"
-                  style={{
-                    gridTemplateColumns: onPiiEdit ? '28px 15% 40px 80px 56px 44px 40px 52px 52px 40px 60px 32px' : '28px 15% 40px 80px 56px 44px 40px 52px 52px 60px 32px',
-                    backgroundColor: !u.isIncluded ? 'rgba(239,68,68,0.04)' : isSelected ? 'rgba(139,92,246,0.06)' : 'transparent',
-                    borderBottom: showLabels ? 'none' : '1px solid rgba(255,255,255,0.03)',
-                    opacity: u.isIncluded ? 1 : 0.4,
-                  }}
-                >
-                  {/* Checkbox */}
-                  <button onClick={() => handleToggleSelect(u.utteranceId)} className="flex items-center justify-center">
-                    <span className="material-symbols-outlined" style={{ fontSize: '16px', color: isSelected ? '#8b5cf6' : 'rgba(255,255,255,0.2)' }}>
-                      {isSelected ? 'check_box' : 'check_box_outline_blank'}
-                    </span>
-                  </button>
-
-                  {/* ID + pseudo */}
-                  <div className="min-w-0">
-                    <p
-                      className="text-[10px] text-white truncate"
-                      style={{ textDecoration: u.isIncluded ? 'none' : 'line-through' }}
-                    >
-                      {u.utteranceId.slice(0, 12)}
-                    </p>
-                    <p className="text-[9px]" style={{ color: 'rgba(255,255,255,0.3)' }}>{u.pseudoId?.slice(0, 8) ?? '—'}</p>
-                  </div>
-
-                  {/* Chunk mapping */}
-                  <span className="text-[10px] font-mono text-center" style={{ color: '#a78bfa' }}>
-                    {u.sequenceInChunk != null ? u.sequenceInChunk : '—'}
-                  </span>
-
-                  {/* Speaker */}
-                  <span className="text-[9px] font-mono text-center" style={{ color: 'rgba(255,255,255,0.5)' }}>
-                    {u.speakerId ?? '—'}
-                  </span>
-
-                  {/* Range */}
-                  <span className="text-[10px] text-center" style={{ color: 'rgba(255,255,255,0.5)' }}>
-                    {u.startSec.toFixed(1)}-{u.endSec.toFixed(1)}
-                  </span>
-
-                  {/* Duration */}
-                  <span className="text-[10px] text-center" style={{ color: 'rgba(255,255,255,0.6)' }}>
-                    {formatDuration(u.durationSec)}
-                  </span>
-
-                  {/* Grade badge */}
-                  <span
-                    className="text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded mx-auto"
-                    style={{ backgroundColor: `${gradeColor}20`, color: gradeColor }}
-                  >
-                    {u.qualityGrade}
-                  </span>
-
-                  {/* SNR */}
-                  <span className="text-[10px] text-center" style={{ color: 'rgba(255,255,255,0.5)' }}>
-                    {u.snrDb.toFixed(1)}dB
-                  </span>
-
-                  {/* Beep */}
-                  <span
-                    className="text-[10px] text-center"
-                    style={{ color: (u.beepMaskRatio ?? 0) >= 0.3 ? '#f97316' : 'rgba(255,255,255,0.5)' }}
-                  >
-                    {((u.beepMaskRatio ?? 0) * 100).toFixed(0)}%
-                  </span>
-
-                  {/* PII */}
-                  {onPiiEdit && (() => {
-                    const intervalCount = u.piiIntervals?.length ?? 0
-                    const masked = u.piiMasked === true
-                    const version = u.piiMaskVersion ?? 0
-                    // 4단계 상태 결정
-                    let icon = 'shield'
-                    let color = 'rgba(255,255,255,0.35)'
-                    let tooltip = 'PII 구간 없음'
-                    if (masked) {
-                      icon = 'verified_user'
-                      color = '#22c55e'
-                      const who = u.piiMaskedByEmail ?? u.piiMaskedBy ?? 'unknown'
-                      const when = u.piiMaskedAt ? new Date(u.piiMaskedAt).toLocaleString('ko-KR', { hour12: false }) : ''
-                      tooltip = version >= 2
-                        ? `재적용 v${version} — ${who} · ${when}`
-                        : `마스킹 완료 — ${who} · ${when}`
-                    } else if (intervalCount > 0) {
-                      icon = 'edit_note'
-                      color = '#eab308'
-                      tooltip = `구간 ${intervalCount}건 (마스킹 미적용)`
-                    }
-                    return (
-                      <button
-                        onClick={() => onPiiEdit(u.utteranceId)}
-                        className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-white/5 transition-colors cursor-pointer mx-auto relative"
-                        title={tooltip}
-                      >
-                        <span
-                          className="material-symbols-outlined"
-                          style={{ fontSize: '16px', color }}
-                        >
-                          {icon}
-                        </span>
-                        {masked && version >= 2 && (
-                          <span
-                            className="absolute -top-0.5 -right-0.5 text-[8px] font-bold rounded-full px-1"
-                            style={{ backgroundColor: '#22c55e', color: '#000', lineHeight: 1.2 }}
-                          >
-                            v{version}
-                          </span>
-                        )}
-                      </button>
-                    )
-                  })()}
-
-                  {/* Status */}
-                  <div className="flex items-center justify-center gap-1">
-                    <button
-                      onClick={() => onToggle(u.utteranceId, !u.isIncluded, u.isIncluded ? 'manual' : undefined)}
-                      className="material-symbols-outlined"
-                      style={{ fontSize: '14px', color: u.isIncluded ? '#22c55e' : '#ef4444' }}
-                    >
-                      {u.isIncluded ? 'check_circle' : 'cancel'}
-                    </button>
-                    {reasonInfo && (
-                      <span className="text-[8px] font-medium" style={{ color: reasonInfo.color }}>
-                        {reasonInfo.text}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Play */}
-                  <button
-                    onClick={() => handlePlay(u.utteranceId, u.audioUrl)}
-                    disabled={!u.audioUrl}
-                    className="flex items-center justify-center disabled:opacity-20 mx-auto"
-                  >
-                    <span
-                      className="material-symbols-outlined"
-                      style={{ fontSize: '16px', color: playingId === u.utteranceId ? '#8b5cf6' : 'rgba(255,255,255,0.4)' }}
-                    >
-                      {playingId === u.utteranceId ? 'pause_circle' : 'play_circle'}
-                    </span>
-                  </button>
-                </div>
-
-                {/* Label sub-row for U-A02 / U-A03 */}
-                {showLabels && (
-                  <div
-                    className="px-3 pb-1.5 flex flex-wrap gap-1"
-                    style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', opacity: u.isIncluded ? 1 : 0.4 }}
-                  >
-                    {u.labels && LABEL_FIELDS.some(f => (u.labels as Record<string, unknown>)?.[f.key] != null) ? (
-                      LABEL_FIELDS.map(({ key, label }) => {
-                        const val = (u.labels as Record<string, unknown>)?.[key]
-                        if (val == null) return null
-                        return (
-                          <span
-                            key={key}
-                            className="text-[9px] px-1.5 py-0.5 rounded"
-                            style={{ backgroundColor: 'rgba(139,92,246,0.1)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.2)' }}
-                          >
-                            {label}: {String(val)}
-                          </span>
-                        )
-                      })
-                    ) : (
-                      <span className="text-[9px]" style={{ color: 'rgba(255,255,255,0.2)' }}>라벨 없음</span>
-                    )}
-                  </div>
-                )}
-              </Fragment>
-            )
-          })}
-        </div>
+      {/* Card List */}
+      <div className="space-y-2 max-h-[640px] overflow-y-auto pr-1">
+        {utterances.map(u => (
+          <UtteranceCard
+            key={u.utteranceId}
+            utterance={u}
+            isSelected={selectedIds.has(u.utteranceId)}
+            isPiiEditing={piiEditId === u.utteranceId}
+            showLabels={showLabels}
+            playingId={playingId}
+            onToggleSelect={handleToggleSelect}
+            onToggle={onToggle}
+            onPlay={handlePlay}
+            onPiiEdit={onPiiEdit}
+          />
+        ))}
       </div>
 
-      {/* Summary Bar (bottom) */}
+      {/* Summary Bar */}
       <div
-        className="flex items-center justify-between rounded-xl px-4 py-3"
+        className="flex items-center justify-between rounded-xl px-5 py-4"
         style={{ backgroundColor: '#1b1e2e' }}
       >
-        <div className="flex items-center gap-3 text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>
+        <div className="flex items-center gap-4 text-sm" style={{ color: 'rgba(255,255,255,0.5)' }}>
           <span>총 <strong className="text-white">{summary.total}</strong>개 발화</span>
-          <span className="w-px h-3" style={{ backgroundColor: 'rgba(255,255,255,0.1)' }} />
+          <span className="w-px h-4" style={{ backgroundColor: 'rgba(255,255,255,0.1)' }} />
           <span>선택됨 <strong style={{ color: '#22c55e' }}>{summary.included}</strong>개</span>
-          <span className="w-px h-3" style={{ backgroundColor: 'rgba(255,255,255,0.1)' }} />
+          <span className="w-px h-4" style={{ backgroundColor: 'rgba(255,255,255,0.1)' }} />
           <span>제외 <strong style={{ color: '#ef4444' }}>{summary.excluded}</strong>개
-            <span className="text-[10px]"> (자동 {summary.autoExcluded} + 수동 {summary.manualExcluded})</span>
+            <span className="text-xs ml-1">(자동 {summary.autoExcluded} + 수동 {summary.manualExcluded})</span>
           </span>
-          <span className="w-px h-3" style={{ backgroundColor: 'rgba(255,255,255,0.1)' }} />
+          <span className="w-px h-4" style={{ backgroundColor: 'rgba(255,255,255,0.1)' }} />
           <span>합계 <strong style={{ color: '#8b5cf6' }}>{summary.totalDurationMin}분</strong></span>
         </div>
 
@@ -427,10 +479,10 @@ export default function UtteranceReviewTable({ utterances, onToggle, onAutoFilte
           <button
             onClick={onFinalize}
             disabled={!canFinalize}
-            className="flex items-center gap-1.5 text-xs px-4 py-2 rounded-lg font-medium text-white transition-colors disabled:opacity-30"
+            className="flex items-center gap-2 text-sm px-5 py-2.5 rounded-lg font-medium text-white transition-colors disabled:opacity-30"
             style={{ backgroundColor: '#8b5cf6' }}
           >
-            <span className="material-symbols-outlined text-sm">package_2</span>
+            <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>package_2</span>
             패키징 확정
           </button>
         )}
