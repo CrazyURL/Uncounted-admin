@@ -635,8 +635,8 @@ export async function reviewExportUtterances(
   }
   const { data, error } = await AdminAPI.reviewExportUtterancesApi(id, updates)
   if (error) throw new Error(`reviewExportUtterances: ${error}`)
-  if (!data) throw new Error('reviewExportUtterances: no data')
-  return data
+  // 202 fire-and-forget: data는 { queued: true, updated: 0, failed: 0, total: N }
+  return data ?? { updated: 0, failed: 0, total: updates.length }
 }
 
 /**
