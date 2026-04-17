@@ -122,3 +122,21 @@ export interface ExportPreview {
   speakerCount: number
   estimatedPackageSizeMb: number
 }
+
+// ── UI State Types (Utterance Review UX) ─────────────────────────────────
+
+export type FilterMode = 'all' | 'included' | 'excluded' | 'unreviewed' | 'pii_needed' | 'no_labels'
+
+export type SortField = 'duration' | 'snr' | 'beep' | 'grade' | 'chunk'
+
+export type SortOrder = 'asc' | 'desc'
+
+export type ViewMode = 'card' | 'table'
+
+export type PlaybackState = {
+  currentId: string | null
+  status: 'playing' | 'paused' | 'stopped'
+  mode: 'single' | 'continuous'
+  queue: string[]
+  currentIndex: number
+}

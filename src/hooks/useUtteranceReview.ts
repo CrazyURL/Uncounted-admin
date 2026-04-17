@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { type ExportUtterance, type UtteranceLabels } from '../types/export'
 import { loadExportUtterances } from '../lib/adminStore'
 import { saveUtteranceLabelsBatchApi, patchUtteranceReviewStatusApi } from '../lib/api/admin'
@@ -22,6 +22,11 @@ export interface UseUtteranceReviewReturn {
   autoFilter: (type: 'short' | 'gradeC' | 'highBeep') => Promise<void>
   updateLabels: (utteranceIds: string[], labels: Partial<UtteranceLabels>) => Promise<void>
   handlePiiMaskApplied: () => Promise<void>
+  // New fields for Phase 2
+  reviewedCount: number
+  totalCount: number
+  initialSnapshotMap: Map<string, { isIncluded: boolean; excludeReason: string | undefined }>
+  setInitialSnapshot: (utts: ExportUtterance[]) => void
 }
 
 export function useUtteranceReview({
@@ -32,6 +37,27 @@ export function useUtteranceReview({
 }: UseUtteranceReviewOptions): UseUtteranceReviewReturn {
   const [piiEditId, setPiiEditId] = useState<string | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const initialSnapshotRef = useRef<Map<string, { isIncluded: boolean; excludeReason: string | undefined }>>(new Map())
+
+  const setInitialSnapshot = useCallback((utts: ExportUtterance[]) => {
+    const map = new Map()
+    utts.forEach(u => {
+      map.set(u.utteranceId, { isIncluded: u.isIncluded, excludeReason: u.excludeReason })
+    })
+    initialSnapshotRef.current = map
+  }, [])
+
+  const totalCount = utterances.length
+  const reviewedCount = useMemo(() => {
+    return utterances.filter(u => {
+      const initial = initialSnapshotRef.current.get(u.utteranceId)
+      if (!initial) return false
+      // 초기 상태와 다르거나, 자동 필터링 사유가 있으면 검토된 것으로 간주
+      const isChanged = u.isIncluded !== initial.isIncluded
+      const isAutoFiltered = initial.excludeReason && initial.excludeReason !== 'manual'
+      return isChanged || isAutoFiltered
+    }).length
+  }, [utterances])
 
   const toggleReview = useCallback(async (utteranceId: string, isIncluded: boolean, reason?: string) => {
     type Snapshot = { isIncluded: boolean; excludeReason: string | undefined }
@@ -146,8 +172,8 @@ export function useUtteranceReview({
             : u
         )
       )
-    } catch (err) {
-      console.error('[useUtteranceReview] reload after mask failed:', err)
+    } catch {
+      // 갱신 실패 시 기존 로컬 상태 유지 (PII 마스킹은 이미 적용됨)
     }
   }, [jobId, piiEditId, setUtterances])
 
@@ -161,5 +187,9 @@ export function useUtteranceReview({
     autoFilter,
     updateLabels,
     handlePiiMaskApplied,
+    reviewedCount,
+    totalCount,
+    initialSnapshotMap: initialSnapshotRef.current,
+    setInitialSnapshot,
   }
 }
