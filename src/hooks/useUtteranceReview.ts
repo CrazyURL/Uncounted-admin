@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { type ExportUtterance, type UtteranceLabels } from '../types/export'
 import { loadExportUtterances } from '../lib/adminStore'
 import { saveUtteranceLabelsBatchApi, patchUtteranceReviewStatusApi } from '../lib/api/admin'
@@ -22,11 +22,8 @@ export interface UseUtteranceReviewReturn {
   autoFilter: (type: 'short' | 'gradeC' | 'highBeep') => Promise<void>
   updateLabels: (utteranceIds: string[], labels: Partial<UtteranceLabels>) => Promise<void>
   handlePiiMaskApplied: () => Promise<void>
-  // New fields for Phase 2
   reviewedCount: number
   totalCount: number
-  initialSnapshotMap: Map<string, { isIncluded: boolean; excludeReason: string | undefined }>
-  setInitialSnapshot: (utts: ExportUtterance[]) => void
 }
 
 export function useUtteranceReview({
@@ -37,36 +34,26 @@ export function useUtteranceReview({
 }: UseUtteranceReviewOptions): UseUtteranceReviewReturn {
   const [piiEditId, setPiiEditId] = useState<string | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-  const initialSnapshotRef = useRef<Map<string, { isIncluded: boolean; excludeReason: string | undefined }>>(new Map())
-
-  const setInitialSnapshot = useCallback((utts: ExportUtterance[]) => {
-    const map = new Map()
-    utts.forEach(u => {
-      map.set(u.utteranceId, { isIncluded: u.isIncluded, excludeReason: u.excludeReason })
-    })
-    initialSnapshotRef.current = map
-  }, [])
 
   const totalCount = utterances.length
   const reviewedCount = useMemo(() => {
-    return utterances.filter(u => {
-      const initial = initialSnapshotRef.current.get(u.utteranceId)
-      if (!initial) return false
-      // 초기 상태와 다르거나, 자동 필터링 사유가 있으면 검토된 것으로 간주
-      const isChanged = u.isIncluded !== initial.isIncluded
-      const isAutoFiltered = initial.excludeReason && initial.excludeReason !== 'manual'
-      return isChanged || isAutoFiltered
-    }).length
+    return utterances.filter(u => u.reviewedAt != null).length
   }, [utterances])
 
   const toggleReview = useCallback(async (utteranceId: string, isIncluded: boolean, reason?: string) => {
-    type Snapshot = { isIncluded: boolean; excludeReason: string | undefined }
+    const now = new Date().toISOString()
+    type Snapshot = { isIncluded: boolean; excludeReason: string | undefined; reviewedAt: string | undefined }
     const snapshotRef: { current: Snapshot | null } = { current: null }
     setUtterances(prev =>
       prev.map(u => {
         if (u.utteranceId !== utteranceId) return u
-        snapshotRef.current = { isIncluded: u.isIncluded, excludeReason: u.excludeReason }
-        return { ...u, isIncluded, excludeReason: isIncluded ? undefined : (reason ?? 'manual') }
+        snapshotRef.current = { isIncluded: u.isIncluded, excludeReason: u.excludeReason, reviewedAt: u.reviewedAt }
+        return {
+          ...u,
+          isIncluded,
+          excludeReason: isIncluded ? undefined : (reason ?? 'manual'),
+          reviewedAt: now,
+        }
       })
     )
 
@@ -79,7 +66,7 @@ export function useUtteranceReview({
         setUtterances(prev =>
           prev.map(u =>
             u.utteranceId === utteranceId
-              ? { ...u, isIncluded: prevSnap.isIncluded, excludeReason: prevSnap.excludeReason }
+              ? { ...u, isIncluded: prevSnap.isIncluded, excludeReason: prevSnap.excludeReason, reviewedAt: prevSnap.reviewedAt }
               : u
           )
         )
@@ -89,8 +76,9 @@ export function useUtteranceReview({
   }, [setUtterances])
 
   const autoFilter = useCallback(async (type: 'short' | 'gradeC' | 'highBeep') => {
+    const now = new Date().toISOString()
     // 1) 변경 대상 식별 (낙관적 업데이트 전 prev로부터)
-    const targets: Array<{ utteranceId: string; reason: string; prev: { isIncluded: boolean; excludeReason: string | undefined } }> = []
+    const targets: Array<{ utteranceId: string; reason: string; prev: { isIncluded: boolean; excludeReason: string | undefined; reviewedAt: string | undefined } }> = []
     setUtterances(prev => {
       return prev.map(u => {
         if (!u.isIncluded) return u
@@ -100,8 +88,8 @@ export function useUtteranceReview({
           (type === 'highBeep' && u.beepMaskRatio >= 0.3)
         if (!match) return u
         const reason = type === 'short' ? 'too_short' : type === 'gradeC' ? 'low_grade' : 'high_beep'
-        targets.push({ utteranceId: u.utteranceId, reason, prev: { isIncluded: u.isIncluded, excludeReason: u.excludeReason } })
-        return { ...u, isIncluded: false, excludeReason: reason }
+        targets.push({ utteranceId: u.utteranceId, reason, prev: { isIncluded: u.isIncluded, excludeReason: u.excludeReason, reviewedAt: u.reviewedAt } })
+        return { ...u, isIncluded: false, excludeReason: reason, reviewedAt: now }
       })
     })
 
@@ -128,7 +116,7 @@ export function useUtteranceReview({
       setUtterances(prev =>
         prev.map(u => {
           const snap = failureMap.get(u.utteranceId)
-          return snap ? { ...u, isIncluded: snap.isIncluded, excludeReason: snap.excludeReason } : u
+          return snap ? { ...u, isIncluded: snap.isIncluded, excludeReason: snap.excludeReason, reviewedAt: snap.reviewedAt } : u
         }),
       )
       alert(`자동 필터 ${failures.length}건 저장 실패 (롤백됨)`)
@@ -160,7 +148,7 @@ export function useUtteranceReview({
     const editedId = piiEditId
     setPiiEditId(null)
     if (!jobId || !editedId) return
-    // 편집한 발화 1건만 서버 데이터로 갱신하고, 검수 상태(isIncluded/excludeReason)는 로컬 값을 유지한다.
+    // 편집한 발화 1건만 서버 데이터로 갱신하고, 검수 상태(isIncluded/excludeReason/reviewedAt)는 로컬 값을 유지한다.
     try {
       const data = await loadExportUtterances(jobId)
       const updated = data.find(u => u.utteranceId === editedId)
@@ -168,7 +156,7 @@ export function useUtteranceReview({
       setUtterances(prev =>
         prev.map(u =>
           u.utteranceId === editedId
-            ? { ...updated, isIncluded: u.isIncluded, excludeReason: u.excludeReason }
+            ? { ...updated, isIncluded: u.isIncluded, excludeReason: u.excludeReason, reviewedAt: u.reviewedAt }
             : u
         )
       )
@@ -189,7 +177,5 @@ export function useUtteranceReview({
     handlePiiMaskApplied,
     reviewedCount,
     totalCount,
-    initialSnapshotMap: initialSnapshotRef.current,
-    setInitialSnapshot,
   }
 }

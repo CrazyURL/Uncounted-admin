@@ -72,6 +72,8 @@ export interface ExportUtterance {
   consentStatus: string
   isIncluded: boolean
   excludeReason?: string
+  reviewedAt?: string
+  reviewedBy?: string
   audioUrl?: string  // signed URL for playback
   // chunk mapping fields (utterances 테이블 연동)
   chunkIndex?: number

@@ -39,7 +39,7 @@ export default function AdminExportJobDetailPage() {
   const [reviewOpen, setReviewOpen] = useState(false)
   const [reviewResult, setReviewResult] = useState<string | null>(null)
 
-  const { setInitialSnapshot, ...review } = useUtteranceReview({
+  const review = useUtteranceReview({
     jobId: jobId ?? null,
     utterances,
     setUtterances,
@@ -63,14 +63,13 @@ export default function AdminExportJobDetailPage() {
     try {
       const data = await loadExportUtterances(jobId)
       setUtterances(data)
-      setInitialSnapshot(data)
     } catch {
       setUtterances([])
     } finally {
       setUtterancesLoading(false)
       setReviewOpen(true)
     }
-  }, [jobId, setInitialSnapshot])
+  }, [jobId])
 
   // 패키징 확정
   const [finalizing, setFinalizing] = useState(false)
@@ -289,7 +288,7 @@ export default function AdminExportJobDetailPage() {
           {reviewOpen && utterances.length > 0 && (
             <>
               <UtteranceReviewSection
-                review={{ ...review, setInitialSnapshot }}
+                review={review}
                 skuId={job.skuId}
                 jobId={jobId ?? null}
                 onFinalize={handleFinalize}

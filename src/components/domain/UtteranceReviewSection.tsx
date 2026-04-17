@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import PiiMaskingEditor from './PiiMaskingEditor'
 import UtteranceReviewGuide from './UtteranceReviewGuide'
 import UtteranceReviewTable from './UtteranceReviewTable'
@@ -131,7 +131,6 @@ export default function UtteranceReviewSection({
     handlePiiMaskApplied,
     reviewedCount,
     totalCount,
-    initialSnapshotMap,
   } = review
 
   const [viewMode, setViewMode] = useState<ViewMode>('card')
@@ -145,15 +144,36 @@ export default function UtteranceReviewSection({
     setSortOrder,
     filteredUtterances,
     counts,
-  } = useUtteranceFilters({ utterances, initialSnapshotMap })
+  } = useUtteranceFilters({ utterances })
 
   const labelingVisible = showLabelingPanel ?? (skuId ? SHOW_LABELING_SKUS.has(skuId) : false)
 
+  const allFilteredSelected = filteredUtterances.length > 0 &&
+    filteredUtterances.every(u => selectedIds.has(u.utteranceId))
+
   const handleSelectAllFiltered = () => {
-    const newSelected = new Set(selectedIds)
-    filteredUtterances.forEach(u => newSelected.add(u.utteranceId))
-    setSelectedIds(newSelected)
+    if (allFilteredSelected) {
+      // 전체 해제: 현재 필터 목록의 ID를 제거
+      const filteredIds = new Set(filteredUtterances.map(u => u.utteranceId))
+      const remaining = new Set<string>()
+      selectedIds.forEach(id => {
+        if (!filteredIds.has(id)) remaining.add(id)
+      })
+      setSelectedIds(remaining)
+    } else {
+      // 전체 선택: 현재 필터 목록의 ID를 추가
+      const newSelected = new Set(selectedIds)
+      filteredUtterances.forEach(u => newSelected.add(u.utteranceId))
+      setSelectedIds(newSelected)
+    }
   }
+
+  const handleToggleSelect = useCallback((id: string) => {
+    const next = new Set(selectedIds)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    setSelectedIds(next)
+  }, [selectedIds, setSelectedIds])
 
   const handleBulkInclude = () => {
     const targets = filteredUtterances.filter(u => selectedIds.has(u.utteranceId) && !u.isIncluded)
@@ -211,6 +231,7 @@ export default function UtteranceReviewSection({
         totalCount={totalCount}
         autoFilter={autoFilter}
         selectedCount={selectedInFilteredCount}
+        allFilteredSelected={allFilteredSelected}
         onSelectAll={handleSelectAllFiltered}
         onBulkInclude={handleBulkInclude}
         onBulkExclude={handleBulkExclude}
@@ -221,8 +242,9 @@ export default function UtteranceReviewSection({
         onToggle={toggleReview}
         onAutoFilter={autoFilter}
         onFinalize={onFinalize}
+        selectedIds={selectedIds}
+        onToggleSelect={handleToggleSelect}
         onPiiEdit={setPiiEditId}
-        onSelectionChange={setSelectedIds}
         skuId={skuId ?? undefined}
         piiEditId={piiEditId}
         viewMode={viewMode}

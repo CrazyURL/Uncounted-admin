@@ -15,31 +15,37 @@ export function useAudioPlayback({ utterances }: UseAudioPlaybackOptions) {
   })
 
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const utterancesRef = useRef<ExportUtterance[]>(utterances)
+
+  useEffect(() => {
+    utterancesRef.current = utterances
+  }, [utterances])
 
   useEffect(() => {
     const audio = new Audio()
     audioRef.current = audio
 
-    const handleEnded = () => {
-      setState(prev => {
-        if (prev.mode === 'continuous' && prev.currentIndex < prev.queue.length - 1) {
-          const nextIndex = prev.currentIndex + 1
-          const nextId = prev.queue[nextIndex]
-          const nextUtt = utterances.find(u => u.utteranceId === nextId)
+    const advanceOrStop = (prev: PlaybackState) => {
+      if (prev.mode === 'continuous' && prev.currentIndex < prev.queue.length - 1) {
+        const nextIndex = prev.currentIndex + 1
+        const nextId = prev.queue[nextIndex]
+        const nextUtt = utterancesRef.current.find(u => u.utteranceId === nextId)
 
-          if (nextUtt?.audioUrl) {
-            audio.src = nextUtt.audioUrl
-            audio.play().catch(() => {})
-            return { ...prev, currentId: nextId, currentIndex: nextIndex, status: 'playing' }
-          }
+        if (nextUtt?.audioUrl) {
+          audio.src = nextUtt.audioUrl
+          audio.play().catch(() => {})
+          return { ...prev, currentId: nextId, currentIndex: nextIndex, status: 'playing' as const }
         }
-        return { ...prev, status: 'stopped', currentId: null, currentIndex: -1 }
-      })
+      }
+      return { ...prev, status: 'stopped' as const, currentId: null, currentIndex: -1, mode: 'single' as const }
     }
 
-    const handleError = () => {
-      setState(prev => ({ ...prev, status: 'stopped', currentId: null }))
-    }
+    const handleEnded = () => setState(prev => advanceOrStop(prev))
+
+    const handleError = () => setState(prev => {
+      if (prev.mode === 'continuous') return advanceOrStop(prev)
+      return { ...prev, status: 'stopped', currentId: null }
+    })
 
     audio.addEventListener('ended', handleEnded)
     audio.addEventListener('error', handleError)
@@ -50,7 +56,7 @@ export function useAudioPlayback({ utterances }: UseAudioPlaybackOptions) {
       audio.removeEventListener('error', handleError)
       audioRef.current = null
     }
-  }, [utterances])
+  }, [])
 
   const play = useCallback((id: string, audioUrl?: string) => {
     if (!audioRef.current || !audioUrl) return
@@ -104,6 +110,22 @@ export function useAudioPlayback({ utterances }: UseAudioPlaybackOptions) {
     setState(prev => ({ ...prev, status: 'stopped', currentId: null, mode: 'single' }))
   }, [])
 
+  const togglePause = useCallback(() => {
+    if (!audioRef.current) return
+    setState(prev => {
+      if (prev.mode !== 'continuous') return prev
+      if (prev.status === 'playing') {
+        audioRef.current?.pause()
+        return { ...prev, status: 'paused' }
+      }
+      if (prev.status === 'paused') {
+        audioRef.current?.play().catch(() => {})
+        return { ...prev, status: 'playing' }
+      }
+      return prev
+    })
+  }, [])
+
   const next = useCallback(() => {
     if (state.mode === 'continuous' && state.currentIndex < state.queue.length - 1) {
       const nextIndex = state.currentIndex + 1
@@ -124,5 +146,6 @@ export function useAudioPlayback({ utterances }: UseAudioPlaybackOptions) {
     startContinuous,
     stop,
     next,
+    togglePause,
   }
 }

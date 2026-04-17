@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
+import { useRef, useEffect, useMemo } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { type ExportUtterance, type ViewMode } from '../../types/export'
 import { useAudioPlayback } from '../../hooks/useAudioPlayback'
@@ -11,7 +11,8 @@ type Props = {
   onToggle: (utteranceId: string, isIncluded: boolean, reason?: string) => void
   onAutoFilter: (type: 'short' | 'gradeC' | 'highBeep') => void
   onFinalize?: () => void
-  onSelectionChange?: (selectedIds: Set<string>) => void
+  selectedIds: Set<string>
+  onToggleSelect: (id: string) => void
   skuId?: string
   onPiiEdit?: (utteranceId: string) => void
   piiEditId?: string | null
@@ -115,22 +116,30 @@ function UtteranceCard({
       style={{
         backgroundColor: isPiiEditing
           ? 'rgba(239,68,68,0.12)'
-          : !u.isIncluded
-            ? 'rgba(239,68,68,0.06)'
-            : isSelected
-              ? 'rgba(139,92,246,0.08)'
-              : '#1b1e2e',
-        border: isFocused
-          ? '1px solid #8b5cf6'
-          : isPiiEditing
-            ? '3px solid rgba(239,68,68,0.7)'
-            : isSelected
-              ? '1px solid rgba(139,92,246,0.3)'
-              : '1px solid rgba(255,255,255,0.06)',
+          : isPlaying
+            ? 'rgba(99,102,241,0.15)'
+            : !u.isIncluded
+              ? 'rgba(239,68,68,0.06)'
+              : isSelected
+                ? 'rgba(139,92,246,0.08)'
+                : '#1b1e2e',
+        border: isPiiEditing
+          ? '3px solid rgba(239,68,68,0.7)'
+          : isPlaying
+            ? '2px solid #818cf8'
+            : isFocused
+              ? '1px solid #8b5cf6'
+              : isSelected
+                ? '1px solid rgba(139,92,246,0.3)'
+                : '1px solid rgba(255,255,255,0.06)',
         opacity: u.isIncluded ? 1 : 0.5,
+        boxShadow: isPlaying ? '0 0 12px rgba(99,102,241,0.3)' : undefined,
       }}
     >
-      {isFocused && (
+      {isPlaying && (
+        <div className="absolute top-0 left-0 bottom-0 w-1 bg-indigo-400 shadow-[0_0_8px_rgba(129,140,248,0.8)]" />
+      )}
+      {!isPlaying && isFocused && (
         <div className="absolute top-0 left-0 bottom-0 w-1 bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)]" />
       )}
 
@@ -280,7 +289,8 @@ export default function UtteranceReviewTable({
   utterances,
   onToggle,
   onFinalize,
-  onSelectionChange,
+  selectedIds,
+  onToggleSelect,
   skuId,
   onPiiEdit,
   piiEditId,
@@ -289,9 +299,8 @@ export default function UtteranceReviewTable({
 }: Props) {
   const showLabels = skuId === 'U-A02' || skuId === 'U-A03'
   const parentRef = useRef<HTMLDivElement>(null)
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
-  const { state: playback, play, startContinuous, stop } = useAudioPlayback({ utterances })
+  const { state: playback, play, startContinuous, stop, togglePause } = useAudioPlayback({ utterances })
 
   const rowVirtualizer = useVirtualizer({
     count: utterances.length,
@@ -299,10 +308,6 @@ export default function UtteranceReviewTable({
     estimateSize: () => (viewMode === 'card' ? 180 : 36),
     overscan: 10,
   })
-
-  useEffect(() => {
-    onSelectionChange?.(selectedIds)
-  }, [selectedIds, onSelectionChange])
 
   const summary = useMemo(() => {
     const included = utterances.filter(u => u.isIncluded)
@@ -316,15 +321,6 @@ export default function UtteranceReviewTable({
     }
   }, [utterances])
 
-  const handleToggleSelect = useCallback((id: string) => {
-    setSelectedIds(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }, [])
-
   const { focusedIndex } = useKeyboardNavigation({
     itemCount: utterances.length,
     onToggleReview: (idx) => {
@@ -337,7 +333,7 @@ export default function UtteranceReviewTable({
     },
     onToggleSelection: (idx) => {
       const u = utterances[idx]
-      handleToggleSelect(u.utteranceId)
+      onToggleSelect(u.utteranceId)
     },
     onPiiEdit: (idx) => {
       if (onPiiEdit) onPiiEdit(utterances[idx].utteranceId)
@@ -359,19 +355,56 @@ export default function UtteranceReviewTable({
     }
   }, [playback.currentId, playback.mode, utterances, rowVirtualizer])
 
+  const currentUtterance = playback.currentId
+    ? utterances.find(u => u.utteranceId === playback.currentId)
+    : null
+
   return (
     <div className="space-y-4">
       {playback.mode === 'continuous' && (
-        <div className="flex items-center justify-between bg-indigo-600 text-white px-4 py-2 rounded-lg shadow-lg animate-pulse">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined">autoplay</span>
-            <span className="text-sm font-bold">순차 재생 중... ({playback.currentIndex + 1}/{playback.queue.length})</span>
+        <div className="bg-indigo-600 text-white px-4 py-2 rounded-lg shadow-lg">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className={`material-symbols-outlined${playback.status === 'playing' ? ' animate-pulse' : ''}`}>autoplay</span>
+              <span className="text-sm font-bold">
+                {playback.status === 'paused' ? '일시정지' : '순차 재생 중...'} ({playback.currentIndex + 1}/{playback.queue.length})
+              </span>
+              {currentUtterance?.chunkIndex != null && (
+                <span className="text-xs px-2 py-0.5 rounded-md bg-white/20 font-medium">
+                  청크 #{currentUtterance.chunkIndex}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-1">
+              <button onClick={togglePause} className="p-1 hover:bg-white/20 rounded" title={playback.status === 'paused' ? '재생' : '일시정지'}>
+                <span className="material-symbols-outlined">
+                  {playback.status === 'paused' ? 'play_circle' : 'pause_circle'}
+                </span>
+              </button>
+              <button onClick={stop} className="p-1 hover:bg-white/20 rounded" title="정지">
+                <span className="material-symbols-outlined">stop_circle</span>
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={stop} className="p-1 hover:bg-white/20 rounded">
-              <span className="material-symbols-outlined">stop_circle</span>
-            </button>
-          </div>
+          {currentUtterance && (
+            <div className="flex items-center gap-3 mt-1.5 text-xs text-indigo-100 flex-wrap">
+              <span className="font-mono opacity-70">{currentUtterance.utteranceId.slice(0, 16)}</span>
+              <span className="w-px h-3 bg-white/20" />
+              {currentUtterance.speakerId && (
+                <span>화자: {currentUtterance.speakerId}</span>
+              )}
+              {(currentUtterance.speakerGender || currentUtterance.speakerAgeBand) && (
+                <span className="opacity-70">
+                  ({[currentUtterance.speakerGender, currentUtterance.speakerAgeBand].filter(Boolean).join(' / ')})
+                </span>
+              )}
+              <span className="w-px h-3 bg-white/20" />
+              <span>등급 <strong>{currentUtterance.qualityGrade}</strong></span>
+              <span className="w-px h-3 bg-white/20" />
+              <span>{formatDuration(currentUtterance.durationSec)}</span>
+              <span className="opacity-70">SNR {currentUtterance.snrDb.toFixed(1)}dB</span>
+            </div>
+          )}
         </div>
       )}
 
@@ -381,7 +414,7 @@ export default function UtteranceReviewTable({
           selectedIds={selectedIds}
           playingId={playback.currentId}
           focusedIndex={focusedIndex}
-          onToggleSelect={handleToggleSelect}
+          onToggleSelect={onToggleSelect}
           onToggleReview={onToggle}
           onPlay={play}
           onPiiEdit={onPiiEdit || (() => {})}
@@ -423,7 +456,7 @@ export default function UtteranceReviewTable({
                     showLabels={showLabels}
                     playingId={playback.currentId}
                     isFocused={focusedIndex === virtualItem.index}
-                    onToggleSelect={handleToggleSelect}
+                    onToggleSelect={onToggleSelect}
                     onToggle={onToggle}
                     onPlay={play}
                     onPiiEdit={onPiiEdit}

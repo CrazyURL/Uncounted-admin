@@ -17,6 +17,7 @@ interface UtteranceToolbarProps {
   onBulkExclude: () => void
   onBulkInclude: () => void
   selectedCount: number
+  allFilteredSelected: boolean
 }
 
 const FILTER_TABS: Array<{ id: FilterMode; label: string }> = [
@@ -53,6 +54,7 @@ export function UtteranceToolbar({
   onBulkExclude,
   onBulkInclude,
   selectedCount,
+  allFilteredSelected,
 }: UtteranceToolbarProps) {
   const progress = totalCount > 0 ? Math.round((reviewedCount / totalCount) * 100) : 0
 
@@ -196,7 +198,7 @@ export function UtteranceToolbar({
             className="text-[11px] font-medium transition-colors"
             style={{ color: '#a78bfa' }}
           >
-            이 목록 전체 선택
+            {allFilteredSelected ? '이 목록 전체 해제' : '이 목록 전체 선택'}
           </button>
           <span className="w-px h-3" style={{ backgroundColor: 'rgba(255,255,255,0.1)' }} />
           <span className="text-[11px]" style={{ color: 'rgba(255,255,255,0.5)' }}>
