@@ -39,7 +39,7 @@ export default function AdminExportJobDetailPage() {
   const [reviewOpen, setReviewOpen] = useState(false)
   const [reviewResult, setReviewResult] = useState<string | null>(null)
 
-  const review = useUtteranceReview({
+  const { setInitialSnapshot, ...review } = useUtteranceReview({
     jobId: jobId ?? null,
     utterances,
     setUtterances,
@@ -63,14 +63,14 @@ export default function AdminExportJobDetailPage() {
     try {
       const data = await loadExportUtterances(jobId)
       setUtterances(data)
-    } catch (err) {
-      console.error('[ExportJobDetail] loadUtterances failed:', err)
+      setInitialSnapshot(data)
+    } catch {
       setUtterances([])
     } finally {
       setUtterancesLoading(false)
       setReviewOpen(true)
     }
-  }, [jobId])
+  }, [jobId, setInitialSnapshot])
 
   // 패키징 확정
   const [finalizing, setFinalizing] = useState(false)
@@ -104,7 +104,6 @@ export default function AdminExportJobDetailPage() {
       setJob(finalJob)
       setReviewResult('패키징 확정 완료')
     } catch (err) {
-      console.error('[ExportJobDetail] finalize failed:', err)
       const message = err instanceof Error ? err.message : '패키징 확정 실패'
       setReviewResult(message)
     } finally {
@@ -136,8 +135,7 @@ export default function AdminExportJobDetailPage() {
 
       setJob({ ...updatedJob, logs: [...updatedJob.logs, { timestamp: new Date().toISOString(), level: 'info', message: `납품 확정: ₩${amount.toLocaleString()}` }] })
       setConfirmResult(`${updatedCount}건 원장 확정 완료 (₩${amount.toLocaleString()})`)
-    } catch (err) {
-      console.error('Confirm delivery error:', err)
+    } catch {
       setConfirmResult('확정 처리 실패')
     } finally {
       setConfirming(false)
@@ -291,7 +289,7 @@ export default function AdminExportJobDetailPage() {
           {reviewOpen && utterances.length > 0 && (
             <>
               <UtteranceReviewSection
-                review={review}
+                review={{ ...review, setInitialSnapshot }}
                 skuId={job.skuId}
                 jobId={jobId ?? null}
                 onFinalize={handleFinalize}

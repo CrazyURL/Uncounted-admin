@@ -1,5 +1,10 @@
-import { useState, useRef, useCallback, useMemo, useEffect } from 'react'
-import { type ExportUtterance } from '../../types/export'
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
+import { useVirtualizer } from '@tanstack/react-virtual'
+import { type ExportUtterance, type ViewMode } from '../../types/export'
+import { useAudioPlayback } from '../../hooks/useAudioPlayback'
+import { useKeyboardNavigation } from '../../hooks/useKeyboardNavigation'
+import { GRADE_COLORS, formatDuration } from '../../lib/utteranceUtils'
+import { UtteranceCompactTable } from './UtteranceCompactTable'
 
 type Props = {
   utterances: ExportUtterance[]
@@ -10,6 +15,15 @@ type Props = {
   skuId?: string
   onPiiEdit?: (utteranceId: string) => void
   piiEditId?: string | null
+  viewMode?: ViewMode
+  onViewModeToggle?: () => void
+}
+
+const REASON_LABELS: Record<string, { text: string; color: string }> = {
+  too_short: { text: '3초 미만', color: '#ef4444' },
+  low_grade: { text: 'C등급', color: '#ef4444' },
+  high_beep: { text: 'beep↑', color: '#ef4444' },
+  manual: { text: '수동 제외', color: '#ef4444' },
 }
 
 const LABEL_FIELDS: Array<{ key: string; label: string }> = [
@@ -21,21 +35,6 @@ const LABEL_FIELDS: Array<{ key: string; label: string }> = [
   { key: 'dialogAct', label: '대화행위' },
   { key: 'dialogIntensity', label: '강도' },
 ]
-
-const GRADE_COLORS: Record<string, string> = { A: '#22c55e', B: '#f59e0b', C: '#6b7280' }
-
-const REASON_LABELS: Record<string, { text: string; color: string }> = {
-  too_short: { text: '3초 미만', color: '#ef4444' },
-  low_grade: { text: 'C등급', color: '#ef4444' },
-  high_beep: { text: 'beep↑', color: '#ef4444' },
-  manual: { text: '수동 제외', color: '#ef4444' },
-}
-
-function formatDuration(sec: number): string {
-  const m = Math.floor(sec / 60)
-  const s = Math.floor(sec % 60)
-  return m > 0 ? `${m}:${s.toString().padStart(2, '0')}` : `${s}초`
-}
 
 function PiiButton({ utterance, onPiiEdit }: { utterance: ExportUtterance; onPiiEdit: (id: string) => void }) {
   const intervalCount = utterance.piiIntervals?.length ?? 0
@@ -86,6 +85,7 @@ function UtteranceCard({
   isPiiEditing,
   showLabels,
   playingId,
+  isFocused,
   onToggleSelect,
   onToggle,
   onPlay,
@@ -96,6 +96,7 @@ function UtteranceCard({
   isPiiEditing: boolean
   showLabels: boolean
   playingId: string | null
+  isFocused: boolean
   onToggleSelect: (id: string) => void
   onToggle: (id: string, isIncluded: boolean, reason?: string) => void
   onPlay: (id: string, audioUrl?: string) => void
@@ -110,7 +111,7 @@ function UtteranceCard({
 
   return (
     <div
-      className="rounded-xl p-4 transition-all"
+      className="rounded-xl p-4 transition-all relative overflow-hidden"
       style={{
         backgroundColor: isPiiEditing
           ? 'rgba(239,68,68,0.12)'
@@ -119,18 +120,22 @@ function UtteranceCard({
             : isSelected
               ? 'rgba(139,92,246,0.08)'
               : '#1b1e2e',
-        border: isPiiEditing
-          ? '3px solid rgba(239,68,68,0.7)'
-          : isSelected
-            ? '1px solid rgba(139,92,246,0.3)'
-            : '1px solid rgba(255,255,255,0.06)',
+        border: isFocused
+          ? '1px solid #8b5cf6'
+          : isPiiEditing
+            ? '3px solid rgba(239,68,68,0.7)'
+            : isSelected
+              ? '1px solid rgba(139,92,246,0.3)'
+              : '1px solid rgba(255,255,255,0.06)',
         opacity: u.isIncluded ? 1 : 0.5,
       }}
     >
-      {/* Row 1: Header — checkbox, ID, grade, actions */}
-      <div className="flex items-center justify-between gap-3 mb-3">
+      {isFocused && (
+        <div className="absolute top-0 left-0 bottom-0 w-1 bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)]" />
+      )}
+
+      <div className="flex items-center justify-between gap-3 mb-3 text-white">
         <div className="flex items-center gap-3 min-w-0">
-          {/* Checkbox */}
           <button
             onClick={() => onToggleSelect(u.utteranceId)}
             className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-lg hover:bg-white/10 transition-colors"
@@ -143,10 +148,9 @@ function UtteranceCard({
             </span>
           </button>
 
-          {/* ID */}
           <div className="min-w-0">
             <p
-              className="text-sm text-white font-medium truncate"
+              className="text-sm font-medium truncate"
               style={{ textDecoration: u.isIncluded ? 'none' : 'line-through' }}
             >
               {u.utteranceId.slice(0, 16)}
@@ -158,7 +162,6 @@ function UtteranceCard({
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
-          {/* Grade badge */}
           <span
             className="text-sm font-bold w-8 h-8 flex items-center justify-center rounded-lg"
             style={{ backgroundColor: `${gradeColor}20`, color: gradeColor }}
@@ -166,7 +169,6 @@ function UtteranceCard({
             {u.qualityGrade}
           </span>
 
-          {/* Play */}
           <button
             onClick={() => onPlay(u.utteranceId, u.audioUrl)}
             disabled={!u.audioUrl}
@@ -180,7 +182,6 @@ function UtteranceCard({
             </span>
           </button>
 
-          {/* Status toggle */}
           <button
             onClick={() => onToggle(u.utteranceId, !u.isIncluded, u.isIncluded ? 'manual' : undefined)}
             className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-white/10 transition-colors"
@@ -195,7 +196,6 @@ function UtteranceCard({
         </div>
       </div>
 
-      {/* Row 2: Meta info — chunk, speaker, range */}
       <div className="flex items-center gap-4 mb-2 flex-wrap">
         <span className="text-xs px-2.5 py-1 rounded-md" style={{ backgroundColor: 'rgba(167,139,250,0.1)', color: '#a78bfa' }}>
           청크 #{u.sequenceInChunk ?? '—'}
@@ -224,7 +224,6 @@ function UtteranceCard({
         </div>
       </div>
 
-      {/* Row 3: Quality metrics — SNR, beep, PII, exclude reason */}
       <div className="flex items-center gap-3 flex-wrap">
         <span className="text-xs px-2.5 py-1 rounded-md" style={{ backgroundColor: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.6)' }}>
           SNR {u.snrDb.toFixed(1)}dB
@@ -252,7 +251,6 @@ function UtteranceCard({
         )}
       </div>
 
-      {/* Row 4: Labels (only for U-A02 / U-A03) */}
       {showLabels && (
         <div className="flex flex-wrap gap-1.5 mt-3 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
           {u.labels && LABEL_FIELDS.some(f => (u.labels as Record<string, unknown>)?.[f.key] != null) ? (
@@ -278,214 +276,195 @@ function UtteranceCard({
   )
 }
 
-export default function UtteranceReviewTable({ utterances, onToggle, onAutoFilter, onFinalize, onSelectionChange, skuId, onPiiEdit, piiEditId }: Props) {
+export default function UtteranceReviewTable({
+  utterances,
+  onToggle,
+  onFinalize,
+  onSelectionChange,
+  skuId,
+  onPiiEdit,
+  piiEditId,
+  viewMode = 'card',
+  onViewModeToggle,
+}: Props) {
   const showLabels = skuId === 'U-A02' || skuId === 'U-A03'
-  const [playingId, setPlayingId] = useState<string | null>(null)
+  const parentRef = useRef<HTMLDivElement>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-  const audioRef = useRef<HTMLAudioElement>(null)
 
-  useEffect(() => {
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause()
-        audioRef.current.src = ''
-      }
-    }
-  }, [])
+  const { state: playback, play, startContinuous, stop } = useAudioPlayback({ utterances })
+
+  const rowVirtualizer = useVirtualizer({
+    count: utterances.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => (viewMode === 'card' ? 180 : 36),
+    overscan: 10,
+  })
 
   useEffect(() => {
     onSelectionChange?.(selectedIds)
   }, [selectedIds, onSelectionChange])
 
-  const autoFilterCounts = useMemo(() => ({
-    short: utterances.filter(u => u.isIncluded && u.durationSec < 3).length,
-    gradeC: utterances.filter(u => u.isIncluded && u.qualityGrade === 'C').length,
-    highBeep: utterances.filter(u => u.isIncluded && u.beepMaskRatio >= 0.3).length,
-  }), [utterances])
-
   const summary = useMemo(() => {
     const included = utterances.filter(u => u.isIncluded)
-    const excluded = utterances.filter(u => !u.isIncluded)
-    const autoExcluded = excluded.filter(u => u.excludeReason && u.excludeReason !== 'manual').length
-    const manualExcluded = excluded.length - autoExcluded
     const totalDurationSec = included.reduce((acc, u) => acc + u.durationSec, 0)
+    const excludedCount = utterances.length - included.length
     return {
       total: utterances.length,
       included: included.length,
-      excluded: excluded.length,
-      autoExcluded,
-      manualExcluded,
+      excluded: excludedCount,
       totalDurationMin: (totalDurationSec / 60).toFixed(1),
-      totalDurationSec,
     }
   }, [utterances])
 
-  const canFinalize = summary.included > 0
-
-  const handleToggleSelect = useCallback((utteranceId: string) => {
+  const handleToggleSelect = useCallback((id: string) => {
     setSelectedIds(prev => {
       const next = new Set(prev)
-      if (next.has(utteranceId)) next.delete(utteranceId)
-      else next.add(utteranceId)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
       return next
     })
   }, [])
 
-  const handleSelectAll = useCallback(() => {
-    if (selectedIds.size === utterances.length) {
-      setSelectedIds(new Set())
-    } else {
-      setSelectedIds(new Set(utterances.map(u => u.utteranceId)))
-    }
-  }, [utterances, selectedIds.size])
+  const { focusedIndex } = useKeyboardNavigation({
+    itemCount: utterances.length,
+    onToggleReview: (idx) => {
+      const u = utterances[idx]
+      onToggle(u.utteranceId, !u.isIncluded, u.isIncluded ? 'manual' : undefined)
+    },
+    onPlay: (idx) => {
+      const u = utterances[idx]
+      play(u.utteranceId, u.audioUrl)
+    },
+    onToggleSelection: (idx) => {
+      const u = utterances[idx]
+      handleToggleSelect(u.utteranceId)
+    },
+    onPiiEdit: (idx) => {
+      if (onPiiEdit) onPiiEdit(utterances[idx].utteranceId)
+    },
+    onToggleViewMode: () => {
+      if (onViewModeToggle) onViewModeToggle()
+    },
+    scrollToIndex: (idx) => rowVirtualizer.scrollToIndex(idx, { align: 'center' }),
+    disabled: piiEditId !== null,
+  })
 
-  const handleBulkExclude = useCallback(() => {
-    if (selectedIds.size === 0) return
-    for (const id of selectedIds) {
-      onToggle(id, false, 'manual')
+  // 순차 재생 시 현재 재생 중인 발화로 자동 스크롤
+  useEffect(() => {
+    if (playback.mode === 'continuous' && playback.currentId) {
+      const idx = utterances.findIndex(u => u.utteranceId === playback.currentId)
+      if (idx !== -1) {
+        rowVirtualizer.scrollToIndex(idx, { align: 'center' })
+      }
     }
-    setSelectedIds(new Set())
-  }, [selectedIds, onToggle])
-
-  const handleBulkInclude = useCallback(() => {
-    if (selectedIds.size === 0) return
-    for (const id of selectedIds) {
-      onToggle(id, true)
-    }
-    setSelectedIds(new Set())
-  }, [selectedIds, onToggle])
-
-  const handlePlay = useCallback((utteranceId: string, audioUrl?: string) => {
-    if (!audioUrl) return
-    if (playingId === utteranceId) {
-      audioRef.current?.pause()
-      setPlayingId(null)
-      return
-    }
-    if (audioRef.current) {
-      audioRef.current.src = audioUrl
-      audioRef.current.play().catch(() => {})
-      setPlayingId(utteranceId)
-    }
-  }, [playingId])
+  }, [playback.currentId, playback.mode, utterances, rowVirtualizer])
 
   return (
     <div className="space-y-4">
-      {/* Hidden audio element */}
-      <audio
-        ref={audioRef}
-        onEnded={() => setPlayingId(null)}
-        onError={() => setPlayingId(null)}
-      />
+      {playback.mode === 'continuous' && (
+        <div className="flex items-center justify-between bg-indigo-600 text-white px-4 py-2 rounded-lg shadow-lg animate-pulse">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined">autoplay</span>
+            <span className="text-sm font-bold">순차 재생 중... ({playback.currentIndex + 1}/{playback.queue.length})</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={stop} className="p-1 hover:bg-white/20 rounded">
+              <span className="material-symbols-outlined">stop_circle</span>
+            </button>
+          </div>
+        </div>
+      )}
 
-      {/* Auto Filter & Bulk Action Buttons */}
-      <div className="flex items-center gap-2.5 flex-wrap">
-        <span className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.5)' }}>자동 필터:</span>
-        <button
-          onClick={() => onAutoFilter('short')}
-          disabled={autoFilterCounts.short === 0}
-          className="flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg transition-colors disabled:opacity-30"
-          style={{ backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)' }}
+      {viewMode === 'table' ? (
+        <UtteranceCompactTable
+          utterances={utterances}
+          selectedIds={selectedIds}
+          playingId={playback.currentId}
+          focusedIndex={focusedIndex}
+          onToggleSelect={handleToggleSelect}
+          onToggleReview={onToggle}
+          onPlay={play}
+          onPiiEdit={onPiiEdit || (() => {})}
+          parentRef={parentRef}
+        />
+      ) : (
+        <div
+          ref={parentRef}
+          className="overflow-y-auto pr-1"
+          style={{ height: '640px' }}
         >
-          3초 미만 일괄 제외
-          <span style={{ color: '#ef4444' }}>({autoFilterCounts.short})</span>
-        </button>
-        <button
-          onClick={() => onAutoFilter('gradeC')}
-          disabled={autoFilterCounts.gradeC === 0}
-          className="flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg transition-colors disabled:opacity-30"
-          style={{ backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)' }}
-        >
-          Grade C 일괄 제외
-          <span style={{ color: '#ef4444' }}>({autoFilterCounts.gradeC})</span>
-        </button>
-        <button
-          onClick={() => onAutoFilter('highBeep')}
-          disabled={autoFilterCounts.highBeep === 0}
-          className="flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg transition-colors disabled:opacity-30"
-          style={{ backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)' }}
-        >
-          beep 30%+ 일괄 제외
-          <span style={{ color: '#ef4444' }}>({autoFilterCounts.highBeep})</span>
-        </button>
-
-        <div className="w-px h-5" style={{ backgroundColor: 'rgba(255,255,255,0.1)' }} />
-
-        <button
-          onClick={handleSelectAll}
-          className="flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg transition-colors"
-          style={{ backgroundColor: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.15)', color: '#a78bfa' }}
-        >
-          {selectedIds.size === utterances.length ? '전체 해제' : '전체 선택'}
-        </button>
-        {selectedIds.size > 0 && (
-          <button
-            onClick={handleBulkExclude}
-            className="flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg transition-colors"
-            style={{ backgroundColor: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.15)', color: '#ef4444' }}
+          <div
+            style={{
+              height: `${rowVirtualizer.getTotalSize()}px`,
+              width: '100%',
+              position: 'relative',
+            }}
           >
-            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>remove_circle</span>
-            선택 {selectedIds.size}건 제외
-          </button>
-        )}
-        {selectedIds.size > 0 && (
-          <button
-            onClick={handleBulkInclude}
-            className="flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg transition-colors"
-            style={{ backgroundColor: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.15)', color: '#22c55e' }}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add_circle</span>
-            선택 {selectedIds.size}건 활성화
-          </button>
-        )}
-      </div>
-
-      {/* Card List */}
-      <div className="space-y-2 max-h-[640px] overflow-y-auto pr-1">
-        {utterances.map(u => (
-          <UtteranceCard
-            key={u.utteranceId}
-            utterance={u}
-            isSelected={selectedIds.has(u.utteranceId)}
-            isPiiEditing={piiEditId === u.utteranceId}
-            showLabels={showLabels}
-            playingId={playingId}
-            onToggleSelect={handleToggleSelect}
-            onToggle={onToggle}
-            onPlay={handlePlay}
-            onPiiEdit={onPiiEdit}
-          />
-        ))}
-      </div>
+            {rowVirtualizer.getVirtualItems().map((virtualItem) => {
+              const u = utterances[virtualItem.index]
+              return (
+                <div
+                  key={virtualItem.key}
+                  data-index={virtualItem.index}
+                  ref={rowVirtualizer.measureElement}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    transform: `translateY(${virtualItem.start}px)`,
+                    paddingBottom: '8px',
+                  }}
+                >
+                  <UtteranceCard
+                    utterance={u}
+                    isSelected={selectedIds.has(u.utteranceId)}
+                    isPiiEditing={piiEditId === u.utteranceId}
+                    showLabels={showLabels}
+                    playingId={playback.currentId}
+                    isFocused={focusedIndex === virtualItem.index}
+                    onToggleSelect={handleToggleSelect}
+                    onToggle={onToggle}
+                    onPlay={play}
+                    onPiiEdit={onPiiEdit}
+                  />
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Summary Bar */}
-      <div
-        className="flex items-center justify-between rounded-xl px-5 py-4"
-        style={{ backgroundColor: '#1b1e2e' }}
-      >
-        <div className="flex items-center gap-4 text-sm" style={{ color: 'rgba(255,255,255,0.5)' }}>
+      <div className="flex items-center justify-between rounded-xl px-5 py-4 bg-[#1b1e2e]">
+        <div className="flex items-center gap-4 text-sm text-gray-400">
           <span>총 <strong className="text-white">{summary.total}</strong>개 발화</span>
-          <span className="w-px h-4" style={{ backgroundColor: 'rgba(255,255,255,0.1)' }} />
-          <span>선택됨 <strong style={{ color: '#22c55e' }}>{summary.included}</strong>개</span>
-          <span className="w-px h-4" style={{ backgroundColor: 'rgba(255,255,255,0.1)' }} />
-          <span>제외 <strong style={{ color: '#ef4444' }}>{summary.excluded}</strong>개
-            <span className="text-xs ml-1">(자동 {summary.autoExcluded} + 수동 {summary.manualExcluded})</span>
-          </span>
-          <span className="w-px h-4" style={{ backgroundColor: 'rgba(255,255,255,0.1)' }} />
-          <span>합계 <strong style={{ color: '#8b5cf6' }}>{summary.totalDurationMin}분</strong></span>
+          <span className="w-px h-4 bg-white/10" />
+          <span>선택됨 <strong className="text-green-500">{summary.included}</strong>개</span>
+          <span className="w-px h-4 bg-white/10" />
+          <span>합계 <strong className="text-indigo-400">{summary.totalDurationMin}분</strong></span>
         </div>
 
-        {onFinalize && (
+        <div className="flex items-center gap-3">
           <button
-            onClick={onFinalize}
-            disabled={!canFinalize}
-            className="flex items-center gap-2 text-sm px-5 py-2.5 rounded-lg font-medium text-white transition-colors disabled:opacity-30"
-            style={{ backgroundColor: '#8b5cf6' }}
+            onClick={() => startContinuous()}
+            className="flex items-center gap-2 text-sm px-4 py-2 rounded-lg font-medium bg-white/10 text-white hover:bg-white/20 transition-colors"
           >
-            <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>package_2</span>
-            패키징 확정
+            <span className="material-symbols-outlined">play_arrow</span>
+            순차 재생
           </button>
-        )}
+
+          {onFinalize && (
+            <button
+              onClick={onFinalize}
+              disabled={summary.included === 0}
+              className="flex items-center gap-2 text-sm px-5 py-2.5 rounded-lg font-medium text-white transition-colors disabled:opacity-30 bg-indigo-600 hover:bg-indigo-700"
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>package_2</span>
+              패키징 확정
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )
