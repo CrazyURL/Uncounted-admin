@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { type ExportUtterance, type UtteranceLabels } from '../types/export'
 import { loadExportUtterances } from '../lib/adminStore'
-import { saveUtteranceLabelsBatchApi, patchUtteranceReviewStatusApi } from '../lib/api/admin'
+import { saveUtteranceLabelsBatchApi, patchUtteranceReviewStatusApi, patchUtteranceReviewStatusBatchApi } from '../lib/api/admin'
 
 type UtterancesSetter = (utts: ExportUtterance[] | ((prev: ExportUtterance[]) => ExportUtterance[])) => void
 
@@ -19,6 +19,7 @@ export interface UseUtteranceReviewReturn {
   selectedIds: Set<string>
   setSelectedIds: (ids: Set<string>) => void
   toggleReview: (utteranceId: string, isIncluded: boolean, reason?: string) => Promise<void>
+  bulkReview: (items: Array<{ utteranceId: string; isIncluded: boolean; reason?: string }>) => Promise<void>
   autoFilter: (type: 'short' | 'gradeC' | 'highBeep') => Promise<void>
   updateLabels: (utteranceIds: string[], labels: Partial<UtteranceLabels>) => Promise<void>
   handlePiiMaskApplied: () => Promise<void>
@@ -75,53 +76,75 @@ export function useUtteranceReview({
     }
   }, [setUtterances])
 
-  const autoFilter = useCallback(async (type: 'short' | 'gradeC' | 'highBeep') => {
+  const bulkReview = useCallback(async (items: Array<{ utteranceId: string; isIncluded: boolean; reason?: string }>) => {
+    if (items.length === 0) return
     const now = new Date().toISOString()
-    // 1) 변경 대상 식별 (낙관적 업데이트 전 prev로부터)
-    const targets: Array<{ utteranceId: string; reason: string; prev: { isIncluded: boolean; excludeReason: string | undefined; reviewedAt: string | undefined } }> = []
-    setUtterances(prev => {
-      return prev.map(u => {
-        if (!u.isIncluded) return u
-        const match =
-          (type === 'short' && u.durationSec < 3) ||
-          (type === 'gradeC' && u.qualityGrade === 'C') ||
-          (type === 'highBeep' && u.beepMaskRatio >= 0.3)
-        if (!match) return u
-        const reason = type === 'short' ? 'too_short' : type === 'gradeC' ? 'low_grade' : 'high_beep'
-        targets.push({ utteranceId: u.utteranceId, reason, prev: { isIncluded: u.isIncluded, excludeReason: u.excludeReason, reviewedAt: u.reviewedAt } })
-        return { ...u, isIncluded: false, excludeReason: reason, reviewedAt: now }
-      })
-    })
 
-    if (targets.length === 0) return
+    // 1) 낙관적 업데이트 + 스냅샷 저장
+    const snapshotMap = new Map<string, { isIncluded: boolean; excludeReason: string | undefined; reviewedAt: string | undefined }>()
+    const itemMap = new Map(items.map(i => [i.utteranceId, i]))
 
-    // 2) 병렬 PATCH 호출
-    const failures: string[] = []
-    await Promise.all(
-      targets.map(async ({ utteranceId, reason }) => {
-        try {
-          const res = await patchUtteranceReviewStatusApi(utteranceId, false, reason)
-          if (res.error) failures.push(utteranceId)
-        } catch {
-          failures.push(utteranceId)
+    setUtterances(prev =>
+      prev.map(u => {
+        const item = itemMap.get(u.utteranceId)
+        if (!item) return u
+        snapshotMap.set(u.utteranceId, { isIncluded: u.isIncluded, excludeReason: u.excludeReason, reviewedAt: u.reviewedAt })
+        return {
+          ...u,
+          isIncluded: item.isIncluded,
+          excludeReason: item.isIncluded ? undefined : (item.reason ?? 'manual'),
+          reviewedAt: now,
         }
-      }),
+      })
     )
 
-    // 3) 실패분 롤백
-    if (failures.length > 0) {
-      const failureMap = new Map(
-        targets.filter(t => failures.includes(t.utteranceId)).map(t => [t.utteranceId, t.prev]),
+    // 2) 벌크 API 1회 호출
+    try {
+      const res = await patchUtteranceReviewStatusBatchApi(
+        items.map(i => ({ utteranceId: i.utteranceId, isIncluded: i.isIncluded, excludeReason: i.reason }))
       )
+
+      // 3) 실패분 롤백
+      const failures = res.data?.failures ?? []
+      if (failures.length > 0) {
+        setUtterances(prev =>
+          prev.map(u => {
+            const snap = snapshotMap.get(u.utteranceId)
+            return snap && failures.includes(u.utteranceId)
+              ? { ...u, isIncluded: snap.isIncluded, excludeReason: snap.excludeReason, reviewedAt: snap.reviewedAt }
+              : u
+          })
+        )
+        alert(`${failures.length}건 저장 실패 (롤백됨)`)
+      }
+    } catch {
+      // 전체 실패 시 전부 롤백
       setUtterances(prev =>
         prev.map(u => {
-          const snap = failureMap.get(u.utteranceId)
+          const snap = snapshotMap.get(u.utteranceId)
           return snap ? { ...u, isIncluded: snap.isIncluded, excludeReason: snap.excludeReason, reviewedAt: snap.reviewedAt } : u
-        }),
+        })
       )
-      alert(`자동 필터 ${failures.length}건 저장 실패 (롤백됨)`)
+      alert('벌크 저장 실패 (전체 롤백됨)')
     }
   }, [setUtterances])
+
+  const autoFilter = useCallback(async (type: 'short' | 'gradeC' | 'highBeep') => {
+    // 변경 대상 식별
+    const items: Array<{ utteranceId: string; isIncluded: boolean; reason: string }> = []
+    utterances.forEach(u => {
+      if (!u.isIncluded) return
+      const match =
+        (type === 'short' && u.durationSec < 3) ||
+        (type === 'gradeC' && u.qualityGrade === 'C') ||
+        (type === 'highBeep' && u.beepMaskRatio >= 0.3)
+      if (!match) return
+      const reason = type === 'short' ? 'too_short' : type === 'gradeC' ? 'low_grade' : 'high_beep'
+      items.push({ utteranceId: u.utteranceId, isIncluded: false, reason })
+    })
+
+    await bulkReview(items)
+  }, [utterances, bulkReview])
 
   const updateLabels = useCallback(async (utteranceIds: string[], labels: Partial<UtteranceLabels>) => {
     if (utteranceIds.length === 0) return
@@ -172,6 +195,7 @@ export function useUtteranceReview({
     selectedIds,
     setSelectedIds,
     toggleReview,
+    bulkReview,
     autoFilter,
     updateLabels,
     handlePiiMaskApplied,

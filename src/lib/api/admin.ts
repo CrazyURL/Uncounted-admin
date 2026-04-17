@@ -728,6 +728,18 @@ export async function patchUtteranceReviewStatusApi(
   )
 }
 
+export async function patchUtteranceReviewStatusBatchApi(
+  updates: Array<{ utteranceId: string; isIncluded: boolean; excludeReason?: string }>,
+) {
+  return apiFetch<{ ok: boolean; total: number; succeeded: number; failed: number; failures: string[] }>(
+    '/api/admin/utterances/review-status/batch',
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ updates }),
+    },
+  )
+}
+
 export async function checkUtteranceOriginalBackupApi(utteranceId: string, signal?: AbortSignal) {
   return apiFetch<{ hasBackup: boolean }>(`/api/admin/utterances/${utteranceId}/original-backup`, { signal })
 }

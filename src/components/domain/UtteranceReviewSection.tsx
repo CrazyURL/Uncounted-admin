@@ -6,6 +6,7 @@ import UtteranceLabelingPanel from './UtteranceLabelingPanel'
 import { UtteranceToolbar } from './UtteranceToolbar'
 import { type UseUtteranceReviewReturn } from '../../hooks/useUtteranceReview'
 import { useUtteranceFilters } from '../../hooks/useUtteranceFilters'
+import { useAudioPlayback } from '../../hooks/useAudioPlayback'
 import { GRADE_COLORS, formatDuration } from '../../lib/utteranceUtils'
 import { type ExportUtterance, type ViewMode } from '../../types/export'
 
@@ -126,6 +127,7 @@ export default function UtteranceReviewSection({
     selectedIds,
     setSelectedIds,
     toggleReview,
+    bulkReview,
     autoFilter,
     updateLabels,
     handlePiiMaskApplied,
@@ -145,6 +147,10 @@ export default function UtteranceReviewSection({
     filteredUtterances,
     counts,
   } = useUtteranceFilters({ utterances })
+
+  // filteredUtterances 기준으로 큐 구성 (정렬 순서 반영)
+  // 토글 시 큐가 깨지지 않음 — startContinuous 호출 시점에 큐를 스냅샷으로 고정
+  const audioPlayback = useAudioPlayback({ utterances: filteredUtterances })
 
   const labelingVisible = showLabelingPanel ?? (skuId ? SHOW_LABELING_SKUS.has(skuId) : false)
 
@@ -178,13 +184,13 @@ export default function UtteranceReviewSection({
   const handleBulkInclude = () => {
     const targets = filteredUtterances.filter(u => selectedIds.has(u.utteranceId) && !u.isIncluded)
     if (targets.length === 0) return
-    Promise.all(targets.map(u => toggleReview(u.utteranceId, true)))
+    bulkReview(targets.map(u => ({ utteranceId: u.utteranceId, isIncluded: true })))
   }
 
   const handleBulkExclude = () => {
     const targets = filteredUtterances.filter(u => selectedIds.has(u.utteranceId) && u.isIncluded)
     if (targets.length === 0) return
-    Promise.all(targets.map(u => toggleReview(u.utteranceId, false, 'manual')))
+    bulkReview(targets.map(u => ({ utteranceId: u.utteranceId, isIncluded: false, reason: 'manual' })))
   }
 
   const selectedInFilteredCount = useMemo(() => {
@@ -240,7 +246,6 @@ export default function UtteranceReviewSection({
       <UtteranceReviewTable
         utterances={filteredUtterances}
         onToggle={toggleReview}
-        onAutoFilter={autoFilter}
         onFinalize={onFinalize}
         selectedIds={selectedIds}
         onToggleSelect={handleToggleSelect}
@@ -249,6 +254,11 @@ export default function UtteranceReviewSection({
         piiEditId={piiEditId}
         viewMode={viewMode}
         onViewModeToggle={() => setViewMode(v => v === 'card' ? 'table' : 'card')}
+        playback={audioPlayback.state}
+        onPlay={audioPlayback.play}
+        onStartContinuous={audioPlayback.startContinuous}
+        onStop={audioPlayback.stop}
+        onTogglePause={audioPlayback.togglePause}
       />
 
       <div className="flex items-center gap-4 px-4 py-2 bg-indigo-500/10 border border-indigo-500/20 rounded-lg text-[11px] text-indigo-300/80">
