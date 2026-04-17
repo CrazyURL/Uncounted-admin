@@ -15,6 +15,9 @@ export function useAudioPlayback({ utterances }: UseAudioPlaybackOptions) {
   })
 
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  // 큐 시작 시점의 발화 데이터 스냅샷 (제외/필터 변경에도 audioUrl 유지)
+  const queueSnapshotRef = useRef<Map<string, ExportUtterance>>(new Map())
+  // 최신 utterances (단건 play용)
   const utterancesRef = useRef<ExportUtterance[]>(utterances)
 
   useEffect(() => {
@@ -25,19 +28,19 @@ export function useAudioPlayback({ utterances }: UseAudioPlaybackOptions) {
     const audio = new Audio()
     audioRef.current = audio
 
-    const advanceOrStop = (prev: PlaybackState) => {
+    const advanceOrStop = (prev: PlaybackState): PlaybackState => {
       if (prev.mode === 'continuous' && prev.currentIndex < prev.queue.length - 1) {
         const nextIndex = prev.currentIndex + 1
         const nextId = prev.queue[nextIndex]
-        const nextUtt = utterancesRef.current.find(u => u.utteranceId === nextId)
+        const nextUtt = queueSnapshotRef.current.get(nextId)
 
         if (nextUtt?.audioUrl) {
           audio.src = nextUtt.audioUrl
           audio.play().catch(() => {})
-          return { ...prev, currentId: nextId, currentIndex: nextIndex, status: 'playing' as const }
+          return { ...prev, currentId: nextId, currentIndex: nextIndex, status: 'playing' }
         }
       }
-      return { ...prev, status: 'stopped' as const, currentId: null, currentIndex: -1, mode: 'single' as const }
+      return { ...prev, status: 'stopped', currentId: null, currentIndex: -1, mode: 'single' }
     }
 
     const handleEnded = () => setState(prev => advanceOrStop(prev))
@@ -81,13 +84,18 @@ export function useAudioPlayback({ utterances }: UseAudioPlaybackOptions) {
   const startContinuous = useCallback((startId?: string) => {
     if (!audioRef.current) return
 
-    // 필터링된 목록 중 isIncluded인 발화들로 큐 구성
-    const includedQueue = utterances.filter(u => u.isIncluded && u.audioUrl).map(u => u.utteranceId)
-    if (includedQueue.length === 0) return
+    // 현재 utterances 기준으로 포함+audioUrl 있는 발화로 큐 + 스냅샷 구성
+    const included = utterances.filter(u => u.isIncluded && u.audioUrl)
+    if (included.length === 0) return
 
-    const startIndex = startId ? includedQueue.indexOf(startId) : 0
-    const currentId = includedQueue[startIndex === -1 ? 0 : startIndex]
-    const currentUtt = utterances.find(u => u.utteranceId === currentId)
+    const queue = included.map(u => u.utteranceId)
+    const snapshot = new Map(included.map(u => [u.utteranceId, u]))
+    queueSnapshotRef.current = snapshot
+
+    const startIndex = startId ? queue.indexOf(startId) : 0
+    const idx = startIndex === -1 ? 0 : startIndex
+    const currentId = queue[idx]
+    const currentUtt = snapshot.get(currentId)
 
     if (currentUtt?.audioUrl) {
       audioRef.current.src = currentUtt.audioUrl
@@ -96,8 +104,8 @@ export function useAudioPlayback({ utterances }: UseAudioPlaybackOptions) {
         currentId,
         status: 'playing',
         mode: 'continuous',
-        queue: includedQueue,
-        currentIndex: startIndex === -1 ? 0 : startIndex,
+        queue,
+        currentIndex: idx,
       })
     }
   }, [utterances])
@@ -107,6 +115,7 @@ export function useAudioPlayback({ utterances }: UseAudioPlaybackOptions) {
       audioRef.current.pause()
       audioRef.current.src = ''
     }
+    queueSnapshotRef.current = new Map()
     setState(prev => ({ ...prev, status: 'stopped', currentId: null, mode: 'single' }))
   }, [])
 
@@ -127,18 +136,20 @@ export function useAudioPlayback({ utterances }: UseAudioPlaybackOptions) {
   }, [])
 
   const next = useCallback(() => {
-    if (state.mode === 'continuous' && state.currentIndex < state.queue.length - 1) {
-      const nextIndex = state.currentIndex + 1
-      const nextId = state.queue[nextIndex]
-      const nextUtt = utterances.find(u => u.utteranceId === nextId)
+    setState(prev => {
+      if (prev.mode !== 'continuous' || prev.currentIndex >= prev.queue.length - 1) return prev
+      const nextIndex = prev.currentIndex + 1
+      const nextId = prev.queue[nextIndex]
+      const nextUtt = queueSnapshotRef.current.get(nextId)
 
       if (nextUtt?.audioUrl && audioRef.current) {
         audioRef.current.src = nextUtt.audioUrl
         audioRef.current.play().catch(() => {})
-        setState(prev => ({ ...prev, currentId: nextId, currentIndex: nextIndex, status: 'playing' }))
+        return { ...prev, currentId: nextId, currentIndex: nextIndex, status: 'playing' }
       }
-    }
-  }, [state.mode, state.currentIndex, state.queue, utterances])
+      return prev
+    })
+  }, [])
 
   return {
     state,

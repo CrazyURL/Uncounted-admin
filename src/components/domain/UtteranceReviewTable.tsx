@@ -1,7 +1,6 @@
 import { useRef, useEffect, useMemo } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { type ExportUtterance, type ViewMode } from '../../types/export'
-import { useAudioPlayback } from '../../hooks/useAudioPlayback'
+import { type ExportUtterance, type ViewMode, type PlaybackState } from '../../types/export'
 import { useKeyboardNavigation } from '../../hooks/useKeyboardNavigation'
 import { GRADE_COLORS, formatDuration } from '../../lib/utteranceUtils'
 import { UtteranceCompactTable } from './UtteranceCompactTable'
@@ -9,7 +8,6 @@ import { UtteranceCompactTable } from './UtteranceCompactTable'
 type Props = {
   utterances: ExportUtterance[]
   onToggle: (utteranceId: string, isIncluded: boolean, reason?: string) => void
-  onAutoFilter: (type: 'short' | 'gradeC' | 'highBeep') => void
   onFinalize?: () => void
   selectedIds: Set<string>
   onToggleSelect: (id: string) => void
@@ -18,6 +16,11 @@ type Props = {
   piiEditId?: string | null
   viewMode?: ViewMode
   onViewModeToggle?: () => void
+  playback: PlaybackState
+  onPlay: (id: string, audioUrl?: string) => void
+  onStartContinuous: (startId?: string) => void
+  onStop: () => void
+  onTogglePause: () => void
 }
 
 const REASON_LABELS: Record<string, { text: string; color: string }> = {
@@ -296,11 +299,14 @@ export default function UtteranceReviewTable({
   piiEditId,
   viewMode = 'card',
   onViewModeToggle,
+  playback,
+  onPlay,
+  onStartContinuous,
+  onStop,
+  onTogglePause,
 }: Props) {
   const showLabels = skuId === 'U-A02' || skuId === 'U-A03'
   const parentRef = useRef<HTMLDivElement>(null)
-
-  const { state: playback, play, startContinuous, stop, togglePause } = useAudioPlayback({ utterances })
 
   const rowVirtualizer = useVirtualizer({
     count: utterances.length,
@@ -329,7 +335,7 @@ export default function UtteranceReviewTable({
     },
     onPlay: (idx) => {
       const u = utterances[idx]
-      play(u.utteranceId, u.audioUrl)
+      onPlay(u.utteranceId, u.audioUrl)
     },
     onToggleSelection: (idx) => {
       const u = utterances[idx]
@@ -376,12 +382,12 @@ export default function UtteranceReviewTable({
               )}
             </div>
             <div className="flex items-center gap-1">
-              <button onClick={togglePause} className="p-1 hover:bg-white/20 rounded" title={playback.status === 'paused' ? '재생' : '일시정지'}>
+              <button onClick={onTogglePause} className="p-1 hover:bg-white/20 rounded" title={playback.status === 'paused' ? '재생' : '일시정지'}>
                 <span className="material-symbols-outlined">
                   {playback.status === 'paused' ? 'play_circle' : 'pause_circle'}
                 </span>
               </button>
-              <button onClick={stop} className="p-1 hover:bg-white/20 rounded" title="정지">
+              <button onClick={onStop} className="p-1 hover:bg-white/20 rounded" title="정지">
                 <span className="material-symbols-outlined">stop_circle</span>
               </button>
             </div>
@@ -416,7 +422,7 @@ export default function UtteranceReviewTable({
           focusedIndex={focusedIndex}
           onToggleSelect={onToggleSelect}
           onToggleReview={onToggle}
-          onPlay={play}
+          onPlay={onPlay}
           onPiiEdit={onPiiEdit || (() => {})}
           parentRef={parentRef}
         />
@@ -458,7 +464,7 @@ export default function UtteranceReviewTable({
                     isFocused={focusedIndex === virtualItem.index}
                     onToggleSelect={onToggleSelect}
                     onToggle={onToggle}
-                    onPlay={play}
+                    onPlay={onPlay}
                     onPiiEdit={onPiiEdit}
                   />
                 </div>
@@ -480,7 +486,7 @@ export default function UtteranceReviewTable({
 
         <div className="flex items-center gap-3">
           <button
-            onClick={() => startContinuous()}
+            onClick={() => onStartContinuous()}
             className="flex items-center gap-2 text-sm px-4 py-2 rounded-lg font-medium bg-white/10 text-white hover:bg-white/20 transition-colors"
           >
             <span className="material-symbols-outlined">play_arrow</span>
