@@ -94,6 +94,7 @@ function UtteranceCard({
   onToggle,
   onPlay,
   onPiiEdit,
+  onFocus,
 }: {
   utterance: ExportUtterance
   isSelected: boolean
@@ -105,6 +106,7 @@ function UtteranceCard({
   onToggle: (id: string, isIncluded: boolean, reason?: string) => void
   onPlay: (id: string, audioUrl?: string) => void
   onPiiEdit?: (id: string) => void
+  onFocus: () => void
 }) {
   const u = utterance
   const gradeColor = GRADE_COLORS[u.qualityGrade] ?? '#6b7280'
@@ -115,7 +117,8 @@ function UtteranceCard({
 
   return (
     <div
-      className="rounded-xl p-4 transition-all relative overflow-hidden"
+      onClick={onFocus}
+      className="rounded-xl p-4 transition-all relative overflow-hidden cursor-pointer"
       style={{
         backgroundColor: isPiiEditing
           ? 'rgba(239,68,68,0.12)'
@@ -327,7 +330,7 @@ export default function UtteranceReviewTable({
     }
   }, [utterances])
 
-  const { focusedIndex } = useKeyboardNavigation({
+  const { focusedIndex, setFocusedIndex } = useKeyboardNavigation({
     itemCount: utterances.length,
     onToggleReview: (idx) => {
       const u = utterances[idx]
@@ -424,6 +427,7 @@ export default function UtteranceReviewTable({
           onToggleReview={onToggle}
           onPlay={onPlay}
           onPiiEdit={onPiiEdit || (() => {})}
+          onFocus={setFocusedIndex}
           parentRef={parentRef}
         />
       ) : (
@@ -466,6 +470,7 @@ export default function UtteranceReviewTable({
                     onToggle={onToggle}
                     onPlay={onPlay}
                     onPiiEdit={onPiiEdit}
+                    onFocus={() => setFocusedIndex(virtualItem.index)}
                   />
                 </div>
               )

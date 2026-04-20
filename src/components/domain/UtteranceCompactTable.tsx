@@ -12,6 +12,7 @@ interface UtteranceCompactTableProps {
   onToggleReview: (id: string, isIncluded: boolean, reason?: string) => void
   onPlay: (id: string, audioUrl?: string) => void
   onPiiEdit: (id: string) => void
+  onFocus: (index: number) => void
   parentRef: React.RefObject<HTMLDivElement | null>
 }
 
@@ -24,6 +25,7 @@ export const UtteranceCompactTable: React.FC<UtteranceCompactTableProps> = ({
   onToggleReview,
   onPlay,
   onPiiEdit,
+  onFocus,
   parentRef,
 }) => {
   const rowVirtualizer = useVirtualizer({
@@ -70,6 +72,7 @@ export const UtteranceCompactTable: React.FC<UtteranceCompactTableProps> = ({
             return (
               <div
                 key={virtualItem.key}
+                onClick={() => onFocus(virtualItem.index)}
                 style={{
                   position: 'absolute',
                   top: 0,
@@ -78,7 +81,7 @@ export const UtteranceCompactTable: React.FC<UtteranceCompactTableProps> = ({
                   height: '32px',
                   transform: `translateY(${virtualItem.start}px)`,
                 }}
-                className={`flex items-center gap-2 px-4 border-b border-white/5 transition-colors text-xs
+                className={`flex items-center gap-2 px-4 border-b border-white/5 transition-colors text-xs cursor-pointer
                   ${isFocused ? 'bg-indigo-500/20' : isSelected ? 'bg-indigo-500/5' : 'hover:bg-white/5'}
                   ${!u.isIncluded ? 'opacity-50' : ''}
                 `}
