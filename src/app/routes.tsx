@@ -22,6 +22,11 @@ import AdminDeliveryProfilesPage from '../pages/admin/AdminDeliveryProfilesPage'
 import AdminClientSkuMapPage from '../pages/admin/AdminClientSkuMapPage'
 import AdminSettlementPage from '../pages/admin/AdminSettlementPage'
 import AdminMetaStoragePage from '../pages/admin/AdminMetaStoragePage'
+import AdminReviewQueuePage from '../pages/admin/AdminReviewQueuePage'
+import AdminDeliveryCreatePage from '../pages/admin/AdminDeliveryCreatePage'
+import AdminBalancesPage from '../pages/admin/AdminBalancesPage'
+import AdminTransactionsPage from '../pages/admin/AdminTransactionsPage'
+import AdminUtterancesPage from '../pages/admin/AdminUtterancesPage'
 
 const routes: RouteObject[] = [
   {
@@ -59,6 +64,12 @@ const routes: RouteObject[] = [
       { path: '/admin/settlement', element: <AdminSettlementPage /> },
       { path: '/admin/datasets', element: <AdminDatasetListPage /> },
       { path: '/admin/datasets/:datasetId', element: <AdminDatasetDetailPage /> },
+      // BM v10 신규 — 검수 + 납품 흐름 + 정산
+      { path: '/admin/review', element: <AdminReviewQueuePage /> },
+      { path: '/admin/delivery/new', element: <AdminDeliveryCreatePage /> },
+      { path: '/admin/transactions', element: <AdminTransactionsPage /> },
+      { path: '/admin/balances', element: <AdminBalancesPage /> },
+      { path: '/admin/utterances', element: <AdminUtterancesPage /> },
       // detail
       { path: '/admin/users/:userId', element: <AdminUserDetailPage /> },
     ],
