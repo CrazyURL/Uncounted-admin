@@ -179,7 +179,7 @@ export default function AdminShell() {
 
       <AdminNav />
 
-      <main ref={adminMainRef} className="flex-1 overflow-y-auto">
+      <main ref={adminMainRef} className="flex-1 overflow-y-auto bg-bg text-txt">
         <Outlet />
       </main>
     </div>
