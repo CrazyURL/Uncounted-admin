@@ -76,7 +76,7 @@ export default function AdminMetaStoragePage() {
   if (error && !summary) {
     return (
       <div className="p-4">
-        <div className="rounded-xl p-4" style={{ backgroundColor: '#1b1e2e' }}>
+        <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--color-surface)' }}>
           <p style={{ color: '#ef4444' }}>{error}</p>
         </div>
       </div>
@@ -88,12 +88,12 @@ export default function AdminMetaStoragePage() {
       {/* 요약 카드 */}
       <div className="grid grid-cols-2 gap-2">
         {[
-          { label: '전체 이벤트', value: summary?.totalEvents?.toLocaleString() ?? '-', color: '#1337ec' },
+          { label: '전체 이벤트', value: summary?.totalEvents?.toLocaleString() ?? '-', color: 'var(--color-accent)' },
           { label: '유저 수', value: summary?.uniqueUsers?.toLocaleString() ?? '-', color: '#22c55e' },
         ].map(c => (
-          <div key={c.label} className="rounded-xl p-3 text-center" style={{ backgroundColor: '#1b1e2e' }}>
+          <div key={c.label} className="rounded-xl p-3 text-center" style={{ backgroundColor: 'var(--color-surface)' }}>
             <p className="text-lg font-bold" style={{ color: c.color }}>{c.value}</p>
-            <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>{c.label}</p>
+            <p className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>{c.label}</p>
           </div>
         ))}
       </div>
@@ -107,8 +107,8 @@ export default function AdminMetaStoragePage() {
               onClick={() => handleSchemaChange(schemaFilter === s.schemaId ? '' : s.schemaId)}
               className="px-2 py-1 rounded-lg text-[11px] font-mono transition-colors"
               style={{
-                backgroundColor: schemaFilter === s.schemaId ? 'rgba(19,55,236,0.3)' : 'rgba(255,255,255,0.06)',
-                color: schemaFilter === s.schemaId ? '#1337ec' : 'rgba(255,255,255,0.5)',
+                backgroundColor: schemaFilter === s.schemaId ? 'rgba(19,55,236,0.3)' : 'var(--color-surface-alt)',
+                color: schemaFilter === s.schemaId ? 'var(--color-accent)' : 'var(--color-text-sub)',
                 border: schemaFilter === s.schemaId ? '1px solid rgba(19,55,236,0.4)' : '1px solid transparent',
               }}
             >
@@ -119,51 +119,51 @@ export default function AdminMetaStoragePage() {
       )}
 
       {/* 이벤트 테이블 */}
-      <div className="rounded-xl overflow-hidden" style={{ backgroundColor: '#1b1e2e' }}>
+      <div className="rounded-xl overflow-hidden" style={{ backgroundColor: 'var(--color-surface)' }}>
         <table className="w-full text-sm">
           <thead>
-            <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-              <th className="text-left p-3 font-medium" style={{ color: 'rgba(255,255,255,0.5)' }}>Schema</th>
-              <th className="text-left p-3 font-medium" style={{ color: 'rgba(255,255,255,0.5)' }}>Pseudo ID</th>
-              <th className="text-left p-3 font-medium" style={{ color: 'rgba(255,255,255,0.5)' }}>Date</th>
-              <th className="text-left p-3 font-medium" style={{ color: 'rgba(255,255,255,0.5)' }}>주요 필드</th>
-              <th className="text-right p-3 font-medium" style={{ color: 'rgba(255,255,255,0.5)' }}>수신일시</th>
+            <tr style={{ borderBottom: '1px solid var(--color-border-light)' }}>
+              <th className="text-left p-3 font-medium" style={{ color: 'var(--color-text-sub)' }}>Schema</th>
+              <th className="text-left p-3 font-medium" style={{ color: 'var(--color-text-sub)' }}>Pseudo ID</th>
+              <th className="text-left p-3 font-medium" style={{ color: 'var(--color-text-sub)' }}>Date</th>
+              <th className="text-left p-3 font-medium" style={{ color: 'var(--color-text-sub)' }}>주요 필드</th>
+              <th className="text-right p-3 font-medium" style={{ color: 'var(--color-text-sub)' }}>수신일시</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
                 <td colSpan={5} className="p-8 text-center">
-                  <span className="material-symbols-outlined animate-spin text-2xl" style={{ color: '#1337ec' }}>progress_activity</span>
+                  <span className="material-symbols-outlined animate-spin text-2xl" style={{ color: 'var(--color-accent)' }}>progress_activity</span>
                 </td>
               </tr>
             ) : events.length === 0 ? (
               <tr>
-                <td colSpan={5} className="p-8 text-center" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                <td colSpan={5} className="p-8 text-center" style={{ color: 'var(--color-text-tertiary)' }}>
                   메타데이터 이벤트가 없습니다
                 </td>
               </tr>
             ) : (
               events.map(ev => (
-                <tr key={ev.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                <tr key={ev.id} style={{ borderBottom: '1px solid var(--color-border-light)' }}>
                   <td className="p-3">
                     <span
                       className="px-1.5 py-0.5 rounded text-[10px] font-mono"
-                      style={{ backgroundColor: 'rgba(19,55,236,0.15)', color: '#1337ec' }}
+                      style={{ backgroundColor: 'rgba(19,55,236,0.15)', color: 'var(--color-accent)' }}
                     >
                       {SCHEMA_LABELS[ev.schema_id] ?? ev.schema_id}
                     </span>
                   </td>
-                  <td className="p-3 font-mono text-xs" style={{ color: 'rgba(255,255,255,0.7)' }}>
+                  <td className="p-3 font-mono text-xs" style={{ color: 'var(--color-text-sub)' }}>
                     {ev.pseudo_id.slice(0, 8)}...
                   </td>
-                  <td className="p-3 font-mono text-xs" style={{ color: 'rgba(255,255,255,0.7)' }}>
+                  <td className="p-3 font-mono text-xs" style={{ color: 'var(--color-text-sub)' }}>
                     {ev.date_bucket ?? '-'}
                   </td>
-                  <td className="p-3 text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                  <td className="p-3 text-xs" style={{ color: 'var(--color-text-sub)' }}>
                     <PayloadPreview payload={ev.payload} schemaId={ev.schema_id} />
                   </td>
-                  <td className="p-3 text-right text-xs font-mono" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                  <td className="p-3 text-right text-xs font-mono" style={{ color: 'var(--color-text-tertiary)' }}>
                     {formatDate(ev.received_at)}
                   </td>
                 </tr>
@@ -180,18 +180,18 @@ export default function AdminMetaStoragePage() {
             onClick={() => setPage(Math.max(0, page - 1))}
             disabled={page === 0}
             className="px-3 py-1 rounded text-xs disabled:opacity-30"
-            style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.7)' }}
+            style={{ backgroundColor: 'var(--color-surface-alt)', color: 'var(--color-text-sub)' }}
           >
             이전
           </button>
-          <span className="text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>
+          <span className="text-xs" style={{ color: 'var(--color-text-sub)' }}>
             {page + 1} / {totalPages}
           </span>
           <button
             onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
             disabled={page >= totalPages - 1}
             className="px-3 py-1 rounded text-xs disabled:opacity-30"
-            style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.7)' }}
+            style={{ backgroundColor: 'var(--color-surface-alt)', color: 'var(--color-text-sub)' }}
           >
             다음
           </button>

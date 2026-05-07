@@ -94,7 +94,7 @@ export default function BulkLabelEditor({ sessionId, audioUrl, units, onSave, on
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="material-symbols-outlined text-sm" style={{ color: '#8b5cf6' }}>label</span>
-          <span className="text-xs font-medium text-white">
+          <span className="text-xs font-medium text-txt">
             벌크 라벨링 — {units.length}개 BU
           </span>
           <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: 'rgba(139,92,246,0.15)', color: '#a78bfa' }}>
@@ -104,7 +104,7 @@ export default function BulkLabelEditor({ sessionId, audioUrl, units, onSave, on
         <button
           onClick={onClose}
           className="material-symbols-outlined text-sm"
-          style={{ color: 'rgba(255,255,255,0.4)' }}
+          style={{ color: 'var(--color-text-tertiary)' }}
         >
           close
         </button>
@@ -112,11 +112,11 @@ export default function BulkLabelEditor({ sessionId, audioUrl, units, onSave, on
 
       {/* Audio Player */}
       {audioUrl && (
-        <div className="rounded-lg p-3" style={{ backgroundColor: 'rgba(255,255,255,0.04)' }}>
+        <div className="rounded-lg p-3" style={{ backgroundColor: 'var(--color-surface-alt)' }}>
           {audioLoading ? (
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-sm animate-spin" style={{ color: '#8b5cf6' }}>progress_activity</span>
-              <span className="text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>오디오 로딩 중...</span>
+              <span className="text-xs" style={{ color: 'var(--color-text-sub)' }}>오디오 로딩 중...</span>
             </div>
           ) : signedAudioUrl ? (
             <audio
@@ -127,7 +127,7 @@ export default function BulkLabelEditor({ sessionId, audioUrl, units, onSave, on
               style={{ filter: 'invert(1) hue-rotate(180deg)', opacity: 0.8 }}
             />
           ) : (
-            <span className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>오디오를 불러올 수 없습니다</span>
+            <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>오디오를 불러올 수 없습니다</span>
           )}
         </div>
       )}
@@ -136,7 +136,7 @@ export default function BulkLabelEditor({ sessionId, audioUrl, units, onSave, on
       <div className="space-y-3">
         {LABEL_FIELDS.map(field => (
           <div key={field.key}>
-            <p className="text-[10px] font-medium mb-1.5" style={{ color: 'rgba(255,255,255,0.5)' }}>
+            <p className="text-[10px] font-medium mb-1.5" style={{ color: 'var(--color-text-sub)' }}>
               {field.labelKo}
             </p>
             <div className="flex flex-wrap gap-1.5">
@@ -148,8 +148,8 @@ export default function BulkLabelEditor({ sessionId, audioUrl, units, onSave, on
                     onClick={() => handleChipToggle(field.key, opt)}
                     className="text-xs px-2.5 py-1 rounded-full transition-colors"
                     style={{
-                      backgroundColor: selected ? '#8b5cf6' : 'rgba(255,255,255,0.06)',
-                      color: selected ? 'white' : 'rgba(255,255,255,0.5)',
+                      backgroundColor: selected ? '#8b5cf6' : 'var(--color-surface-alt)',
+                      color: selected ? 'white' : 'var(--color-text-sub)',
                     }}
                   >
                     {opt}
@@ -162,15 +162,15 @@ export default function BulkLabelEditor({ sessionId, audioUrl, units, onSave, on
       </div>
 
       {/* Actions */}
-      <div className="flex items-center justify-between pt-2" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.3)' }}>
+      <div className="flex items-center justify-between pt-2" style={{ borderTop: '1px solid var(--color-border-light)' }}>
+        <span className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>
           {filledCount}/5 필드 선택됨
         </span>
         <div className="flex items-center gap-2">
           <button
             onClick={onClose}
             className="text-xs px-3 py-1.5 rounded-lg transition-colors"
-            style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)' }}
+            style={{ backgroundColor: 'var(--color-surface-alt)', color: 'var(--color-text-sub)' }}
           >
             취소
           </button>

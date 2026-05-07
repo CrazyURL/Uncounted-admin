@@ -21,7 +21,7 @@ const DAY_LABELS: Record<string, string> = {
 }
 
 function getHeatColor(count: number, maxCount: number): string {
-  if (count === 0 || maxCount === 0) return 'rgba(255,255,255,0.03)'
+  if (count === 0 || maxCount === 0) return 'var(--color-surface-alt)'
   const ratio = count / maxCount
   if (ratio > 0.75) return 'rgba(139,92,246,0.7)'
   if (ratio > 0.5) return 'rgba(139,92,246,0.45)'
@@ -32,8 +32,8 @@ function getHeatColor(count: number, maxCount: number): string {
 export default function MetadataHeatmap({ data }: MetadataHeatmapProps) {
   if (data.length === 0) {
     return (
-      <div className="rounded-xl p-4 text-center" style={{ backgroundColor: '#1b1e2e' }}>
-        <p className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>히트맵 데이터 없음</p>
+      <div className="rounded-xl p-4 text-center" style={{ backgroundColor: 'var(--color-surface)' }}>
+        <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>히트맵 데이터 없음</p>
       </div>
     )
   }
@@ -54,8 +54,8 @@ export default function MetadataHeatmap({ data }: MetadataHeatmapProps) {
   })
 
   return (
-    <div className="rounded-xl p-4" style={{ backgroundColor: '#1b1e2e' }}>
-      <h3 className="text-xs font-semibold mb-3" style={{ color: 'rgba(255,255,255,0.5)' }}>
+    <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--color-surface)' }}>
+      <h3 className="text-xs font-semibold mb-3" style={{ color: 'var(--color-text-sub)' }}>
         {isDayOfWeekMode ? '요일×시간대 밀도' : '시간대별 밀도'}
       </h3>
 
@@ -72,7 +72,7 @@ export default function MetadataHeatmap({ data }: MetadataHeatmapProps) {
             <div
               key={date}
               className="text-center text-[9px] font-mono truncate"
-              style={{ color: 'rgba(255,255,255,0.35)' }}
+              style={{ color: 'var(--color-text-tertiary)' }}
             >
               {isDayOfWeekMode ? (DAY_LABELS[date] ?? date) : date.slice(5)}
             </div>
@@ -83,7 +83,7 @@ export default function MetadataHeatmap({ data }: MetadataHeatmapProps) {
             <Fragment key={slot}>
               <div
                 className="text-right pr-2 text-[9px] font-mono flex items-center justify-end"
-                style={{ color: 'rgba(255,255,255,0.35)' }}
+                style={{ color: 'var(--color-text-tertiary)' }}
               >
                 {slot}
               </div>
@@ -95,7 +95,7 @@ export default function MetadataHeatmap({ data }: MetadataHeatmapProps) {
                     className="rounded-sm aspect-square min-h-[16px] flex items-center justify-center text-[8px] font-bold"
                     style={{
                       backgroundColor: getHeatColor(count, maxCount),
-                      color: count > 0 ? (count / maxCount > 0.5 ? '#000' : 'rgba(255,255,255,0.7)') : 'transparent',
+                      color: count > 0 ? (count / maxCount > 0.5 ? '#000' : 'var(--color-text-sub)') : 'transparent',
                     }}
                     title={`${date} ${slot}: ${count}건`}
                   >
@@ -110,7 +110,7 @@ export default function MetadataHeatmap({ data }: MetadataHeatmapProps) {
 
       {/* Legend */}
       <div className="flex items-center gap-2 mt-3 justify-end">
-        <span className="text-[9px]" style={{ color: 'rgba(255,255,255,0.3)' }}>적음</span>
+        <span className="text-[9px]" style={{ color: 'var(--color-text-tertiary)' }}>적음</span>
         {[0.12, 0.25, 0.45, 0.7].map(opacity => (
           <div
             key={opacity}
@@ -118,7 +118,7 @@ export default function MetadataHeatmap({ data }: MetadataHeatmapProps) {
             style={{ backgroundColor: `rgba(139,92,246,${opacity})` }}
           />
         ))}
-        <span className="text-[9px]" style={{ color: 'rgba(255,255,255,0.3)' }}>많음</span>
+        <span className="text-[9px]" style={{ color: 'var(--color-text-tertiary)' }}>많음</span>
       </div>
     </div>
   )

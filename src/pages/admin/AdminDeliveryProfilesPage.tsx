@@ -113,7 +113,7 @@ export default function AdminDeliveryProfilesPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20" style={{ color: 'rgba(255,255,255,0.4)' }}>
+      <div className="flex items-center justify-center py-20" style={{ color: 'var(--color-text-tertiary)' }}>
         <span className="material-symbols-outlined text-3xl animate-spin">progress_activity</span>
       </div>
     )
@@ -123,14 +123,14 @@ export default function AdminDeliveryProfilesPage() {
     <div className="p-4 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold" style={{ color: 'rgba(255,255,255,0.7)' }}>
+        <h2 className="text-sm font-semibold" style={{ color: 'var(--color-text-sub)' }}>
           납품 프로필 ({profiles.length}건)
         </h2>
         <button
           onClick={openNew}
           disabled={clients.length === 0}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-40"
-          style={{ backgroundColor: '#1337ec' }}
+          className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-txt disabled:opacity-40"
+          style={{ backgroundColor: 'var(--color-accent)' }}
         >
           <span className="material-symbols-outlined text-sm">add</span>
           새 프로필
@@ -144,8 +144,8 @@ export default function AdminDeliveryProfilesPage() {
             onClick={() => setFilterClientId('')}
             className="text-xs px-3 py-1 rounded-full whitespace-nowrap"
             style={{
-              backgroundColor: !filterClientId ? 'rgba(19,55,236,0.2)' : 'rgba(255,255,255,0.06)',
-              color: !filterClientId ? '#1337ec' : 'rgba(255,255,255,0.5)',
+              backgroundColor: !filterClientId ? 'rgba(19,55,236,0.2)' : 'var(--color-surface-alt)',
+              color: !filterClientId ? 'var(--color-accent)' : 'var(--color-text-sub)',
             }}
           >
             전체
@@ -156,8 +156,8 @@ export default function AdminDeliveryProfilesPage() {
               onClick={() => setFilterClientId(c.id)}
               className="text-xs px-3 py-1 rounded-full whitespace-nowrap"
               style={{
-                backgroundColor: filterClientId === c.id ? 'rgba(19,55,236,0.2)' : 'rgba(255,255,255,0.06)',
-                color: filterClientId === c.id ? '#1337ec' : 'rgba(255,255,255,0.5)',
+                backgroundColor: filterClientId === c.id ? 'rgba(19,55,236,0.2)' : 'var(--color-surface-alt)',
+                color: filterClientId === c.id ? 'var(--color-accent)' : 'var(--color-text-sub)',
               }}
             >
               {c.name}
@@ -168,8 +168,8 @@ export default function AdminDeliveryProfilesPage() {
 
       {/* Form */}
       {showForm && (
-        <div className="rounded-xl p-4 space-y-3" style={{ backgroundColor: '#1b1e2e', border: '1px solid rgba(19,55,236,0.3)' }}>
-          <h3 className="text-sm font-semibold text-white">
+        <div className="rounded-xl p-4 space-y-3" style={{ backgroundColor: 'var(--color-surface)', border: '1px solid rgba(19,55,236,0.3)' }}>
+          <h3 className="text-sm font-semibold text-txt">
             {editingId ? '프로필 수정' : '새 프로필'}
           </h3>
           <div className="space-y-2">
@@ -177,8 +177,8 @@ export default function AdminDeliveryProfilesPage() {
             <select
               value={form.clientId}
               onChange={e => setForm({ ...form, clientId: e.target.value })}
-              className="w-full px-3 py-2 rounded-lg text-sm text-white outline-none"
-              style={{ backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+              className="w-full px-3 py-2 rounded-lg text-sm text-txt outline-none"
+              style={{ backgroundColor: 'var(--color-surface-alt)', border: '1px solid var(--color-border-light)' }}
             >
               <option value="">납품처 선택 *</option>
               {clients.map(c => (
@@ -189,15 +189,15 @@ export default function AdminDeliveryProfilesPage() {
               value={form.name}
               onChange={e => setForm({ ...form, name: e.target.value })}
               placeholder="프로필 이름 *"
-              className="w-full px-3 py-2 rounded-lg text-sm text-white outline-none"
-              style={{ backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+              className="w-full px-3 py-2 rounded-lg text-sm text-txt outline-none"
+              style={{ backgroundColor: 'var(--color-surface-alt)', border: '1px solid var(--color-border-light)' }}
             />
             <div className="grid grid-cols-2 gap-2">
               <select
                 value={form.format}
                 onChange={e => setForm({ ...form, format: e.target.value as DeliveryFormat })}
-                className="px-3 py-2 rounded-lg text-sm text-white outline-none"
-                style={{ backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+                className="px-3 py-2 rounded-lg text-sm text-txt outline-none"
+                style={{ backgroundColor: 'var(--color-surface-alt)', border: '1px solid var(--color-border-light)' }}
               >
                 {FORMAT_OPTIONS.map(f => (
                   <option key={f.value} value={f.value}>{f.label}</option>
@@ -206,8 +206,8 @@ export default function AdminDeliveryProfilesPage() {
               <select
                 value={form.channelKo}
                 onChange={e => setForm({ ...form, channelKo: e.target.value })}
-                className="px-3 py-2 rounded-lg text-sm text-white outline-none"
-                style={{ backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+                className="px-3 py-2 rounded-lg text-sm text-txt outline-none"
+                style={{ backgroundColor: 'var(--color-surface-alt)', border: '1px solid var(--color-border-light)' }}
               >
                 {CHANNEL_OPTIONS.map(ch => (
                   <option key={ch} value={ch}>{ch}</option>
@@ -217,8 +217,8 @@ export default function AdminDeliveryProfilesPage() {
             <select
               value={form.minQualityGrade}
               onChange={e => setForm({ ...form, minQualityGrade: e.target.value as FormData['minQualityGrade'] })}
-              className="w-full px-3 py-2 rounded-lg text-sm text-white outline-none"
-              style={{ backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+              className="w-full px-3 py-2 rounded-lg text-sm text-txt outline-none"
+              style={{ backgroundColor: 'var(--color-surface-alt)', border: '1px solid var(--color-border-light)' }}
             >
               <option value="">최소 등급 제한 없음</option>
               <option value="A">A등급 이상</option>
@@ -226,7 +226,7 @@ export default function AdminDeliveryProfilesPage() {
               <option value="C">C등급 이상</option>
             </select>
             <div className="flex gap-4">
-              <label className="flex items-center gap-1.5 text-xs" style={{ color: 'rgba(255,255,255,0.6)' }}>
+              <label className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--color-text-sub)' }}>
                 <input
                   type="checkbox"
                   checked={form.requiresConsentVerified}
@@ -235,7 +235,7 @@ export default function AdminDeliveryProfilesPage() {
                 />
                 동의 검증 필수
               </label>
-              <label className="flex items-center gap-1.5 text-xs" style={{ color: 'rgba(255,255,255,0.6)' }}>
+              <label className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--color-text-sub)' }}>
                 <input
                   type="checkbox"
                   checked={form.requiresPiiCleaned}
@@ -250,23 +250,23 @@ export default function AdminDeliveryProfilesPage() {
               onChange={e => setForm({ ...form, notes: e.target.value })}
               placeholder="메모"
               rows={2}
-              className="w-full px-3 py-2 rounded-lg text-sm text-white outline-none resize-none"
-              style={{ backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+              className="w-full px-3 py-2 rounded-lg text-sm text-txt outline-none resize-none"
+              style={{ backgroundColor: 'var(--color-surface-alt)', border: '1px solid var(--color-border-light)' }}
             />
           </div>
           <div className="flex gap-2 justify-end">
             <button
               onClick={() => setShowForm(false)}
               className="px-3 py-1.5 rounded-lg text-xs"
-              style={{ color: 'rgba(255,255,255,0.5)' }}
+              style={{ color: 'var(--color-text-sub)' }}
             >
               취소
             </button>
             <button
               onClick={handleSave}
               disabled={saving || !form.name.trim() || !form.clientId}
-              className="px-4 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-40"
-              style={{ backgroundColor: '#1337ec' }}
+              className="px-4 py-1.5 rounded-lg text-xs font-medium text-txt disabled:opacity-40"
+              style={{ backgroundColor: 'var(--color-accent)' }}
             >
               {saving ? '저장 중...' : '저장'}
             </button>
@@ -276,40 +276,40 @@ export default function AdminDeliveryProfilesPage() {
 
       {/* Profile list */}
       {clients.length === 0 ? (
-        <div className="text-center py-12" style={{ color: 'rgba(255,255,255,0.4)' }}>
+        <div className="text-center py-12" style={{ color: 'var(--color-text-tertiary)' }}>
           <span className="material-symbols-outlined text-4xl">business</span>
           <p className="text-sm mt-2">먼저 납품처를 등록하세요</p>
         </div>
       ) : profiles.length === 0 ? (
-        <div className="text-center py-12" style={{ color: 'rgba(255,255,255,0.4)' }}>
+        <div className="text-center py-12" style={{ color: 'var(--color-text-tertiary)' }}>
           <span className="material-symbols-outlined text-4xl">local_shipping</span>
           <p className="text-sm mt-2">등록된 프로필이 없습니다</p>
         </div>
       ) : (
         <div className="space-y-3">
           {profiles.map(dp => (
-            <div key={dp.id} className="rounded-xl p-4" style={{ backgroundColor: '#1b1e2e' }}>
+            <div key={dp.id} className="rounded-xl p-4" style={{ backgroundColor: 'var(--color-surface)' }}>
               <div className="flex items-start justify-between mb-2">
                 <div>
-                  <h3 className="text-sm font-medium text-white">{dp.name}</h3>
-                  <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                  <h3 className="text-sm font-medium text-txt">{dp.name}</h3>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-sub)' }}>
                     {clientName(dp.clientId)}
                   </p>
                 </div>
                 <span
                   className="text-[10px] px-2 py-0.5 rounded-full font-medium"
-                  style={{ backgroundColor: 'rgba(19,55,236,0.15)', color: '#1337ec' }}
+                  style={{ backgroundColor: 'rgba(19,55,236,0.15)', color: 'var(--color-accent)' }}
                 >
                   {dp.format.toUpperCase()}
                 </span>
               </div>
 
               <div className="flex flex-wrap gap-1.5 mb-2">
-                <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)' }}>
+                <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ backgroundColor: 'var(--color-surface-alt)', color: 'var(--color-text-sub)' }}>
                   {dp.channelKo}
                 </span>
                 {dp.minQualityGrade && (
-                  <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)' }}>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ backgroundColor: 'var(--color-surface-alt)', color: 'var(--color-text-sub)' }}>
                     최소 {dp.minQualityGrade}등급
                   </span>
                 )}
@@ -326,14 +326,14 @@ export default function AdminDeliveryProfilesPage() {
               </div>
 
               {dp.notes && (
-                <p className="text-xs mb-2" style={{ color: 'rgba(255,255,255,0.35)' }}>{dp.notes}</p>
+                <p className="text-xs mb-2" style={{ color: 'var(--color-text-tertiary)' }}>{dp.notes}</p>
               )}
 
-              <div className="flex items-center gap-2 pt-2 border-t" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+              <div className="flex items-center gap-2 pt-2 border-t" style={{ borderColor: 'var(--color-surface-alt)' }}>
                 <button
                   onClick={() => openEdit(dp)}
                   className="text-xs px-2 py-1 rounded"
-                  style={{ color: '#1337ec' }}
+                  style={{ color: 'var(--color-accent)' }}
                 >
                   수정
                 </button>

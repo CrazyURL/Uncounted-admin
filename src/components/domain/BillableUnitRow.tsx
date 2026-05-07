@@ -11,7 +11,7 @@ export default function BillableUnitRow({ unit }: Props) {
   return (
     <div
       className="flex items-center gap-2 px-3 py-2 rounded-lg"
-      style={{ backgroundColor: '#1b1e2e' }}
+      style={{ backgroundColor: 'var(--color-surface)' }}
     >
       {/* 등급 배지 */}
       <span
@@ -23,10 +23,10 @@ export default function BillableUnitRow({ unit }: Props) {
 
       {/* 세션 ID + 분 인덱스 */}
       <div className="flex-1 min-w-0">
-        <p className="text-xs text-white truncate">
+        <p className="text-xs text-txt truncate">
           {unit.sessionId ? unit.sessionId.slice(0, 8) : ''}..._{unit.minuteIndex}
         </p>
-        <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>
+        <p className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>
           {unit.sessionDate} · {Math.round(unit.effectiveSeconds)}초
         </p>
       </div>
@@ -36,9 +36,9 @@ export default function BillableUnitRow({ unit }: Props) {
         className="text-[10px] px-1.5 py-0.5 rounded"
         style={{
           backgroundColor: unit.qualityTier === 'gold' ? 'rgba(234,179,8,0.15)' :
-            unit.qualityTier === 'verified' ? 'rgba(19,55,236,0.15)' : 'rgba(255,255,255,0.06)',
+            unit.qualityTier === 'verified' ? 'rgba(19,55,236,0.15)' : 'var(--color-surface-alt)',
           color: unit.qualityTier === 'gold' ? '#eab308' :
-            unit.qualityTier === 'verified' ? '#7b9aff' : 'rgba(255,255,255,0.4)',
+            unit.qualityTier === 'verified' ? '#7b9aff' : 'var(--color-text-tertiary)',
         }}
       >
         {TIER_LABELS[unit.qualityTier]}
@@ -47,7 +47,7 @@ export default function BillableUnitRow({ unit }: Props) {
       {/* 동의 */}
       <span
         className="material-symbols-outlined text-sm"
-        style={{ color: isConsented ? '#22c55e' : 'rgba(255,255,255,0.2)' }}
+        style={{ color: isConsented ? '#22c55e' : 'var(--color-border)' }}
       >
         {isConsented ? 'verified_user' : 'shield'}
       </span>

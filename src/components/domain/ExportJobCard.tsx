@@ -21,7 +21,7 @@ export default function ExportJobCard({ job, onClick }: Props) {
     <button
       onClick={onClick}
       className="w-full rounded-xl p-4 text-left transition-colors"
-      style={{ backgroundColor: '#1b1e2e' }}
+      style={{ backgroundColor: 'var(--color-surface)' }}
     >
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
@@ -31,13 +31,13 @@ export default function ExportJobCard({ job, onClick }: Props) {
           >
             {st.icon}
           </span>
-          <span className="text-sm font-medium text-white">{job.skuId}</span>
+          <span className="text-sm font-medium text-txt">{job.skuId}</span>
           <div className="flex gap-1">
             {job.componentIds.map(c => (
               <span
                 key={c}
                 className="text-[10px] px-1.5 py-0.5 rounded"
-                style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)' }}
+                style={{ backgroundColor: 'var(--color-surface-alt)', color: 'var(--color-text-sub)' }}
               >
                 {c}
               </span>
@@ -52,18 +52,18 @@ export default function ExportJobCard({ job, onClick }: Props) {
         </span>
       </div>
 
-      <div className="flex items-center gap-4 text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>
+      <div className="flex items-center gap-4 text-xs" style={{ color: 'var(--color-text-sub)' }}>
         <span>요청: {job.requestedUnits.toLocaleString()}유닛</span>
         {job.actualUnits > 0 && <span>실제: {job.actualUnits.toLocaleString()}</span>}
         <span>{job.samplingStrategy}</span>
       </div>
 
       <div className="flex items-center justify-between mt-2">
-        <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.3)' }}>
+        <span className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>
           {job.createdAt}
         </span>
         {job.clientId && (
-          <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.3)' }}>
+          <span className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>
             고객: {job.clientId}
           </span>
         )}

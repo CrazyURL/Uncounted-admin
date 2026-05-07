@@ -124,7 +124,7 @@ export default function AdminBillableUnitsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <span className="material-symbols-outlined animate-spin text-2xl" style={{ color: '#1337ec' }}>progress_activity</span>
+        <span className="material-symbols-outlined animate-spin text-2xl" style={{ color: 'var(--color-accent)' }}>progress_activity</span>
       </div>
     )
   }
@@ -141,34 +141,34 @@ export default function AdminBillableUnitsPage() {
             onClick={() => setFilterGrade(filterGrade === g ? null : g)}
             className="text-xs px-2.5 py-1 rounded-full transition-colors"
             style={{
-              backgroundColor: filterGrade === g ? '#1337ec' : 'rgba(255,255,255,0.06)',
-              color: filterGrade === g ? 'white' : 'rgba(255,255,255,0.5)',
+              backgroundColor: filterGrade === g ? 'var(--color-accent)' : 'var(--color-surface-alt)',
+              color: filterGrade === g ? 'white' : 'var(--color-text-sub)',
             }}
           >
             {g}등급
           </button>
         ))}
-        <span className="w-px h-5 self-center" style={{ backgroundColor: 'rgba(255,255,255,0.1)' }} />
+        <span className="w-px h-5 self-center" style={{ backgroundColor: 'var(--color-border-light)' }} />
         {(['basic', 'verified', 'gold'] as const).map(t => (
           <button
             key={t}
             onClick={() => setFilterTier(filterTier === t ? null : t)}
             className="text-xs px-2.5 py-1 rounded-full transition-colors"
             style={{
-              backgroundColor: filterTier === t ? '#1337ec' : 'rgba(255,255,255,0.06)',
-              color: filterTier === t ? 'white' : 'rgba(255,255,255,0.5)',
+              backgroundColor: filterTier === t ? 'var(--color-accent)' : 'var(--color-surface-alt)',
+              color: filterTier === t ? 'white' : 'var(--color-text-sub)',
             }}
           >
             {t}
           </button>
         ))}
-        <span className="w-px h-5 self-center" style={{ backgroundColor: 'rgba(255,255,255,0.1)' }} />
+        <span className="w-px h-5 self-center" style={{ backgroundColor: 'var(--color-border-light)' }} />
         <button
           onClick={() => setFilterConsent(filterConsent === 'PUBLIC_CONSENTED' ? null : 'PUBLIC_CONSENTED')}
           className="text-xs px-2.5 py-1 rounded-full transition-colors"
           style={{
-            backgroundColor: filterConsent === 'PUBLIC_CONSENTED' ? '#22c55e' : 'rgba(255,255,255,0.06)',
-            color: filterConsent === 'PUBLIC_CONSENTED' ? 'white' : 'rgba(255,255,255,0.5)',
+            backgroundColor: filterConsent === 'PUBLIC_CONSENTED' ? '#22c55e' : 'var(--color-surface-alt)',
+            color: filterConsent === 'PUBLIC_CONSENTED' ? 'white' : 'var(--color-text-sub)',
           }}
         >
           동의만
@@ -180,7 +180,7 @@ export default function AdminBillableUnitsPage() {
         onClick={refreshFromSessions}
         disabled={syncing}
         className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-colors"
-        style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.6)' }}
+        style={{ backgroundColor: 'var(--color-surface-alt)', color: 'var(--color-text-sub)' }}
       >
         <span className={`material-symbols-outlined text-sm ${syncing ? 'animate-spin' : ''}`}>refresh</span>
         {syncing ? '동기화 중...' : '세션에서 새로고침'}
@@ -192,15 +192,15 @@ export default function AdminBillableUnitsPage() {
           <div key={sessionId}>
             {/* 세션 그룹 헤더 */}
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-[10px] font-medium" style={{ color: 'rgba(255,255,255,0.4)' }}>
+              <span className="text-[10px] font-medium" style={{ color: 'var(--color-text-tertiary)' }}>
                 {sessionId.slice(0, 8)}... ({groupUnits.length}건)
               </span>
               <button
                 onClick={() => setLabelingSessionId(labelingSessionId === sessionId ? null : sessionId)}
                 className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full transition-colors"
                 style={{
-                  backgroundColor: labelingSessionId === sessionId ? 'rgba(139,92,246,0.2)' : 'rgba(255,255,255,0.06)',
-                  color: labelingSessionId === sessionId ? '#a78bfa' : 'rgba(255,255,255,0.4)',
+                  backgroundColor: labelingSessionId === sessionId ? 'rgba(139,92,246,0.2)' : 'var(--color-surface-alt)',
+                  color: labelingSessionId === sessionId ? '#a78bfa' : 'var(--color-text-tertiary)',
                 }}
               >
                 <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>label</span>
@@ -229,7 +229,7 @@ export default function AdminBillableUnitsPage() {
 
       {/* 더 보기 */}
       <div className="flex items-center justify-between pt-1">
-        <span className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>
+        <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
           {units.length.toLocaleString()}건 표시 중 / 총 {totalCount.toLocaleString()}건
         </span>
         {hasMore && (
@@ -237,7 +237,7 @@ export default function AdminBillableUnitsPage() {
             onClick={loadMore}
             disabled={loadingMore}
             className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg disabled:opacity-50"
-            style={{ backgroundColor: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)' }}
+            style={{ backgroundColor: 'var(--color-border-light)', color: 'var(--color-text-sub)' }}
           >
             {loadingMore
               ? <span className="material-symbols-outlined text-sm animate-spin">progress_activity</span>

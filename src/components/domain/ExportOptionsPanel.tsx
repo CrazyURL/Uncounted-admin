@@ -79,29 +79,29 @@ export default function ExportOptionsPanel({ isOpen, onClose, onExport, sessionC
     >
       <div
         className="w-full max-w-lg rounded-t-2xl overflow-hidden"
-        style={{ backgroundColor: '#1b1e2e', maxHeight: '85vh' }}
+        style={{ backgroundColor: 'var(--color-surface)', maxHeight: '85vh' }}
         onClick={e => e.stopPropagation()}
       >
         {/* 헤더 */}
-        <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-          <h3 className="text-sm font-semibold text-white">
+        <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--color-surface-alt)' }}>
+          <h3 className="text-sm font-semibold text-txt">
             {showFieldSelection ? '필드 선택' : '내보내기'}
           </h3>
           <div className="flex items-center gap-2">
-            <span className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
+            <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
               {sessionCount}건
             </span>
             {showFieldSelection && (
               <button
                 onClick={() => setSelectedFormat(null)}
                 className="text-xs px-2 py-1 rounded"
-                style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)' }}
+                style={{ backgroundColor: 'var(--color-surface-alt)', color: 'var(--color-text-sub)' }}
               >
                 포맷 변경
               </button>
             )}
             <button onClick={onClose}>
-              <span className="material-symbols-outlined text-base" style={{ color: 'rgba(255,255,255,0.4)' }}>close</span>
+              <span className="material-symbols-outlined text-base" style={{ color: 'var(--color-text-tertiary)' }}>close</span>
             </button>
           </div>
         </div>
@@ -115,10 +115,10 @@ export default function ExportOptionsPanel({ isOpen, onClose, onExport, sessionC
                   key={f.key}
                   onClick={() => f.key === 'wav' ? onExport('wav', fieldSelection) : setSelectedFormat(f.key)}
                   className="flex flex-col items-center gap-1.5 p-3 rounded-xl transition-colors"
-                  style={{ backgroundColor: 'rgba(255,255,255,0.04)' }}
+                  style={{ backgroundColor: 'var(--color-surface-alt)' }}
                 >
-                  <span className="material-symbols-outlined text-xl" style={{ color: '#1337ec' }}>{f.icon}</span>
-                  <span className="text-xs text-white">{f.label}</span>
+                  <span className="material-symbols-outlined text-xl" style={{ color: 'var(--color-accent)' }}>{f.icon}</span>
+                  <span className="text-xs text-txt">{f.label}</span>
                 </button>
               ))}
             </div>
@@ -128,15 +128,15 @@ export default function ExportOptionsPanel({ isOpen, onClose, onExport, sessionC
           {showFieldSelection && (
             <div className="p-4 space-y-4">
               {/* 모드 탭 */}
-              <div className="flex gap-1 p-0.5 rounded-lg" style={{ backgroundColor: 'rgba(255,255,255,0.04)' }}>
+              <div className="flex gap-1 p-0.5 rounded-lg" style={{ backgroundColor: 'var(--color-surface-alt)' }}>
                 {(['all', 'preset', 'custom'] as const).map(mode => (
                   <button
                     key={mode}
                     onClick={() => setFieldMode(mode)}
                     className="flex-1 text-xs py-1.5 rounded-md transition-colors"
                     style={{
-                      backgroundColor: fieldMode === mode ? '#1337ec' : 'transparent',
-                      color: fieldMode === mode ? 'white' : 'rgba(255,255,255,0.5)',
+                      backgroundColor: fieldMode === mode ? 'var(--color-accent)' : 'transparent',
+                      color: fieldMode === mode ? 'white' : 'var(--color-text-sub)',
                     }}
                   >
                     {mode === 'all' ? '전체' : mode === 'preset' ? 'SKU 프리셋' : '커스텀'}
@@ -153,14 +153,14 @@ export default function ExportOptionsPanel({ isOpen, onClose, onExport, sessionC
                       onClick={() => setPresetSkuId(sku.id)}
                       className="text-xs px-2.5 py-1 rounded-full transition-colors"
                       style={{
-                        backgroundColor: presetSkuId === sku.id ? '#1337ec' : 'rgba(255,255,255,0.06)',
-                        color: presetSkuId === sku.id ? 'white' : 'rgba(255,255,255,0.5)',
+                        backgroundColor: presetSkuId === sku.id ? 'var(--color-accent)' : 'var(--color-surface-alt)',
+                        color: presetSkuId === sku.id ? 'white' : 'var(--color-text-sub)',
                       }}
                     >
                       {sku.id}
                     </button>
                   ))}
-                  <p className="w-full text-xs mt-1" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                  <p className="w-full text-xs mt-1" style={{ color: 'var(--color-text-tertiary)' }}>
                     {SKU_CATALOG.find(s => s.id === presetSkuId)?.nameKo}
                   </p>
                 </div>
@@ -170,7 +170,7 @@ export default function ExportOptionsPanel({ isOpen, onClose, onExport, sessionC
               <div className="space-y-3">
                 {[...fieldGroups.entries()].map(([group, groupFields]) => (
                   <div key={group}>
-                    <p className="text-[10px] font-medium mb-1.5" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                    <p className="text-[10px] font-medium mb-1.5" style={{ color: 'var(--color-text-tertiary)' }}>
                       {FIELD_GROUP_LABELS[group]}
                     </p>
                     <div className="flex flex-wrap gap-1">
@@ -184,8 +184,8 @@ export default function ExportOptionsPanel({ isOpen, onClose, onExport, sessionC
                             disabled={!isCustom}
                             className="text-[11px] px-2 py-0.5 rounded transition-colors"
                             style={{
-                              backgroundColor: included ? 'rgba(19,55,236,0.15)' : 'rgba(255,255,255,0.04)',
-                              color: included ? '#7b9aff' : 'rgba(255,255,255,0.25)',
+                              backgroundColor: included ? 'rgba(19,55,236,0.15)' : 'var(--color-surface-alt)',
+                              color: included ? '#7b9aff' : 'var(--color-text-tertiary)',
                               cursor: isCustom ? 'pointer' : 'default',
                             }}
                           >
@@ -198,7 +198,7 @@ export default function ExportOptionsPanel({ isOpen, onClose, onExport, sessionC
                 ))}
               </div>
 
-              <p className="text-[10px] text-center" style={{ color: 'rgba(255,255,255,0.3)' }}>
+              <p className="text-[10px] text-center" style={{ color: 'var(--color-text-tertiary)' }}>
                 {resolvedFields.size}개 필드 선택됨
               </p>
             </div>
@@ -207,11 +207,11 @@ export default function ExportOptionsPanel({ isOpen, onClose, onExport, sessionC
 
         {/* 하단 액션 */}
         {showFieldSelection && (
-          <div className="px-4 py-3 border-t" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+          <div className="px-4 py-3 border-t" style={{ borderColor: 'var(--color-surface-alt)' }}>
             <button
               onClick={handleExport}
-              className="w-full py-2.5 rounded-xl text-sm font-medium text-white"
-              style={{ backgroundColor: '#1337ec' }}
+              className="w-full py-2.5 rounded-xl text-sm font-medium text-txt"
+              style={{ backgroundColor: 'var(--color-accent)' }}
             >
               {selectedFormat?.toUpperCase()} 내보내기 ({resolvedFields.size}개 필드)
             </button>

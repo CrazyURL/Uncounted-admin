@@ -22,7 +22,7 @@ export default function MetadataSkuCard({ sku, selected, onToggle }: MetadataSku
       onClick={() => onToggle(sku.schemaId)}
       className="w-full text-left rounded-xl p-4 transition-all"
       style={{
-        backgroundColor: selected ? 'rgba(139,92,246,0.08)' : '#1b1e2e',
+        backgroundColor: selected ? 'rgba(139,92,246,0.08)' : 'var(--color-surface)',
         border: selected
           ? '2px solid rgba(139,92,246,0.5)'
           : '2px solid transparent',
@@ -40,12 +40,12 @@ export default function MetadataSkuCard({ sku, selected, onToggle }: MetadataSku
         <div
           className="w-5 h-5 rounded-full flex items-center justify-center"
           style={{
-            backgroundColor: selected ? '#8b5cf6' : 'rgba(255,255,255,0.08)',
-            border: selected ? 'none' : '1px solid rgba(255,255,255,0.15)',
+            backgroundColor: selected ? '#8b5cf6' : 'var(--color-border-light)',
+            border: selected ? 'none' : '1px solid var(--color-border-light)',
           }}
         >
           {selected && (
-            <span className="material-symbols-outlined text-white text-sm">check</span>
+            <span className="material-symbols-outlined text-txt text-sm">check</span>
           )}
         </div>
       </div>
@@ -53,7 +53,7 @@ export default function MetadataSkuCard({ sku, selected, onToggle }: MetadataSku
       {/* Display name */}
       <p
         className="text-sm font-medium mb-3 truncate"
-        style={{ color: 'rgba(255,255,255,0.85)' }}
+        style={{ color: 'var(--color-text)' }}
       >
         {sku.displayName}
       </p>
@@ -68,7 +68,7 @@ export default function MetadataSkuCard({ sku, selected, onToggle }: MetadataSku
         </span>
         <span
           className="text-xs font-mono"
-          style={{ color: 'rgba(255,255,255,0.45)' }}
+          style={{ color: 'var(--color-text-sub)' }}
         >
           <span className="material-symbols-outlined text-xs align-middle mr-0.5">
             devices

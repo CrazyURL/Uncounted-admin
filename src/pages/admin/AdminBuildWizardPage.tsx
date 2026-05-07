@@ -290,7 +290,7 @@ export default function AdminBuildWizardPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <span className="material-symbols-outlined animate-spin text-2xl" style={{ color: '#1337ec' }}>progress_activity</span>
+        <span className="material-symbols-outlined animate-spin text-2xl" style={{ color: 'var(--color-accent)' }}>progress_activity</span>
       </div>
     )
   }
@@ -305,8 +305,8 @@ export default function AdminBuildWizardPage() {
               className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold"
               onClick={() => { if (i < step) setStep(i) }}
               style={{
-                backgroundColor: i <= step ? '#1337ec' : 'rgba(255,255,255,0.08)',
-                color: i <= step ? 'white' : 'rgba(255,255,255,0.3)',
+                backgroundColor: i <= step ? 'var(--color-accent)' : 'var(--color-border-light)',
+                color: i <= step ? 'white' : 'var(--color-text-tertiary)',
                 cursor: i < step ? 'pointer' : 'default',
               }}
             >
@@ -316,14 +316,14 @@ export default function AdminBuildWizardPage() {
               className="text-[9px] truncate max-w-[56px]"
               onClick={() => { if (i < step) setStep(i) }}
               style={{
-                color: i === step ? 'white' : 'rgba(255,255,255,0.3)',
+                color: i === step ? 'white' : 'var(--color-text-tertiary)',
                 cursor: i < step ? 'pointer' : 'default',
               }}
             >
               {s}
             </span>
             {i < steps.length - 1 && (
-              <div className="w-3 h-px flex-shrink-0" style={{ backgroundColor: 'rgba(255,255,255,0.08)' }} />
+              <div className="w-3 h-px flex-shrink-0" style={{ backgroundColor: 'var(--color-border-light)' }} />
             )}
           </div>
         ))}
@@ -334,18 +334,18 @@ export default function AdminBuildWizardPage() {
         {/* Step 0: 납품처 */}
         {step === 0 && (
           <div className="space-y-3">
-            <p className="text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>납품처 선택 (선택사항)</p>
+            <p className="text-xs" style={{ color: 'var(--color-text-sub)' }}>납품처 선택 (선택사항)</p>
             <button
               onClick={() => setSelectedClientId(null)}
               className="w-full text-left p-3 rounded-xl transition-colors"
               style={{
-                backgroundColor: selectedClientId === null ? 'rgba(19,55,236,0.15)' : '#1b1e2e',
+                backgroundColor: selectedClientId === null ? 'rgba(19,55,236,0.15)' : 'var(--color-surface)',
                 borderWidth: 1,
-                borderColor: selectedClientId === null ? '#1337ec' : 'transparent',
+                borderColor: selectedClientId === null ? 'var(--color-accent)' : 'transparent',
               }}
             >
-              <p className="text-sm text-white">내부 사용</p>
-              <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>고객사 없이 내부 빌드</p>
+              <p className="text-sm text-txt">내부 사용</p>
+              <p className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>고객사 없이 내부 빌드</p>
             </button>
             {clients.map(c => (
               <button
@@ -353,17 +353,17 @@ export default function AdminBuildWizardPage() {
                 onClick={() => setSelectedClientId(c.id)}
                 className="w-full text-left p-3 rounded-xl transition-colors"
                 style={{
-                  backgroundColor: selectedClientId === c.id ? 'rgba(19,55,236,0.15)' : '#1b1e2e',
+                  backgroundColor: selectedClientId === c.id ? 'rgba(19,55,236,0.15)' : 'var(--color-surface)',
                   borderWidth: 1,
-                  borderColor: selectedClientId === c.id ? '#1337ec' : 'transparent',
+                  borderColor: selectedClientId === c.id ? 'var(--color-accent)' : 'transparent',
                 }}
               >
-                <p className="text-sm text-white">{c.name}</p>
-                {c.contactName && <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>{c.contactName}</p>}
+                <p className="text-sm text-txt">{c.name}</p>
+                {c.contactName && <p className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>{c.contactName}</p>}
               </button>
             ))}
             {clients.length === 0 && (
-              <p className="text-xs text-center py-4" style={{ color: 'rgba(255,255,255,0.3)' }}>
+              <p className="text-xs text-center py-4" style={{ color: 'var(--color-text-tertiary)' }}>
                 등록된 납품처가 없습니다
               </p>
             )}
@@ -374,7 +374,7 @@ export default function AdminBuildWizardPage() {
         {step === 1 && (
           <div className="space-y-4">
             <div>
-              <p className="text-xs mb-2" style={{ color: 'rgba(255,255,255,0.5)' }}>SKU 선택 (재고 현황)</p>
+              <p className="text-xs mb-2" style={{ color: 'var(--color-text-sub)' }}>SKU 선택 (재고 현황)</p>
               <div className="grid grid-cols-2 gap-2">
                 {inventory.map(inv => (
                   <SkuInventoryCard
@@ -388,7 +388,7 @@ export default function AdminBuildWizardPage() {
               </div>
             </div>
             <div>
-              <p className="text-xs mb-2" style={{ color: 'rgba(255,255,255,0.5)' }}>SKU 전체 목록</p>
+              <p className="text-xs mb-2" style={{ color: 'var(--color-text-sub)' }}>SKU 전체 목록</p>
               <div className="grid grid-cols-2 gap-2">
                 {MVP_SKUS.filter(s => !inventory.some(inv => inv.skuId === s.id)).map(sku => (
                   <button
@@ -396,9 +396,9 @@ export default function AdminBuildWizardPage() {
                     onClick={() => setSelectedSkuId(sku.id)}
                     className="text-left p-3 rounded-xl transition-colors"
                     style={{
-                      backgroundColor: selectedSkuId === sku.id ? 'rgba(19,55,236,0.15)' : '#1b1e2e',
+                      backgroundColor: selectedSkuId === sku.id ? 'rgba(19,55,236,0.15)' : 'var(--color-surface)',
                       borderWidth: 1,
-                      borderColor: selectedSkuId === sku.id ? '#1337ec' : 'transparent',
+                      borderColor: selectedSkuId === sku.id ? 'var(--color-accent)' : 'transparent',
                     }}
                   >
                     <span
@@ -410,13 +410,13 @@ export default function AdminBuildWizardPage() {
                     >
                       {sku.id}
                     </span>
-                    <p className="text-xs text-white mt-1">{sku.nameKo}</p>
+                    <p className="text-xs text-txt mt-1">{sku.nameKo}</p>
                   </button>
                 ))}
               </div>
             </div>
             <div>
-              <p className="text-xs mb-2" style={{ color: 'rgba(255,255,255,0.5)' }}>부가옵션</p>
+              <p className="text-xs mb-2" style={{ color: 'var(--color-text-sub)' }}>부가옵션</p>
               <div className="flex flex-wrap gap-2">
                 {MVP_COMPONENTS.map(comp => {
                   const active = selectedComponents.includes(comp.id)
@@ -427,8 +427,8 @@ export default function AdminBuildWizardPage() {
                       disabled={comp.id === 'BASIC'}
                       className="text-xs px-3 py-1.5 rounded-lg transition-colors"
                       style={{
-                        backgroundColor: active ? '#1337ec' : 'rgba(255,255,255,0.06)',
-                        color: active ? 'white' : 'rgba(255,255,255,0.5)',
+                        backgroundColor: active ? 'var(--color-accent)' : 'var(--color-surface-alt)',
+                        color: active ? 'white' : 'var(--color-text-sub)',
                         opacity: comp.id === 'BASIC' ? 0.7 : 1,
                       }}
                     >
@@ -514,20 +514,20 @@ export default function AdminBuildWizardPage() {
         {step === 2 && !isMetadataFlow && (
           <div className="space-y-4">
             <div>
-              <p className="text-xs mb-1" style={{ color: 'rgba(255,255,255,0.5)' }}>요청 분량 (분)</p>
+              <p className="text-xs mb-1" style={{ color: 'var(--color-text-sub)' }}>요청 분량 (분)</p>
               <input
                 type="number"
                 value={requestedUnits}
                 onChange={e => setRequestedUnits(Math.max(1, parseInt(e.target.value) || 1))}
-                className="w-full px-3 py-2 rounded-lg text-white text-sm outline-none"
-                style={{ backgroundColor: '#1b1e2e', border: '1px solid rgba(255,255,255,0.1)' }}
+                className="w-full px-3 py-2 rounded-lg text-txt text-sm outline-none"
+                style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border-light)' }}
               />
-              <p className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.3)' }}>
+              <p className="text-[10px] mt-0.5" style={{ color: 'var(--color-text-tertiary)' }}>
                 = 예상 출력 {requestedUnits * 2}분 ({(requestedUnits * 2 / 60).toFixed(1)}시간)
               </p>
             </div>
             <div>
-              <p className="text-xs mb-1" style={{ color: 'rgba(255,255,255,0.5)' }}>최소 품질 등급</p>
+              <p className="text-xs mb-1" style={{ color: 'var(--color-text-sub)' }}>최소 품질 등급</p>
               <div className="flex gap-2">
                 {[null, 'C', 'B', 'A'].map(g => (
                   <button
@@ -535,8 +535,8 @@ export default function AdminBuildWizardPage() {
                     onClick={() => setFilters(f => ({ ...f, minQualityGrade: g as ExportJobFilters['minQualityGrade'] }))}
                     className="text-xs px-3 py-1.5 rounded-lg transition-colors"
                     style={{
-                      backgroundColor: filters.minQualityGrade === g ? '#1337ec' : 'rgba(255,255,255,0.06)',
-                      color: filters.minQualityGrade === g ? 'white' : 'rgba(255,255,255,0.5)',
+                      backgroundColor: filters.minQualityGrade === g ? 'var(--color-accent)' : 'var(--color-surface-alt)',
+                      color: filters.minQualityGrade === g ? 'white' : 'var(--color-text-sub)',
                     }}
                   >
                     {g ? `${g}+` : '전체'}
@@ -545,11 +545,11 @@ export default function AdminBuildWizardPage() {
               </div>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>공개 동의 필수</span>
+              <span className="text-xs" style={{ color: 'var(--color-text-sub)' }}>공개 동의 필수</span>
               <button
                 onClick={() => setFilters(f => ({ ...f, requireConsent: !f.requireConsent }))}
                 className="w-10 h-5 rounded-full transition-colors"
-                style={{ backgroundColor: filters.requireConsent ? '#1337ec' : 'rgba(255,255,255,0.15)' }}
+                style={{ backgroundColor: filters.requireConsent ? 'var(--color-accent)' : 'var(--color-border-light)' }}
               >
                 <div
                   className="w-4 h-4 rounded-full bg-white transition-transform"
@@ -560,12 +560,12 @@ export default function AdminBuildWizardPage() {
             {/* F6: 팀 내부 통화 납품 가능 처리 */}
             <div className="rounded-xl p-3" style={{ backgroundColor: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.2)' }}>
               <p className="text-xs font-medium mb-1" style={{ color: '#22c55e' }}>팀 내부 통화 납품 가능 처리</p>
-              <p className="text-[11px] mb-2" style={{ color: 'rgba(255,255,255,0.4)' }}>
+              <p className="text-[11px] mb-2" style={{ color: 'var(--color-text-tertiary)' }}>
                 팀원 간 통화 세션의 동의 상태(consent_status)를 both_agreed로 강제 설정합니다.
                 납품 대상에 포함하려면 추출 전 실행하세요.
               </p>
               <div className="flex items-center justify-between">
-                <span className="text-[11px]" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                <span className="text-[11px]" style={{ color: 'var(--color-text-tertiary)' }}>
                   납품 미설정 세션: {new Set(allUnits.filter(u => u.consentStatus !== 'PUBLIC_CONSENTED').map(u => u.sessionId)).size}건 (업로드 완료 기준 적용)
                 </span>
                 <button
@@ -581,13 +581,13 @@ export default function AdminBuildWizardPage() {
             </div>
             <div className="flex items-center justify-between">
               <div>
-                <span className="text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>테스트 빌드</span>
-                <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.3)' }}>기납품 BU 제외 우회</p>
+                <span className="text-xs" style={{ color: 'var(--color-text-sub)' }}>테스트 빌드</span>
+                <p className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>기납품 BU 제외 우회</p>
               </div>
               <button
                 onClick={() => setIsTestMode(m => !m)}
                 className="w-10 h-5 rounded-full transition-colors relative"
-                style={{ backgroundColor: isTestMode ? '#f59e0b' : 'rgba(255,255,255,0.15)' }}
+                style={{ backgroundColor: isTestMode ? '#f59e0b' : 'var(--color-border-light)' }}
               >
                 <div
                   className="w-4 h-4 rounded-full bg-white absolute top-0.5 transition-transform"
@@ -596,7 +596,7 @@ export default function AdminBuildWizardPage() {
               </button>
             </div>
             <div>
-              <p className="text-xs mb-1" style={{ color: 'rgba(255,255,255,0.5)' }}>샘플링 전략</p>
+              <p className="text-xs mb-1" style={{ color: 'var(--color-text-sub)' }}>샘플링 전략</p>
               <div className="flex gap-2">
                 {(['all', 'random', 'quality_first', 'stratified'] as const).map(s => (
                   <button
@@ -604,8 +604,8 @@ export default function AdminBuildWizardPage() {
                     onClick={() => setSamplingStrategy(s)}
                     className="text-[10px] px-2.5 py-1 rounded-lg transition-colors"
                     style={{
-                      backgroundColor: samplingStrategy === s ? '#1337ec' : 'rgba(255,255,255,0.06)',
-                      color: samplingStrategy === s ? 'white' : 'rgba(255,255,255,0.5)',
+                      backgroundColor: samplingStrategy === s ? 'var(--color-accent)' : 'var(--color-surface-alt)',
+                      color: samplingStrategy === s ? 'white' : 'var(--color-text-sub)',
                     }}
                   >
                     {s === 'all' ? '전체' : s === 'random' ? '랜덤' : s === 'quality_first' ? '품질우선' : '층화'}
@@ -619,26 +619,26 @@ export default function AdminBuildWizardPage() {
         {/* Step 3: 시뮬레이션 (Audio only) */}
         {step === 3 && !isMetadataFlow && (
           <div className="space-y-4">
-            <div className="rounded-xl p-4" style={{ backgroundColor: '#1b1e2e' }}>
-              <p className="text-xs font-medium text-white mb-2">시뮬레이션 결과</p>
+            <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--color-surface)' }}>
+              <p className="text-xs font-medium text-txt mb-2">시뮬레이션 결과</p>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>적합 분량</p>
+                  <p className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>적합 분량</p>
                   <p className="text-lg font-bold" style={{ color: eligibleMinutes >= requestedUnits ? '#22c55e' : '#ef4444' }}>
                     {eligibleMinutes.toLocaleString()}분
                   </p>
                 </div>
                 <div>
-                  <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>요청 분량</p>
-                  <p className="text-lg font-bold text-white">{requestedUnits.toLocaleString()}분</p>
+                  <p className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>요청 분량</p>
+                  <p className="text-lg font-bold text-txt">{requestedUnits.toLocaleString()}분</p>
                 </div>
                 <div>
-                  <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>실제 추출</p>
-                  <p className="text-lg font-bold" style={{ color: '#1337ec' }}>{sampledMinutes.toLocaleString()}분</p>
+                  <p className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>실제 추출</p>
+                  <p className="text-lg font-bold" style={{ color: 'var(--color-accent)' }}>{sampledMinutes.toLocaleString()}분</p>
                 </div>
                 <div>
-                  <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>유효 시간</p>
-                  <p className="text-lg font-bold text-white">{eligibleSummary.totalEffectiveHours}h</p>
+                  <p className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>유효 시간</p>
+                  <p className="text-lg font-bold text-txt">{eligibleSummary.totalEffectiveHours}h</p>
                 </div>
               </div>
             </div>
@@ -659,21 +659,21 @@ export default function AdminBuildWizardPage() {
               </div>
             )}
 
-            <div className="rounded-xl p-3" style={{ backgroundColor: '#1b1e2e' }}>
-              <p className="text-[10px] mb-1.5" style={{ color: 'rgba(255,255,255,0.4)' }}>추출 등급 분포</p>
+            <div className="rounded-xl p-3" style={{ backgroundColor: 'var(--color-surface)' }}>
+              <p className="text-[10px] mb-1.5" style={{ color: 'var(--color-text-tertiary)' }}>추출 등급 분포</p>
               {(['A', 'B', 'C'] as const).map(g => {
                 const count = sampled.filter(u => u.qualityGrade === g).length
                 const pct = sampled.length > 0 ? Math.round((count / sampled.length) * 100) : 0
                 return (
                   <div key={g} className="flex items-center gap-2 text-xs">
                     <span style={{ color: g === 'A' ? '#22c55e' : g === 'B' ? '#f59e0b' : '#6b7280' }}>{g}</span>
-                    <div className="flex-1 h-1.5 rounded-full" style={{ backgroundColor: 'rgba(255,255,255,0.06)' }}>
+                    <div className="flex-1 h-1.5 rounded-full" style={{ backgroundColor: 'var(--color-surface-alt)' }}>
                       <div className="h-full rounded-full" style={{
                         width: `${pct}%`,
                         backgroundColor: g === 'A' ? '#22c55e' : g === 'B' ? '#f59e0b' : '#6b7280',
                       }} />
                     </div>
-                    <span className="text-white w-8 text-right">{count}</span>
+                    <span className="text-txt w-8 text-right">{count}</span>
                   </div>
                 )
               })}
@@ -685,30 +685,30 @@ export default function AdminBuildWizardPage() {
         {step === 4 && !isMetadataFlow && (
           <div className="space-y-4">
             <div className="grid grid-cols-3 gap-3">
-              <div className="rounded-xl p-4" style={{ backgroundColor: '#1b1e2e' }}>
+              <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--color-surface)' }}>
                 <div className="flex items-center gap-1.5 mb-2">
                   <span className="material-symbols-outlined text-sm" style={{ color: '#22c55e' }}>check_circle</span>
-                  <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>적합 데이터</span>
+                  <span className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>적합 데이터</span>
                 </div>
-                <p className="text-xl font-bold text-white">{sampled.length}</p>
-                <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                <p className="text-xl font-bold text-txt">{sampled.length}</p>
+                <p className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>
                   {(sampled.length / 60).toFixed(1)}시간
                 </p>
               </div>
-              <div className="rounded-xl p-4" style={{ backgroundColor: '#1b1e2e' }}>
+              <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--color-surface)' }}>
                 <div className="flex items-center gap-1.5 mb-2">
                   <span className="material-symbols-outlined text-sm" style={{ color: '#8b5cf6' }}>group</span>
-                  <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>화자 다양성</span>
+                  <span className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>화자 다양성</span>
                 </div>
-                <p className="text-xl font-bold text-white">
+                <p className="text-xl font-bold text-txt">
                   {new Set(sampled.map(u => u.userId)).size}
                 </p>
-                <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.3)' }}>유니크 화자</p>
+                <p className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>유니크 화자</p>
               </div>
-              <div className="rounded-xl p-4" style={{ backgroundColor: '#1b1e2e' }}>
+              <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--color-surface)' }}>
                 <div className="flex items-center gap-1.5 mb-2">
                   <span className="material-symbols-outlined text-sm" style={{ color: '#f59e0b' }}>bar_chart</span>
-                  <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>품질 분포</span>
+                  <span className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>품질 분포</span>
                 </div>
                 <div className="flex gap-1 text-[10px]">
                   {(['A', 'B', 'C'] as const).map(g => (
@@ -720,14 +720,14 @@ export default function AdminBuildWizardPage() {
               </div>
             </div>
 
-            <div className="rounded-xl p-4 text-center" style={{ backgroundColor: '#1b1e2e' }}>
-              <p className="text-xs mb-3" style={{ color: 'rgba(255,255,255,0.5)' }}>
+            <div className="rounded-xl p-4 text-center" style={{ backgroundColor: 'var(--color-surface)' }}>
+              <p className="text-xs mb-3" style={{ color: 'var(--color-text-sub)' }}>
                 미리보기 확인 후 추출을 시작하세요
               </p>
               <button
                 onClick={() => setStep(5)}
-                className="text-xs px-6 py-2 rounded-lg font-medium text-white"
-                style={{ backgroundColor: '#1337ec' }}
+                className="text-xs px-6 py-2 rounded-lg font-medium text-txt"
+                style={{ backgroundColor: 'var(--color-accent)' }}
               >
                 <span className="material-symbols-outlined text-sm mr-1" style={{ verticalAlign: 'middle' }}>play_arrow</span>
                 추출 시작
@@ -772,12 +772,12 @@ export default function AdminBuildWizardPage() {
 
       {/* 하단 네비게이션 */}
       {(isMetadataFlow ? step < steps.length - 1 : step <= 3) && (
-        <div className="px-4 py-3 border-t flex gap-2" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+        <div className="px-4 py-3 border-t flex gap-2" style={{ borderColor: 'var(--color-surface-alt)' }}>
           {step > 0 && (
             <button
               onClick={() => setStep(s => s - 1)}
               className="flex-1 py-2.5 rounded-xl text-sm font-medium"
-              style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.6)' }}
+              style={{ backgroundColor: 'var(--color-surface-alt)', color: 'var(--color-text-sub)' }}
             >
               이전
             </button>
@@ -786,7 +786,7 @@ export default function AdminBuildWizardPage() {
             <button
               onClick={() => setStep(s => s + 1)}
               disabled={step === 1 && !selectedSkuId}
-              className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white disabled:opacity-30"
+              className="flex-1 py-2.5 rounded-xl text-sm font-medium text-txt disabled:opacity-30"
               style={{ backgroundColor: '#8b5cf6' }}
             >
               다음
@@ -795,8 +795,8 @@ export default function AdminBuildWizardPage() {
             <button
               onClick={() => setStep(s => s + 1)}
               disabled={step === 1 && !selectedSkuId}
-              className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white disabled:opacity-30"
-              style={{ backgroundColor: '#1337ec' }}
+              className="flex-1 py-2.5 rounded-xl text-sm font-medium text-txt disabled:opacity-30"
+              style={{ backgroundColor: 'var(--color-accent)' }}
             >
               다음
             </button>
@@ -804,8 +804,8 @@ export default function AdminBuildWizardPage() {
             <button
               onClick={handleExecute}
               disabled={executing || sampled.length === 0}
-              className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white disabled:opacity-30"
-              style={{ backgroundColor: '#1337ec' }}
+              className="flex-1 py-2.5 rounded-xl text-sm font-medium text-txt disabled:opacity-30"
+              style={{ backgroundColor: 'var(--color-accent)' }}
             >
               {executing ? '생성 중...' : `빌드 실행 (${sampled.length}유닛)`}
             </button>

@@ -131,8 +131,8 @@ export default function MetadataQualityFilter({
   }
 
   return (
-    <div className="rounded-xl p-4 space-y-4" style={{ backgroundColor: '#1b1e2e' }}>
-      <h3 className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.5)' }}>
+    <div className="rounded-xl p-4 space-y-4" style={{ backgroundColor: 'var(--color-surface)' }}>
+      <h3 className="text-xs font-semibold" style={{ color: 'var(--color-text-sub)' }}>
         검수 필터
       </h3>
 
@@ -145,10 +145,10 @@ export default function MetadataQualityFilter({
             onChange={e => updateFilter({ excludeSparse: e.target.checked })}
             className="rounded accent-purple-500"
           />
-          <span className="text-xs" style={{ color: 'rgba(255,255,255,0.7)' }}>
+          <span className="text-xs" style={{ color: 'var(--color-text-sub)' }}>
             sparse 이벤트 제외
           </span>
-          <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.3)' }}>
+          <span className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>
             (이벤트 10건 미만 디바이스)
           </span>
         </label>
@@ -160,10 +160,10 @@ export default function MetadataQualityFilter({
             onChange={e => updateFilter({ excludeStaleDevices: e.target.checked })}
             className="rounded accent-purple-500"
           />
-          <span className="text-xs" style={{ color: 'rgba(255,255,255,0.7)' }}>
+          <span className="text-xs" style={{ color: 'var(--color-text-sub)' }}>
             동기화 지연 디바이스 제외
           </span>
-          <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.3)' }}>
+          <span className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>
             (stale 상태)
           </span>
         </label>
@@ -172,7 +172,7 @@ export default function MetadataQualityFilter({
       {/* Date range (month picker — compatible with both YYYY-MM and YYYY-MM-DD buckets) */}
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="text-[10px] block mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>
+          <label className="text-[10px] block mb-1" style={{ color: 'var(--color-text-tertiary)' }}>
             시작월
           </label>
           <input
@@ -181,14 +181,14 @@ export default function MetadataQualityFilter({
             onChange={e => updateFilter({ dateFrom: e.target.value })}
             className="w-full rounded-lg px-2 py-1.5 text-xs font-mono"
             style={{
-              backgroundColor: 'rgba(255,255,255,0.06)',
-              color: 'rgba(255,255,255,0.7)',
-              border: '1px solid rgba(255,255,255,0.1)',
+              backgroundColor: 'var(--color-surface-alt)',
+              color: 'var(--color-text-sub)',
+              border: '1px solid var(--color-border-light)',
             }}
           />
         </div>
         <div>
-          <label className="text-[10px] block mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>
+          <label className="text-[10px] block mb-1" style={{ color: 'var(--color-text-tertiary)' }}>
             종료월
           </label>
           <input
@@ -197,9 +197,9 @@ export default function MetadataQualityFilter({
             onChange={e => updateFilter({ dateTo: e.target.value })}
             className="w-full rounded-lg px-2 py-1.5 text-xs font-mono"
             style={{
-              backgroundColor: 'rgba(255,255,255,0.06)',
-              color: 'rgba(255,255,255,0.7)',
-              border: '1px solid rgba(255,255,255,0.1)',
+              backgroundColor: 'var(--color-surface-alt)',
+              color: 'var(--color-text-sub)',
+              border: '1px solid var(--color-border-light)',
             }}
           />
         </div>
@@ -208,16 +208,16 @@ export default function MetadataQualityFilter({
       {/* Device selector */}
       {availableDevices.length > 0 && (
         <div className="relative" ref={dropdownRef}>
-          <label className="text-[10px] block mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>
+          <label className="text-[10px] block mb-1" style={{ color: 'var(--color-text-tertiary)' }}>
             디바이스 선택
           </label>
           <button
             onClick={() => setDeviceDropdownOpen(prev => !prev)}
             className="w-full rounded-lg px-2 py-1.5 text-xs text-left flex items-center justify-between"
             style={{
-              backgroundColor: 'rgba(255,255,255,0.06)',
-              color: 'rgba(255,255,255,0.7)',
-              border: '1px solid rgba(255,255,255,0.1)',
+              backgroundColor: 'var(--color-surface-alt)',
+              color: 'var(--color-text-sub)',
+              border: '1px solid var(--color-border-light)',
             }}
           >
             <span className="font-mono">
@@ -228,7 +228,7 @@ export default function MetadataQualityFilter({
             <span
               className="material-symbols-outlined text-sm transition-transform"
               style={{
-                color: 'rgba(255,255,255,0.4)',
+                color: 'var(--color-text-tertiary)',
                 transform: deviceDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
               }}
             >
@@ -241,7 +241,7 @@ export default function MetadataQualityFilter({
               className="absolute z-10 mt-1 w-full rounded-lg overflow-hidden shadow-lg"
               style={{
                 backgroundColor: '#252838',
-                border: '1px solid rgba(255,255,255,0.1)',
+                border: '1px solid var(--color-border-light)',
                 maxHeight: '160px',
                 overflowY: 'auto',
               }}
@@ -256,11 +256,11 @@ export default function MetadataQualityFilter({
                     onClick={() => toggleDevice(device.pseudoId)}
                     className="w-full px-3 py-1.5 text-left flex items-center justify-between hover:bg-white/5 transition-colors"
                   >
-                    <span className="text-[11px] font-mono" style={{ color: 'rgba(255,255,255,0.7)' }}>
+                    <span className="text-[11px] font-mono" style={{ color: 'var(--color-text-sub)' }}>
                       {device.pseudoId.slice(0, 8)}…
                     </span>
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-mono" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                      <span className="text-[10px] font-mono" style={{ color: 'var(--color-text-tertiary)' }}>
                         {device.eventCount.toLocaleString()}건
                       </span>
                       {isSelected && (
@@ -280,27 +280,27 @@ export default function MetadataQualityFilter({
       {/* Included / Excluded count */}
       <div
         className="rounded-lg p-2 flex items-center justify-between"
-        style={{ backgroundColor: 'rgba(255,255,255,0.04)' }}
+        style={{ backgroundColor: 'var(--color-surface-alt)' }}
       >
         <div className="flex items-center gap-3">
           <div className="text-center">
             <p className="text-sm font-bold font-mono" style={{ color: '#22c55e' }}>
               {included.toLocaleString()}
             </p>
-            <p className="text-[9px]" style={{ color: 'rgba(255,255,255,0.3)' }}>포함</p>
+            <p className="text-[9px]" style={{ color: 'var(--color-text-tertiary)' }}>포함</p>
           </div>
           <div
             className="w-px h-6"
-            style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}
+            style={{ backgroundColor: 'var(--color-border-light)' }}
           />
           <div className="text-center">
             <p className="text-sm font-bold font-mono" style={{ color: '#ef4444' }}>
               {excluded.toLocaleString()}
             </p>
-            <p className="text-[9px]" style={{ color: 'rgba(255,255,255,0.3)' }}>제외</p>
+            <p className="text-[9px]" style={{ color: 'var(--color-text-tertiary)' }}>제외</p>
           </div>
         </div>
-        <span className="text-[10px] font-mono" style={{ color: 'rgba(255,255,255,0.3)' }}>
+        <span className="text-[10px] font-mono" style={{ color: 'var(--color-text-tertiary)' }}>
           {totalEvents > 0 ? Math.round((included / totalEvents) * 100) : 0}% 포함
         </span>
       </div>

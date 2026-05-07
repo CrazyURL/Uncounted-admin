@@ -41,11 +41,11 @@ function PiiEditorWithContext({
       <div className="flex items-center justify-between px-1">
         <div className="flex items-center gap-2">
           <span className="material-symbols-outlined" style={{ fontSize: '20px', color: '#ef4444' }}>security</span>
-          <span className="text-sm font-medium text-white">PII 마스킹 편집</span>
+          <span className="text-sm font-medium text-txt">PII 마스킹 편집</span>
         </div>
         <button
           onClick={onClose}
-          className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-colors hover:bg-white/10 text-white/60 bg-white/5"
+          className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-colors hover:bg-white/10 text-txt/60 bg-white/5"
         >
           <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>close</span>
           닫기
@@ -58,8 +58,8 @@ function PiiEditorWithContext({
         >
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2 min-w-0">
-              <span className="text-xs font-medium text-white/40">선택된 발화</span>
-              <span className="text-sm font-mono text-white truncate">{utterance.utteranceId.slice(0, 20)}</span>
+              <span className="text-xs font-medium text-txt/40">선택된 발화</span>
+              <span className="text-sm font-mono text-txt truncate">{utterance.utteranceId.slice(0, 20)}</span>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
               <span
@@ -74,21 +74,21 @@ function PiiEditorWithContext({
             </div>
           </div>
 
-          <div className="flex items-center gap-4 flex-wrap text-xs text-white/60">
-            <span className="text-white/40">
-              pseudo: <span className="text-white/60">{utterance.pseudoId?.slice(0, 10) ?? '—'}</span>
+          <div className="flex items-center gap-4 flex-wrap text-xs text-txt/60">
+            <span className="text-txt/40">
+              pseudo: <span className="text-txt/60">{utterance.pseudoId?.slice(0, 10) ?? '—'}</span>
             </span>
 
             <span className="flex items-center gap-1">
-              <span className="material-symbols-outlined text-white/40 text-[14px]">person</span>
+              <span className="material-symbols-outlined text-txt/40 text-[14px]">person</span>
               {utterance.speakerId ?? '—'}
-              {speakerMeta && <span className="text-white/35">({speakerMeta})</span>}
+              {speakerMeta && <span className="text-txt/35">({speakerMeta})</span>}
             </span>
 
             <span className="flex items-center gap-1">
-              <span className="material-symbols-outlined text-white/40 text-[14px]">schedule</span>
+              <span className="material-symbols-outlined text-txt/40 text-[14px]">schedule</span>
               {utterance.startSec.toFixed(1)}s ~ {utterance.endSec.toFixed(1)}s
-              <span className="font-semibold text-white/80">
+              <span className="font-semibold text-txt/80">
                 ({formatDuration(utterance.durationSec)})
               </span>
             </span>
@@ -213,11 +213,11 @@ export default function UtteranceReviewSection({
         <div
           className="rounded-xl px-5 py-8 text-center bg-[#1b1e2e] border border-white/5"
         >
-          <span className="material-symbols-outlined text-3xl mb-2 block text-white/30">
+          <span className="material-symbols-outlined text-3xl mb-2 block text-txt/30">
             graphic_eq
           </span>
-          <p className="text-sm font-medium text-white/60">PII 마스킹 에디터</p>
-          <p className="text-xs mt-1 text-white/35">
+          <p className="text-sm font-medium text-txt/60">PII 마스킹 에디터</p>
+          <p className="text-xs mt-1 text-txt/35">
             아래 목록에서 발화의 PII 버튼을 클릭하면 여기에 파형 에디터가 표시됩니다.
           </p>
         </div>

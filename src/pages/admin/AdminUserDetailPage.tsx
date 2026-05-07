@@ -161,7 +161,7 @@ export default function AdminUserDetailPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: '#1337ec', borderTopColor: 'transparent' }} />
+        <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--color-accent)', borderTopColor: 'transparent' }} />
       </div>
     )
   }
@@ -170,27 +170,27 @@ export default function AdminUserDetailPage() {
     <div className="pb-28">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="px-4 py-4 space-y-4">
         {/* 사용자 정보 헤더 */}
-        <div className="rounded-xl p-4" style={{ backgroundColor: '#1b1e2e' }}>
+        <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--color-surface)' }}>
           <div className="flex items-center gap-3 mb-3">
             <div
               className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
               style={{ backgroundColor: 'rgba(19,55,236,0.15)' }}
             >
-              <span className="material-symbols-outlined text-xl" style={{ color: '#1337ec' }}>
+              <span className="material-symbols-outlined text-xl" style={{ color: 'var(--color-accent)' }}>
                 person
               </span>
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-bold text-white truncate">{displayId}</p>
+              <p className="text-sm font-bold text-txt truncate">{displayId}</p>
               {userId && (
-                <p className="text-[10px] font-mono truncate" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                <p className="text-[10px] font-mono truncate" style={{ color: 'var(--color-text-tertiary)' }}>
                   {userId}
                 </p>
               )}
             </div>
           </div>
 
-          <div className="flex items-center gap-4 text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
+          <div className="flex items-center gap-4 text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
             <span>{userSessions.length}건 세션</span>
             {dateRange && (
               <>
@@ -203,7 +203,7 @@ export default function AdminUserDetailPage() {
           {isLocalUser && (
             <div
               className="mt-2 px-2 py-1 rounded text-[10px] inline-flex items-center gap-1"
-              style={{ backgroundColor: 'rgba(19,55,236,0.1)', color: '#1337ec' }}
+              style={{ backgroundColor: 'rgba(19,55,236,0.1)', color: 'var(--color-accent)' }}
             >
               <span className="material-symbols-outlined text-xs">smartphone</span>
               로컬 사용자 (이 디바이스)
@@ -213,8 +213,8 @@ export default function AdminUserDetailPage() {
 
         {/* 프로필 정보 (로컬 사용자만) */}
         {localProfile && (
-          <div className="rounded-xl p-4" style={{ backgroundColor: '#1b1e2e' }}>
-            <p className="text-xs font-medium mb-2.5" style={{ color: 'rgba(255,255,255,0.5)' }}>화자 프로필</p>
+          <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--color-surface)' }}>
+            <p className="text-xs font-medium mb-2.5" style={{ color: 'var(--color-text-sub)' }}>화자 프로필</p>
             <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
               {[
                 { label: '연령대', value: localProfile.age_band },
@@ -227,8 +227,8 @@ export default function AdminUserDetailPage() {
                 { label: '기기 모드', value: localProfile.common_device_mode },
               ].map(item => (
                 <div key={item.label} className="flex items-center justify-between">
-                  <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.35)' }}>{item.label}</span>
-                  <span className="text-xs text-white">{item.value ?? '-'}</span>
+                  <span className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>{item.label}</span>
+                  <span className="text-xs text-txt">{item.value ?? '-'}</span>
                 </div>
               ))}
             </div>
@@ -238,7 +238,7 @@ export default function AdminUserDetailPage() {
                   <span
                     key={d}
                     className="text-[10px] px-1.5 py-0.5 rounded"
-                    style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)' }}
+                    style={{ backgroundColor: 'var(--color-surface-alt)', color: 'var(--color-text-sub)' }}
                   >
                     {d}
                   </span>
@@ -249,35 +249,35 @@ export default function AdminUserDetailPage() {
         )}
 
         {!isLocalUser && userId !== null && (
-          <div className="rounded-xl p-3 flex items-center gap-2" style={{ backgroundColor: 'rgba(255,255,255,0.04)' }}>
-            <span className="material-symbols-outlined text-base" style={{ color: 'rgba(255,255,255,0.25)' }}>info</span>
-            <p className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>
+          <div className="rounded-xl p-3 flex items-center gap-2" style={{ backgroundColor: 'var(--color-surface-alt)' }}>
+            <span className="material-symbols-outlined text-base" style={{ color: 'var(--color-text-tertiary)' }}>info</span>
+            <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
               프로필 정보 없음 (로컬 전용 데이터)
             </p>
           </div>
         )}
 
         {/* ── 정산 예상 범위 ── */}
-        <div className="rounded-xl p-4" style={{ backgroundColor: '#1b1e2e' }}>
+        <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--color-surface)' }}>
           <div className="flex items-center gap-2 mb-3">
-            <span className="material-symbols-outlined text-base" style={{ color: '#1337ec' }}>payments</span>
-            <p className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.5)' }}>정산 예상 (조건부)</p>
+            <span className="material-symbols-outlined text-base" style={{ color: 'var(--color-accent)' }}>payments</span>
+            <p className="text-xs font-medium" style={{ color: 'var(--color-text-sub)' }}>정산 예상 (조건부)</p>
           </div>
 
           {publicSessions.length > 0 ? (
             <>
               <div className="flex items-baseline gap-1 mb-2">
-                <span className="text-xl font-bold text-white">
+                <span className="text-xl font-bold text-txt">
                   {formatWonShort(valuation.range.low)}
                 </span>
-                <span className="text-sm" style={{ color: 'rgba(255,255,255,0.4)' }}>~</span>
-                <span className="text-xl font-bold text-white">
+                <span className="text-sm" style={{ color: 'var(--color-text-tertiary)' }}>~</span>
+                <span className="text-xl font-bold text-txt">
                   {formatWonShort(valuation.range.high)}
                 </span>
-                <span className="text-xs ml-1" style={{ color: 'rgba(255,255,255,0.3)' }}>원</span>
+                <span className="text-xs ml-1" style={{ color: 'var(--color-text-tertiary)' }}>원</span>
               </div>
 
-              <div className="flex items-center gap-3 text-[10px] mb-3" style={{ color: 'rgba(255,255,255,0.35)' }}>
+              <div className="flex items-center gap-3 text-[10px] mb-3" style={{ color: 'var(--color-text-tertiary)' }}>
                 <span>{valuation.buCount > 0 ? `${valuation.buCount.toLocaleString()} BU` : `유효 ${valuation.usableHours}h`}</span>
                 <span>품질 {valuation.qualityGrade} (x{valuation.qualityMultiplier})</span>
                 <span>라벨 x{valuation.labelMultiplierRange.min}~{valuation.labelMultiplierRange.max}</span>
@@ -288,14 +288,14 @@ export default function AdminUserDetailPage() {
                   {valuation.conditions.map((c, i) => (
                     <div key={i} className="flex items-start gap-1.5">
                       <span className="material-symbols-outlined text-xs mt-0.5" style={{ color: '#f59e0b' }}>warning</span>
-                      <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>{c}</p>
+                      <p className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>{c}</p>
                     </div>
                   ))}
                 </div>
               )}
             </>
           ) : (
-            <p className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>
+            <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
               공개 동의 세션 없음 — 정산 대상 없음
             </p>
           )}
@@ -322,7 +322,7 @@ export default function AdminUserDetailPage() {
               main: `${eligibleSessions.length}건`,
               sub: `${eligibleHours.toFixed(1)}h`,
               icon: 'verified',
-              color: eligibleSessions.length > 0 ? '#1337ec' : undefined,
+              color: eligibleSessions.length > 0 ? 'var(--color-accent)' : undefined,
             },
             {
               label: '라벨 완성',
@@ -334,26 +334,26 @@ export default function AdminUserDetailPage() {
             <div
               key={item.label}
               className="rounded-xl p-3"
-              style={{ backgroundColor: '#1b1e2e' }}
+              style={{ backgroundColor: 'var(--color-surface)' }}
             >
               <div className="flex items-center gap-1.5 mb-1.5">
                 <span
                   className="material-symbols-outlined text-sm"
-                  style={{ color: item.color ?? 'rgba(255,255,255,0.3)' }}
+                  style={{ color: item.color ?? 'var(--color-text-tertiary)' }}
                 >
                   {item.icon}
                 </span>
-                <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>{item.label}</p>
+                <p className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>{item.label}</p>
               </div>
-              <p className="text-base font-bold text-white">{item.main}</p>
-              <p className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.3)' }}>{item.sub}</p>
+              <p className="text-base font-bold text-txt">{item.main}</p>
+              <p className="text-[10px] mt-0.5" style={{ color: 'var(--color-text-tertiary)' }}>{item.sub}</p>
             </div>
           ))}
         </div>
 
         {/* ── 정산 조건 체크리스트 ── */}
-        <div className="rounded-xl p-4" style={{ backgroundColor: '#1b1e2e' }}>
-          <p className="text-xs font-medium mb-3" style={{ color: 'rgba(255,255,255,0.5)' }}>정산 조건 충족 현황</p>
+        <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--color-surface)' }}>
+          <p className="text-xs font-medium mb-3" style={{ color: 'var(--color-text-sub)' }}>정산 조건 충족 현황</p>
           <div className="space-y-2">
             {[
               {
@@ -387,13 +387,13 @@ export default function AdminUserDetailPage() {
               <div key={item.label} className="flex items-center gap-2.5">
                 <span
                   className="material-symbols-outlined text-base"
-                  style={{ color: item.ok ? '#22c55e' : 'rgba(255,255,255,0.15)' }}
+                  style={{ color: item.ok ? '#22c55e' : 'var(--color-border-light)' }}
                 >
                   {item.ok ? 'check_circle' : 'radio_button_unchecked'}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs text-white">{item.label}</p>
-                  <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.35)' }}>{item.detail}</p>
+                  <p className="text-xs text-txt">{item.label}</p>
+                  <p className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>{item.detail}</p>
                 </div>
               </div>
             ))}
@@ -402,8 +402,8 @@ export default function AdminUserDetailPage() {
 
         {/* ── SKU 기여 현황 ── */}
         {skuBreakdown.length > 0 && (
-          <div className="rounded-xl p-4" style={{ backgroundColor: '#1b1e2e' }}>
-            <p className="text-xs font-medium mb-3" style={{ color: 'rgba(255,255,255,0.5)' }}>SKU별 기여</p>
+          <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--color-surface)' }}>
+            <p className="text-xs font-medium mb-3" style={{ color: 'var(--color-text-sub)' }}>SKU별 기여</p>
             <div className="space-y-2">
               {skuBreakdown.map(sku => (
                 <div key={sku.skuId} className="flex items-center justify-between">
@@ -412,18 +412,18 @@ export default function AdminUserDetailPage() {
                       className="text-xs px-1.5 py-0.5 rounded font-mono font-medium"
                       style={{
                         backgroundColor: sku.category === 'voice' ? 'rgba(19,55,236,0.15)' : 'rgba(245,158,11,0.15)',
-                        color: sku.category === 'voice' ? '#1337ec' : '#f59e0b',
+                        color: sku.category === 'voice' ? 'var(--color-accent)' : '#f59e0b',
                       }}
                     >
                       {sku.skuId}
                     </span>
-                    <span className="text-xs text-white">{sku.nameKo}</span>
+                    <span className="text-xs text-txt">{sku.nameKo}</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                    <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
                       {sku.count}건
                     </span>
-                    <span className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                    <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
                       {sku.totalHours.toFixed(1)}h
                     </span>
                   </div>
@@ -435,27 +435,27 @@ export default function AdminUserDetailPage() {
 
         {/* ── 품질 분포 ── */}
         <div className="flex gap-2">
-          <div className="flex-1 rounded-xl p-3" style={{ backgroundColor: '#1b1e2e' }}>
-            <p className="text-xs font-medium mb-2" style={{ color: 'rgba(255,255,255,0.5)' }}>품질 분포</p>
+          <div className="flex-1 rounded-xl p-3" style={{ backgroundColor: 'var(--color-surface)' }}>
+            <p className="text-xs font-medium mb-2" style={{ color: 'var(--color-text-sub)' }}>품질 분포</p>
             <div className="flex gap-3">
               {(['A', 'B', 'C'] as const).map(g => {
                 const count = summary.qualityDistribution[g] ?? 0
                 return (
                   <div key={g} className="flex items-center gap-1.5">
                     <span className="text-xs font-bold" style={{ color: GRADE_COLORS[g] }}>{g}</span>
-                    <span className="text-sm text-white font-medium">{count}</span>
+                    <span className="text-sm text-txt font-medium">{count}</span>
                   </div>
                 )
               })}
             </div>
           </div>
-          <div className="flex-1 rounded-xl p-3" style={{ backgroundColor: '#1b1e2e' }}>
-            <p className="text-xs font-medium mb-2" style={{ color: 'rgba(255,255,255,0.5)' }}>동의 비율</p>
+          <div className="flex-1 rounded-xl p-3" style={{ backgroundColor: 'var(--color-surface)' }}>
+            <p className="text-xs font-medium mb-2" style={{ color: 'var(--color-text-sub)' }}>동의 비율</p>
             <div className="flex items-end gap-1">
-              <span className="text-lg font-bold text-white">
+              <span className="text-lg font-bold text-txt">
                 {userSessions.length > 0 ? Math.round(publicSessions.length / userSessions.length * 100) : 0}%
               </span>
-              <span className="text-xs mb-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>
+              <span className="text-xs mb-0.5" style={{ color: 'var(--color-text-tertiary)' }}>
                 공개 {publicSessions.length}/{userSessions.length}
               </span>
             </div>
@@ -466,27 +466,27 @@ export default function AdminUserDetailPage() {
         <div>
           <div
             className="flex items-center justify-between py-2 border-b"
-            style={{ borderColor: 'rgba(255,255,255,0.06)' }}
+            style={{ borderColor: 'var(--color-surface-alt)' }}
           >
             <button
               onClick={toggleAll}
               className="flex items-center gap-2 text-xs"
-              style={{ color: 'rgba(255,255,255,0.5)' }}
+              style={{ color: 'var(--color-text-sub)' }}
             >
               <div
                 className="w-4 h-4 rounded flex items-center justify-center border"
                 style={{
-                  borderColor: selectedIds.size === userSessions.length && userSessions.length > 0 ? '#1337ec' : 'rgba(255,255,255,0.2)',
-                  backgroundColor: selectedIds.size === userSessions.length && userSessions.length > 0 ? '#1337ec' : 'transparent',
+                  borderColor: selectedIds.size === userSessions.length && userSessions.length > 0 ? 'var(--color-accent)' : 'var(--color-border)',
+                  backgroundColor: selectedIds.size === userSessions.length && userSessions.length > 0 ? 'var(--color-accent)' : 'transparent',
                 }}
               >
                 {selectedIds.size === userSessions.length && userSessions.length > 0 && (
-                  <span className="material-symbols-outlined text-white text-xs">check</span>
+                  <span className="material-symbols-outlined text-txt text-xs">check</span>
                 )}
               </div>
               전체 선택
             </button>
-            <span className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
+            <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
               {userSessions.length}건
             </span>
           </div>
@@ -502,10 +502,10 @@ export default function AdminUserDetailPage() {
 
           {userSessions.length === 0 && (
             <div className="flex flex-col items-center py-12">
-              <span className="material-symbols-outlined text-3xl mb-2" style={{ color: 'rgba(255,255,255,0.15)' }}>
+              <span className="material-symbols-outlined text-3xl mb-2" style={{ color: 'var(--color-border-light)' }}>
                 search_off
               </span>
-              <p className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>
+              <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
                 이 사용자의 세션이 없습니다
               </p>
             </div>
@@ -518,18 +518,18 @@ export default function AdminUserDetailPage() {
         <div
           className="fixed bottom-0 left-0 right-0 px-4 py-3 flex items-center justify-between border-t"
           style={{
-            backgroundColor: '#1b1e2e',
-            borderColor: 'rgba(255,255,255,0.08)',
+            backgroundColor: 'var(--color-surface)',
+            borderColor: 'var(--color-border-light)',
             paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))',
           }}
         >
-          <span className="text-sm text-white font-medium">
+          <span className="text-sm text-txt font-medium">
             {selectedIds.size}건 선택됨
           </span>
           <button
             onClick={() => setShowCreate(true)}
-            className="px-4 py-2.5 rounded-xl text-sm font-semibold text-white flex items-center gap-1.5"
-            style={{ backgroundColor: '#1337ec' }}
+            className="px-4 py-2.5 rounded-xl text-sm font-semibold text-txt flex items-center gap-1.5"
+            style={{ backgroundColor: 'var(--color-accent)' }}
           >
             <span className="material-symbols-outlined text-base">add_box</span>
             데이터셋 생성

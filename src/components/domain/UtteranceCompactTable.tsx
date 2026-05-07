@@ -90,9 +90,9 @@ export const UtteranceCompactTable: React.FC<UtteranceCompactTableProps> = ({
                 <div className="w-8 flex-shrink-0">
                   <button
                     onClick={() => onToggleSelect(u.utteranceId)}
-                    className="p-1 hover:text-white transition-colors"
+                    className="p-1 hover:text-txt transition-colors"
                   >
-                    <span className="material-symbols-outlined text-[18px]" style={{ color: isSelected ? '#8b5cf6' : 'rgba(255,255,255,0.2)' }}>
+                    <span className="material-symbols-outlined text-[18px]" style={{ color: isSelected ? '#8b5cf6' : 'var(--color-border)' }}>
                       {isSelected ? 'check_box' : 'check_box_outline_blank'}
                     </span>
                   </button>
@@ -133,7 +133,7 @@ export const UtteranceCompactTable: React.FC<UtteranceCompactTableProps> = ({
                     className="p-1 hover:bg-white/10 rounded transition-colors"
                   >
                     <span className="material-symbols-outlined text-[18px]" style={{
-                      color: u.piiMasked ? '#22c55e' : (u.piiIntervals?.length ?? 0) > 0 ? '#eab308' : 'rgba(255,255,255,0.2)'
+                      color: u.piiMasked ? '#22c55e' : (u.piiIntervals?.length ?? 0) > 0 ? '#eab308' : 'var(--color-border)'
                     }}>
                       {u.piiMasked ? 'verified_user' : (u.piiIntervals?.length ?? 0) > 0 ? 'edit_note' : 'shield'}
                     </span>
@@ -147,7 +147,7 @@ export const UtteranceCompactTable: React.FC<UtteranceCompactTableProps> = ({
                     disabled={!u.audioUrl}
                     className="p-1 hover:bg-white/10 rounded transition-colors disabled:opacity-20"
                   >
-                    <span className="material-symbols-outlined text-[20px]" style={{ color: isPlaying ? '#8b5cf6' : 'rgba(255,255,255,0.4)' }}>
+                    <span className="material-symbols-outlined text-[20px]" style={{ color: isPlaying ? '#8b5cf6' : 'var(--color-text-tertiary)' }}>
                       {isPlaying ? 'pause_circle' : 'play_circle'}
                     </span>
                   </button>

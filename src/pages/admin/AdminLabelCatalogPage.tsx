@@ -33,7 +33,7 @@ export default function AdminLabelCatalogPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: '#1337ec', borderTopColor: 'transparent' }} />
+        <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--color-accent)', borderTopColor: 'transparent' }} />
       </div>
     )
   }
@@ -41,10 +41,10 @@ export default function AdminLabelCatalogPage() {
   if (allSessions.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
-        <span className="material-symbols-outlined text-4xl mb-3" style={{ color: 'rgba(255,255,255,0.2)' }}>
+        <span className="material-symbols-outlined text-4xl mb-3" style={{ color: 'var(--color-border)' }}>
           label_off
         </span>
-        <p className="text-sm" style={{ color: 'rgba(255,255,255,0.4)' }}>
+        <p className="text-sm" style={{ color: 'var(--color-text-tertiary)' }}>
           세션이 없습니다
         </p>
       </div>
@@ -79,11 +79,11 @@ export default function AdminLabelCatalogPage() {
 
 function SummaryCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="rounded-lg p-2.5 text-center" style={{ backgroundColor: '#1b1e2e' }}>
-      <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>{label}</p>
-      <p className="text-sm font-bold text-white mt-0.5">
+    <div className="rounded-lg p-2.5 text-center" style={{ backgroundColor: 'var(--color-surface)' }}>
+      <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>{label}</p>
+      <p className="text-sm font-bold text-txt mt-0.5">
         {value}
-        {sub && <span className="text-xs font-normal ml-1" style={{ color: 'rgba(255,255,255,0.3)' }}>{sub}</span>}
+        {sub && <span className="text-xs font-normal ml-1" style={{ color: 'var(--color-text-tertiary)' }}>{sub}</span>}
       </p>
     </div>
   )
@@ -120,15 +120,15 @@ function FieldCard({
   const fillColor = fillPct >= 80 ? '#22c55e' : fillPct >= 50 ? '#f59e0b' : '#ef4444'
 
   return (
-    <div className="rounded-xl p-4" style={{ backgroundColor: '#1b1e2e' }}>
+    <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--color-surface)' }}>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-white">{fieldLabel}</span>
+          <span className="text-sm font-semibold text-txt">{fieldLabel}</span>
           <span className="text-xs px-1.5 py-0.5 rounded" style={{ backgroundColor: `${fillColor}15`, color: fillColor }}>
             {fillPct}%
           </span>
         </div>
-        <span className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>
+        <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
           {coverage.filledCount}/{coverage.totalCount}건
         </span>
       </div>
@@ -139,20 +139,20 @@ function FieldCard({
           const barPct = maxCount > 0 ? (count / maxCount) * 100 : 0
           return (
             <div key={opt} className="flex items-center gap-2">
-              <span className="text-[11px] w-16 text-right truncate" style={{ color: 'rgba(255,255,255,0.5)' }}>
+              <span className="text-[11px] w-16 text-right truncate" style={{ color: 'var(--color-text-sub)' }}>
                 {opt}
               </span>
-              <div className="flex-1 h-2 rounded-full" style={{ backgroundColor: 'rgba(255,255,255,0.06)' }}>
+              <div className="flex-1 h-2 rounded-full" style={{ backgroundColor: 'var(--color-surface-alt)' }}>
                 <div
                   className="h-full rounded-full transition-all"
                   style={{
                     width: `${barPct}%`,
-                    backgroundColor: count > 0 ? '#1337ec' : 'transparent',
+                    backgroundColor: count > 0 ? 'var(--color-accent)' : 'transparent',
                     minWidth: count > 0 ? '2px' : '0',
                   }}
                 />
               </div>
-              <span className="text-[10px] w-8 text-right tabular-nums" style={{ color: count > 0 ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.15)' }}>
+              <span className="text-[10px] w-8 text-right tabular-nums" style={{ color: count > 0 ? 'var(--color-text-sub)' : 'var(--color-border-light)' }}>
                 {count}
               </span>
             </div>
@@ -164,16 +164,16 @@ function FieldCard({
           .filter(d => !options.includes(d.value))
           .map(d => (
             <div key={d.value} className="flex items-center gap-2">
-              <span className="text-[11px] w-16 text-right truncate italic" style={{ color: 'rgba(255,255,255,0.3)' }}>
+              <span className="text-[11px] w-16 text-right truncate italic" style={{ color: 'var(--color-text-tertiary)' }}>
                 {d.value}
               </span>
-              <div className="flex-1 h-2 rounded-full" style={{ backgroundColor: 'rgba(255,255,255,0.06)' }}>
+              <div className="flex-1 h-2 rounded-full" style={{ backgroundColor: 'var(--color-surface-alt)' }}>
                 <div
                   className="h-full rounded-full"
-                  style={{ width: `${(d.count / maxCount) * 100}%`, backgroundColor: 'rgba(255,255,255,0.2)', minWidth: '2px' }}
+                  style={{ width: `${(d.count / maxCount) * 100}%`, backgroundColor: 'var(--color-border)', minWidth: '2px' }}
                 />
               </div>
-              <span className="text-[10px] w-8 text-right tabular-nums" style={{ color: 'rgba(255,255,255,0.3)' }}>
+              <span className="text-[10px] w-8 text-right tabular-nums" style={{ color: 'var(--color-text-tertiary)' }}>
                 {d.count}
               </span>
             </div>

@@ -16,13 +16,13 @@ export default function AdminExportJobsPage() {
   return (
     <div className="p-4 space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold" style={{ color: 'rgba(255,255,255,0.7)' }}>
+        <h2 className="text-sm font-semibold" style={{ color: 'var(--color-text-sub)' }}>
           Export 작업 ({jobs.length}건)
         </h2>
         <button
           onClick={() => navigate('/admin/build')}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-white"
-          style={{ backgroundColor: '#1337ec' }}
+          className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-txt"
+          style={{ backgroundColor: 'var(--color-accent)' }}
         >
           <span className="material-symbols-outlined text-sm">add</span>
           새 빌드
@@ -30,12 +30,12 @@ export default function AdminExportJobsPage() {
       </div>
 
       {loading ? (
-        <div className="text-center py-12" style={{ color: 'rgba(255,255,255,0.4)' }}>
+        <div className="text-center py-12" style={{ color: 'var(--color-text-tertiary)' }}>
           <span className="material-symbols-outlined text-3xl animate-spin">progress_activity</span>
           <p className="text-xs mt-2">로딩 중...</p>
         </div>
       ) : jobs.length === 0 ? (
-        <div className="text-center py-12" style={{ color: 'rgba(255,255,255,0.4)' }}>
+        <div className="text-center py-12" style={{ color: 'var(--color-text-tertiary)' }}>
           <span className="material-symbols-outlined text-4xl">work_off</span>
           <p className="text-sm mt-2">작업 없음</p>
           <p className="text-xs mt-1">빌드 위자드에서 새 작업을 생성하세요</p>

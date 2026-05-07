@@ -14,11 +14,11 @@ export default function UtteranceReviewGuide() {
       >
         <div className="flex items-center gap-2">
           <span className="material-symbols-outlined text-sm" style={{ color: '#eab308' }}>lightbulb</span>
-          <span className="text-xs font-medium text-white">검수 가이드</span>
+          <span className="text-xs font-medium text-txt">검수 가이드</span>
         </div>
         <span
           className="material-symbols-outlined text-sm transition-transform"
-          style={{ color: 'rgba(255,255,255,0.4)', transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
+          style={{ color: 'var(--color-text-tertiary)', transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
         >
           expand_more
         </span>
@@ -30,7 +30,7 @@ export default function UtteranceReviewGuide() {
           <div className="space-y-2">
             <div className="flex items-center gap-1.5">
               <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#eab308' }}>hearing</span>
-              <span className="text-[11px] font-medium" style={{ color: 'rgba(255,255,255,0.7)' }}>들어서 판단</span>
+              <span className="text-[11px] font-medium" style={{ color: 'var(--color-text-sub)' }}>들어서 판단</span>
             </div>
             <ul className="space-y-1">
               {[
@@ -39,7 +39,7 @@ export default function UtteranceReviewGuide() {
                 '개인정보 beep 마스킹 누락',
                 '의미 없는 맞장구/감탄사만',
               ].map(item => (
-                <li key={item} className="text-[10px] flex items-start gap-1.5" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                <li key={item} className="text-[10px] flex items-start gap-1.5" style={{ color: 'var(--color-text-sub)' }}>
                   <span style={{ color: '#eab308', flexShrink: 0 }}>·</span>
                   {item}
                 </li>
@@ -51,7 +51,7 @@ export default function UtteranceReviewGuide() {
           <div className="space-y-2">
             <div className="flex items-center gap-1.5">
               <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#eab308' }}>analytics</span>
-              <span className="text-[11px] font-medium" style={{ color: 'rgba(255,255,255,0.7)' }}>수치로 판단</span>
+              <span className="text-[11px] font-medium" style={{ color: 'var(--color-text-sub)' }}>수치로 판단</span>
             </div>
             <ul className="space-y-1">
               {[
@@ -60,14 +60,14 @@ export default function UtteranceReviewGuide() {
                 { text: 'beep 30%+ (마스킹 과다)', tag: '자동' },
                 { text: '화자 식별 오류 (pseudoId 불일치)', tag: '수동' },
               ].map(item => (
-                <li key={item.text} className="text-[10px] flex items-start gap-1.5" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                <li key={item.text} className="text-[10px] flex items-start gap-1.5" style={{ color: 'var(--color-text-sub)' }}>
                   <span style={{ color: '#eab308', flexShrink: 0 }}>·</span>
                   <span className="flex-1">{item.text}</span>
                   <span
                     className="text-[8px] px-1 py-0.5 rounded flex-shrink-0"
                     style={{
-                      backgroundColor: item.tag === '자동' ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.06)',
-                      color: item.tag === '자동' ? '#60a5fa' : 'rgba(255,255,255,0.4)',
+                      backgroundColor: item.tag === '자동' ? 'rgba(59,130,246,0.15)' : 'var(--color-surface-alt)',
+                      color: item.tag === '자동' ? '#60a5fa' : 'var(--color-text-tertiary)',
                     }}
                   >
                     {item.tag}

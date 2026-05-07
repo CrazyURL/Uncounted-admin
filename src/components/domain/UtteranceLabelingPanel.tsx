@@ -87,18 +87,18 @@ export default function UtteranceLabelingPanel({ utterances, selectedIds, onUpda
   }, [utterances, targetIds])
 
   return (
-    <div className="rounded-xl overflow-hidden" style={{ backgroundColor: '#1b1e2e' }}>
+    <div className="rounded-xl overflow-hidden" style={{ backgroundColor: 'var(--color-surface)' }}>
       {/* Header */}
-      <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+      <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--color-border-light)' }}>
         <div className="flex items-center gap-2">
           <span className="material-symbols-outlined text-base" style={{ color: '#a78bfa' }}>label</span>
-          <span className="text-xs font-medium text-white">라벨링</span>
+          <span className="text-xs font-medium text-txt">라벨링</span>
           <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: 'rgba(139,92,246,0.15)', color: '#a78bfa' }}>
             {selectedIds.size > 0 ? `${selectedIds.size}건 선택` : '선택 없음'}
           </span>
         </div>
         {existingLabelSummary.labeled > 0 && (
-          <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.3)' }}>
+          <span className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>
             라벨 완료 {existingLabelSummary.labeled}/{existingLabelSummary.total}
           </span>
         )}
@@ -111,7 +111,7 @@ export default function UtteranceLabelingPanel({ utterances, selectedIds, onUpda
           className="text-[10px] px-3 py-1.5 rounded-lg font-medium transition-colors"
           style={{
             backgroundColor: activeTab === 'a02' ? 'rgba(139,92,246,0.15)' : 'transparent',
-            color: activeTab === 'a02' ? '#a78bfa' : 'rgba(255,255,255,0.4)',
+            color: activeTab === 'a02' ? '#a78bfa' : 'var(--color-text-tertiary)',
           }}
         >
           A02 라벨
@@ -121,7 +121,7 @@ export default function UtteranceLabelingPanel({ utterances, selectedIds, onUpda
           className="text-[10px] px-3 py-1.5 rounded-lg font-medium transition-colors"
           style={{
             backgroundColor: activeTab === 'a03' ? 'rgba(139,92,246,0.15)' : 'transparent',
-            color: activeTab === 'a03' ? '#a78bfa' : 'rgba(255,255,255,0.4)',
+            color: activeTab === 'a03' ? '#a78bfa' : 'var(--color-text-tertiary)',
           }}
         >
           A03 대화행위
@@ -134,7 +134,7 @@ export default function UtteranceLabelingPanel({ utterances, selectedIds, onUpda
           <>
             {(Object.entries(LABEL_DEFS) as [LabelKey, typeof LABEL_DEFS[LabelKey]][]).map(([key, def]) => (
               <div key={key}>
-                <p className="text-[10px] mb-1.5" style={{ color: 'rgba(255,255,255,0.4)' }}>{def.label}</p>
+                <p className="text-[10px] mb-1.5" style={{ color: 'var(--color-text-tertiary)' }}>{def.label}</p>
                 <div className="flex flex-wrap gap-1.5">
                   {def.options.map(opt => {
                     const active = currentLabels[key] === opt
@@ -144,8 +144,8 @@ export default function UtteranceLabelingPanel({ utterances, selectedIds, onUpda
                         onClick={() => handleChipSelect(key, opt)}
                         className="text-[10px] px-2.5 py-1 rounded-lg transition-colors"
                         style={{
-                          backgroundColor: active ? 'rgba(139,92,246,0.2)' : 'rgba(255,255,255,0.06)',
-                          color: active ? '#a78bfa' : 'rgba(255,255,255,0.5)',
+                          backgroundColor: active ? 'rgba(139,92,246,0.2)' : 'var(--color-surface-alt)',
+                          color: active ? '#a78bfa' : 'var(--color-text-sub)',
                           border: active ? '1px solid rgba(139,92,246,0.3)' : '1px solid transparent',
                         }}
                       >
@@ -162,7 +162,7 @@ export default function UtteranceLabelingPanel({ utterances, selectedIds, onUpda
         {activeTab === 'a03' && (
           <>
             <div>
-              <p className="text-[10px] mb-1.5" style={{ color: 'rgba(255,255,255,0.4)' }}>대화행위</p>
+              <p className="text-[10px] mb-1.5" style={{ color: 'var(--color-text-tertiary)' }}>대화행위</p>
               <div className="flex flex-wrap gap-1.5">
                 {DIALOG_ACT_OPTIONS.map(act => {
                   const active = currentLabels.dialogAct === act
@@ -172,8 +172,8 @@ export default function UtteranceLabelingPanel({ utterances, selectedIds, onUpda
                       onClick={() => handleDialogActSelect(act)}
                       className="text-[10px] px-2.5 py-1 rounded-lg transition-colors"
                       style={{
-                        backgroundColor: active ? 'rgba(139,92,246,0.2)' : 'rgba(255,255,255,0.06)',
-                        color: active ? '#a78bfa' : 'rgba(255,255,255,0.5)',
+                        backgroundColor: active ? 'rgba(139,92,246,0.2)' : 'var(--color-surface-alt)',
+                        color: active ? '#a78bfa' : 'var(--color-text-sub)',
                         border: active ? '1px solid rgba(139,92,246,0.3)' : '1px solid transparent',
                       }}
                     >
@@ -185,7 +185,7 @@ export default function UtteranceLabelingPanel({ utterances, selectedIds, onUpda
             </div>
 
             <div>
-              <p className="text-[10px] mb-1.5" style={{ color: 'rgba(255,255,255,0.4)' }}>강도</p>
+              <p className="text-[10px] mb-1.5" style={{ color: 'var(--color-text-tertiary)' }}>강도</p>
               <div className="flex gap-1.5">
                 {DIALOG_INTENSITY_OPTIONS.map(({ value, label }) => {
                   const active = currentLabels.dialogIntensity === value
@@ -195,8 +195,8 @@ export default function UtteranceLabelingPanel({ utterances, selectedIds, onUpda
                       onClick={() => handleIntensitySelect(value)}
                       className="text-[10px] px-3 py-1 rounded-lg transition-colors"
                       style={{
-                        backgroundColor: active ? 'rgba(139,92,246,0.2)' : 'rgba(255,255,255,0.06)',
-                        color: active ? '#a78bfa' : 'rgba(255,255,255,0.5)',
+                        backgroundColor: active ? 'rgba(139,92,246,0.2)' : 'var(--color-surface-alt)',
+                        color: active ? '#a78bfa' : 'var(--color-text-sub)',
                         border: active ? '1px solid rgba(139,92,246,0.3)' : '1px solid transparent',
                       }}
                     >
@@ -211,14 +211,14 @@ export default function UtteranceLabelingPanel({ utterances, selectedIds, onUpda
       </div>
 
       {/* Apply button */}
-      <div className="px-4 py-3 space-y-1.5" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+      <div className="px-4 py-3 space-y-1.5" style={{ borderTop: '1px solid var(--color-border-light)' }}>
         <button
           onClick={handleApply}
           disabled={!hasLabels || targetIds.length === 0}
           className="w-full text-xs py-2 rounded-lg font-medium transition-colors disabled:cursor-not-allowed"
           style={{
-            backgroundColor: !hasLabels || targetIds.length === 0 ? 'rgba(255,255,255,0.06)' : '#8b5cf6',
-            color: !hasLabels || targetIds.length === 0 ? 'rgba(255,255,255,0.3)' : '#ffffff',
+            backgroundColor: !hasLabels || targetIds.length === 0 ? 'var(--color-surface-alt)' : '#8b5cf6',
+            color: !hasLabels || targetIds.length === 0 ? 'var(--color-text-tertiary)' : '#ffffff',
           }}
         >
           <span className="material-symbols-outlined text-sm mr-1" style={{ verticalAlign: 'middle' }}>check</span>
@@ -227,7 +227,7 @@ export default function UtteranceLabelingPanel({ utterances, selectedIds, onUpda
             : `선택 ${targetIds.length}건에 적용`}
         </button>
         {targetIds.length > 0 && !hasLabels && (
-          <p className="text-[10px] text-center" style={{ color: 'rgba(255,255,255,0.35)' }}>
+          <p className="text-[10px] text-center" style={{ color: 'var(--color-text-tertiary)' }}>
             위에서 라벨 칩을 하나 이상 선택하면 적용할 수 있습니다.
           </p>
         )}

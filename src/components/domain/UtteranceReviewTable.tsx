@@ -46,7 +46,7 @@ function PiiButton({ utterance, onPiiEdit }: { utterance: ExportUtterance; onPii
   const version = utterance.piiMaskVersion ?? 0
 
   let icon = 'shield'
-  let color = 'rgba(255,255,255,0.35)'
+  let color = 'var(--color-text-tertiary)'
   let tooltip = 'PII 구간 없음'
   if (masked) {
     icon = 'verified_user'
@@ -128,7 +128,7 @@ function UtteranceCard({
               ? 'rgba(239,68,68,0.06)'
               : isSelected
                 ? 'rgba(139,92,246,0.08)'
-                : '#1b1e2e',
+                : 'var(--color-surface)',
         border: isPiiEditing
           ? '3px solid rgba(239,68,68,0.7)'
           : isPlaying
@@ -137,7 +137,7 @@ function UtteranceCard({
               ? '1px solid #8b5cf6'
               : isSelected
                 ? '1px solid rgba(139,92,246,0.3)'
-                : '1px solid rgba(255,255,255,0.06)',
+                : '1px solid var(--color-border-light)',
         opacity: u.isIncluded ? 1 : 0.5,
         boxShadow: isPlaying ? '0 0 12px rgba(99,102,241,0.3)' : undefined,
       }}
@@ -149,7 +149,7 @@ function UtteranceCard({
         <div className="absolute top-0 left-0 bottom-0 w-1 bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)]" />
       )}
 
-      <div className="flex items-center justify-between gap-3 mb-3 text-white">
+      <div className="flex items-center justify-between gap-3 mb-3 text-txt">
         <div className="flex items-center gap-3 min-w-0">
           <button
             onClick={() => onToggleSelect(u.utteranceId)}
@@ -157,7 +157,7 @@ function UtteranceCard({
           >
             <span
               className="material-symbols-outlined"
-              style={{ fontSize: '24px', color: isSelected ? '#8b5cf6' : 'rgba(255,255,255,0.3)' }}
+              style={{ fontSize: '24px', color: isSelected ? '#8b5cf6' : 'var(--color-text-tertiary)' }}
             >
               {isSelected ? 'check_box' : 'check_box_outline_blank'}
             </span>
@@ -170,7 +170,7 @@ function UtteranceCard({
             >
               {u.utteranceId.slice(0, 16)}
             </p>
-            <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
+            <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
               {u.pseudoId?.slice(0, 10) ?? '—'}
             </p>
           </div>
@@ -191,7 +191,7 @@ function UtteranceCard({
           >
             <span
               className="material-symbols-outlined"
-              style={{ fontSize: '24px', color: isPlaying ? '#8b5cf6' : 'rgba(255,255,255,0.5)' }}
+              style={{ fontSize: '24px', color: isPlaying ? '#8b5cf6' : 'var(--color-text-sub)' }}
             >
               {isPlaying ? 'pause_circle' : 'play_circle'}
             </span>
@@ -217,38 +217,38 @@ function UtteranceCard({
         </span>
 
         <div className="flex items-center gap-1.5">
-          <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'rgba(255,255,255,0.4)' }}>person</span>
-          <span className="text-xs font-mono" style={{ color: 'rgba(255,255,255,0.6)' }}>
+          <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--color-text-tertiary)' }}>person</span>
+          <span className="text-xs font-mono" style={{ color: 'var(--color-text-sub)' }}>
             {u.speakerId ?? '—'}
           </span>
           {speakerMeta && (
-            <span className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>
+            <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
               ({speakerMeta})
             </span>
           )}
         </div>
 
         <div className="flex items-center gap-1.5">
-          <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'rgba(255,255,255,0.4)' }}>schedule</span>
-          <span className="text-xs" style={{ color: 'rgba(255,255,255,0.6)' }}>
+          <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--color-text-tertiary)' }}>schedule</span>
+          <span className="text-xs" style={{ color: 'var(--color-text-sub)' }}>
             {u.startSec.toFixed(1)}s ~ {u.endSec.toFixed(1)}s
           </span>
-          <span className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.8)' }}>
+          <span className="text-xs font-semibold" style={{ color: 'var(--color-text)' }}>
             ({formatDuration(u.durationSec)})
           </span>
         </div>
       </div>
 
       <div className="flex items-center gap-3 flex-wrap">
-        <span className="text-xs px-2.5 py-1 rounded-md" style={{ backgroundColor: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.6)' }}>
+        <span className="text-xs px-2.5 py-1 rounded-md" style={{ backgroundColor: 'var(--color-surface-alt)', color: 'var(--color-text-sub)' }}>
           SNR {u.snrDb.toFixed(1)}dB
         </span>
 
         <span
           className="text-xs px-2.5 py-1 rounded-md"
           style={{
-            backgroundColor: (u.beepMaskRatio ?? 0) >= 0.3 ? 'rgba(249,115,22,0.1)' : 'rgba(255,255,255,0.05)',
-            color: (u.beepMaskRatio ?? 0) >= 0.3 ? '#f97316' : 'rgba(255,255,255,0.6)',
+            backgroundColor: (u.beepMaskRatio ?? 0) >= 0.3 ? 'rgba(249,115,22,0.1)' : 'var(--color-surface-alt)',
+            color: (u.beepMaskRatio ?? 0) >= 0.3 ? '#f97316' : 'var(--color-text-sub)',
           }}
         >
           beep {((u.beepMaskRatio ?? 0) * 100).toFixed(0)}%
@@ -267,7 +267,7 @@ function UtteranceCard({
       </div>
 
       {showLabels && (
-        <div className="flex flex-wrap gap-1.5 mt-3 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+        <div className="flex flex-wrap gap-1.5 mt-3 pt-3" style={{ borderTop: '1px solid var(--color-border-light)' }}>
           {u.labels && LABEL_FIELDS.some(f => (u.labels as Record<string, unknown>)?.[f.key] != null) ? (
             LABEL_FIELDS.map(({ key, label }) => {
               const val = (u.labels as Record<string, unknown>)?.[key]
@@ -283,7 +283,7 @@ function UtteranceCard({
               )
             })
           ) : (
-            <span className="text-xs" style={{ color: 'rgba(255,255,255,0.25)' }}>라벨 없음</span>
+            <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>라벨 없음</span>
           )}
         </div>
       )}
@@ -371,7 +371,7 @@ export default function UtteranceReviewTable({
   return (
     <div className="space-y-4">
       {playback.mode === 'continuous' && (
-        <div className="bg-indigo-600 text-white px-4 py-2 rounded-lg shadow-lg">
+        <div className="bg-indigo-600 text-txt px-4 py-2 rounded-lg shadow-lg">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className={`material-symbols-outlined${playback.status === 'playing' ? ' animate-pulse' : ''}`}>autoplay</span>
@@ -482,7 +482,7 @@ export default function UtteranceReviewTable({
       {/* Summary Bar */}
       <div className="flex items-center justify-between rounded-xl px-5 py-4 bg-[#1b1e2e]">
         <div className="flex items-center gap-4 text-sm text-gray-400">
-          <span>총 <strong className="text-white">{summary.total}</strong>개 발화</span>
+          <span>총 <strong className="text-txt">{summary.total}</strong>개 발화</span>
           <span className="w-px h-4 bg-white/10" />
           <span>선택됨 <strong className="text-green-500">{summary.included}</strong>개</span>
           <span className="w-px h-4 bg-white/10" />
@@ -492,7 +492,7 @@ export default function UtteranceReviewTable({
         <div className="flex items-center gap-3">
           <button
             onClick={() => onStartContinuous()}
-            className="flex items-center gap-2 text-sm px-4 py-2 rounded-lg font-medium bg-white/10 text-white hover:bg-white/20 transition-colors"
+            className="flex items-center gap-2 text-sm px-4 py-2 rounded-lg font-medium bg-white/10 text-txt hover:bg-white/20 transition-colors"
           >
             <span className="material-symbols-outlined">play_arrow</span>
             순차 재생
@@ -502,7 +502,7 @@ export default function UtteranceReviewTable({
             <button
               onClick={onFinalize}
               disabled={summary.included === 0}
-              className="flex items-center gap-2 text-sm px-5 py-2.5 rounded-lg font-medium text-white transition-colors disabled:opacity-30 bg-indigo-600 hover:bg-indigo-700"
+              className="flex items-center gap-2 text-sm px-5 py-2.5 rounded-lg font-medium text-txt transition-colors disabled:opacity-30 bg-indigo-600 hover:bg-indigo-700"
             >
               <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>package_2</span>
               패키징 확정

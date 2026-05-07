@@ -117,14 +117,14 @@ export default function MetadataEventPreview({
         <span className="material-symbols-outlined text-2xl animate-spin" style={{ color: '#8b5cf6' }}>
           progress_activity
         </span>
-        <p className="text-xs mt-2" style={{ color: 'rgba(255,255,255,0.4)' }}>프리뷰 로딩 중...</p>
+        <p className="text-xs mt-2" style={{ color: 'var(--color-text-tertiary)' }}>프리뷰 로딩 중...</p>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="rounded-xl p-4" style={{ backgroundColor: '#1b1e2e' }}>
+      <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--color-surface)' }}>
         <p className="text-xs" style={{ color: '#ef4444' }}>{error}</p>
       </div>
     )
@@ -160,30 +160,30 @@ export default function MetadataEventPreview({
       ))}
 
       {/* Sample event table — columns per SKU */}
-      <div className="rounded-xl overflow-hidden" style={{ backgroundColor: '#1b1e2e' }}>
-        <div className="px-3 py-2 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-          <h3 className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.5)' }}>
+      <div className="rounded-xl overflow-hidden" style={{ backgroundColor: 'var(--color-surface)' }}>
+        <div className="px-3 py-2 flex items-center justify-between" style={{ borderBottom: '1px solid var(--color-border-light)' }}>
+          <h3 className="text-xs font-semibold" style={{ color: 'var(--color-text-sub)' }}>
             샘플 이벤트
           </h3>
-          <span className="text-[10px] font-mono" style={{ color: 'rgba(255,255,255,0.3)' }}>
+          <span className="text-[10px] font-mono" style={{ color: 'var(--color-text-tertiary)' }}>
             {events.length} / {preview.total.toLocaleString()}건
           </span>
         </div>
 
         {events.length === 0 ? (
-          <div className="p-4 text-center" style={{ color: 'rgba(255,255,255,0.3)' }}>
+          <div className="p-4 text-center" style={{ color: 'var(--color-text-tertiary)' }}>
             <p className="text-xs">이벤트 없음</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                <tr style={{ borderBottom: '1px solid var(--color-border-light)' }}>
                   {displayFields.map(field => (
                     <th
                       key={field}
                       className="text-left p-2 font-medium text-[10px] whitespace-nowrap"
-                      style={{ color: 'rgba(255,255,255,0.4)' }}
+                      style={{ color: 'var(--color-text-tertiary)' }}
                     >
                       {field}
                     </th>
@@ -194,7 +194,7 @@ export default function MetadataEventPreview({
                 {events.map((ev: Record<string, unknown>, idx: number) => {
                   const payload = (ev.payload ?? {}) as Record<string, unknown>
                   return (
-                    <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                    <tr key={idx} style={{ borderBottom: '1px solid var(--color-border-light)' }}>
                       {displayFields.map(field => {
                         // pseudoId는 top-level, 나머지는 payload 안
                         const value = field === 'pseudoId'
@@ -206,7 +206,7 @@ export default function MetadataEventPreview({
                           <td
                             key={field}
                             className="p-2 font-mono text-[11px] whitespace-nowrap"
-                            style={{ color: 'rgba(255,255,255,0.6)' }}
+                            style={{ color: 'var(--color-text-sub)' }}
                           >
                             {value != null ? String(value) : '-'}
                           </td>

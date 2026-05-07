@@ -42,18 +42,18 @@ export function AudioStepProcess({
           <span className="material-symbols-outlined text-lg" style={{ color: '#22c55e' }}>check_circle</span>
           <div>
             <p className="text-xs font-medium" style={{ color: '#22c55e' }}>클라이언트 발화 사용</p>
-            <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>
+            <p className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>
               이미 {reviewUtterances.length}건의 발화가 존재합니다. Segmentation을 건너뛰고 검수로 진행할 수 있습니다.
             </p>
           </div>
         </div>
       )}
 
-      <div className="rounded-xl p-6 text-center" style={{ backgroundColor: '#1b1e2e' }}>
+      <div className="rounded-xl p-6 text-center" style={{ backgroundColor: 'var(--color-surface)' }}>
         {processPhase === 'idle' ? (
           <>
-            <span className="material-symbols-outlined text-4xl mb-3 block" style={{ color: '#1337ec' }}>rocket_launch</span>
-            <p className="text-xs mb-4" style={{ color: 'rgba(255,255,255,0.5)' }}>
+            <span className="material-symbols-outlined text-4xl mb-3 block" style={{ color: 'var(--color-accent)' }}>rocket_launch</span>
+            <p className="text-xs mb-4" style={{ color: 'var(--color-text-sub)' }}>
               {reviewUtterances.length > 0
                 ? '기존 발화를 사용하거나 다시 처리할 수 있습니다'
                 : '처리를 시작하면 추출 → 분석 → 분할 순서로 진행됩니다'}
@@ -61,15 +61,15 @@ export function AudioStepProcess({
             <div className="flex items-center justify-center gap-2">
               <button
                 onClick={onStartProcess}
-                className="text-xs px-6 py-2 rounded-lg font-medium text-white"
-                style={{ backgroundColor: '#1337ec' }}
+                className="text-xs px-6 py-2 rounded-lg font-medium text-txt"
+                style={{ backgroundColor: 'var(--color-accent)' }}
               >
                 {reviewUtterances.length > 0 ? '다시 처리' : '처리 시작'}
               </button>
               {reviewUtterances.length > 0 && (
                 <button
                   onClick={() => onSetStep(6)}
-                  className="text-xs px-6 py-2 rounded-lg font-medium text-white"
+                  className="text-xs px-6 py-2 rounded-lg font-medium text-txt"
                   style={{ backgroundColor: '#22c55e' }}
                 >
                   검수로 건너뛰기
@@ -81,12 +81,12 @@ export function AudioStepProcess({
           <>
             <div className="flex items-center justify-center gap-2 mb-4">
               {processPhase !== 'done' && (
-                <span className="material-symbols-outlined text-xl animate-spin" style={{ color: '#1337ec' }}>progress_activity</span>
+                <span className="material-symbols-outlined text-xl animate-spin" style={{ color: 'var(--color-accent)' }}>progress_activity</span>
               )}
               {processPhase === 'done' && (
                 <span className="material-symbols-outlined text-xl" style={{ color: '#22c55e' }}>check_circle</span>
               )}
-              <span className="text-sm font-medium text-white">
+              <span className="text-sm font-medium text-txt">
                 {processPhase === 'extracting' && '음성 추출 중...'}
                 {processPhase === 'analyzing' && '품질 분석 중...'}
                 {processPhase === 'splitting' && '발화 분할 중...'}
@@ -94,22 +94,22 @@ export function AudioStepProcess({
               </span>
             </div>
 
-            <div className="w-full h-2 rounded-full mb-2" style={{ backgroundColor: 'rgba(255,255,255,0.06)' }}>
+            <div className="w-full h-2 rounded-full mb-2" style={{ backgroundColor: 'var(--color-surface-alt)' }}>
               <div
                 className="h-full rounded-full transition-all duration-300"
-                style={{ width: `${processProgress}%`, backgroundColor: processPhase === 'done' ? '#22c55e' : '#1337ec' }}
+                style={{ width: `${processProgress}%`, backgroundColor: processPhase === 'done' ? '#22c55e' : 'var(--color-accent)' }}
               />
             </div>
-            <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.3)' }}>{processProgress}%</p>
+            <p className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>{processProgress}%</p>
 
-            <div className="flex justify-between mt-4 text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>
+            <div className="flex justify-between mt-4 text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>
               {['추출', '분석', '분할'].map((label, i) => {
                 const phases = ['extracting', 'analyzing', 'splitting']
                 const phaseIdx = phases.indexOf(processPhase)
                 const done = processPhase === 'done' || phaseIdx > i
                 const active = phaseIdx === i
                 return (
-                  <span key={label} style={{ color: done ? '#22c55e' : active ? '#1337ec' : undefined }}>
+                  <span key={label} style={{ color: done ? '#22c55e' : active ? 'var(--color-accent)' : undefined }}>
                     {done ? '✓ ' : active ? '● ' : '○ '}{label}
                   </span>
                 )
@@ -119,8 +119,8 @@ export function AudioStepProcess({
             {processPhase === 'done' && (
               <button
                 onClick={() => onSetStep(6)}
-                className="mt-4 text-xs px-6 py-2 rounded-lg font-medium text-white"
-                style={{ backgroundColor: '#1337ec' }}
+                className="mt-4 text-xs px-6 py-2 rounded-lg font-medium text-txt"
+                style={{ backgroundColor: 'var(--color-accent)' }}
               >
                 검수 진행
               </button>
@@ -218,9 +218,9 @@ export function AudioStepReview({
           <span className="material-symbols-outlined text-sm mt-0.5" style={{ color: '#f59e0b' }}>warning</span>
           <div>
             <p className="text-xs font-medium" style={{ color: '#f59e0b' }}>발화량 부족 경고</p>
-            <p className="text-[11px] mt-0.5" style={{ color: 'rgba(255,255,255,0.5)' }}>
-              전체 발화를 포함해도 <strong style={{ color: 'rgba(255,255,255,0.8)' }}>{totalAvailableMin.toFixed(1)}분</strong>으로,
-              요청 수량 <strong style={{ color: 'rgba(255,255,255,0.8)' }}>{requestedUnits}분</strong>에 미달합니다. 그대로 확정하거나 수량 단계로 돌아가 조정할 수 있습니다.
+            <p className="text-[11px] mt-0.5" style={{ color: 'var(--color-text-sub)' }}>
+              전체 발화를 포함해도 <strong style={{ color: 'var(--color-text)' }}>{totalAvailableMin.toFixed(1)}분</strong>으로,
+              요청 수량 <strong style={{ color: 'var(--color-text)' }}>{requestedUnits}분</strong>에 미달합니다. 그대로 확정하거나 수량 단계로 돌아가 조정할 수 있습니다.
             </p>
             <button
               onClick={() => onSetStep(2)}

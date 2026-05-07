@@ -109,7 +109,7 @@ export default function AdminMetadataExportPage() {
   if (error && skus.length === 0) {
     return (
       <div className="p-4">
-        <div className="rounded-xl p-4" style={{ backgroundColor: '#1b1e2e' }}>
+        <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--color-surface)' }}>
           <p style={{ color: '#ef4444' }}>{error}</p>
         </div>
       </div>
@@ -123,13 +123,13 @@ export default function AdminMetadataExportPage() {
         <div>
           <h2
             className="text-sm font-semibold"
-            style={{ color: 'rgba(255,255,255,0.7)' }}
+            style={{ color: 'var(--color-text-sub)' }}
           >
             메타데이터 추출
           </h2>
           <p
             className="text-xs mt-0.5"
-            style={{ color: 'rgba(255,255,255,0.35)' }}
+            style={{ color: 'var(--color-text-tertiary)' }}
           >
             SKU를 선택하여 납품 데이터를 구성하세요
           </p>
@@ -143,11 +143,11 @@ export default function AdminMetadataExportPage() {
               backgroundColor:
                 selectedIds.size === skus.length
                   ? 'rgba(139,92,246,0.2)'
-                  : 'rgba(255,255,255,0.06)',
+                  : 'var(--color-surface-alt)',
               color:
                 selectedIds.size === skus.length
                   ? '#8b5cf6'
-                  : 'rgba(255,255,255,0.5)',
+                  : 'var(--color-text-sub)',
             }}
           >
             {selectedIds.size === skus.length ? '전체 해제' : '전체 선택'}
@@ -164,7 +164,7 @@ export default function AdminMetadataExportPage() {
             border: '1px solid rgba(139,92,246,0.2)',
           }}
         >
-          <span className="text-xs" style={{ color: 'rgba(255,255,255,0.6)' }}>
+          <span className="text-xs" style={{ color: 'var(--color-text-sub)' }}>
             <span className="font-semibold" style={{ color: '#8b5cf6' }}>
               {selectedIds.size}
             </span>
@@ -180,7 +180,7 @@ export default function AdminMetadataExportPage() {
       {loading ? (
         <div
           className="text-center py-12"
-          style={{ color: 'rgba(255,255,255,0.4)' }}
+          style={{ color: 'var(--color-text-tertiary)' }}
         >
           <span className="material-symbols-outlined text-3xl animate-spin">
             progress_activity
@@ -190,7 +190,7 @@ export default function AdminMetadataExportPage() {
       ) : skus.length === 0 ? (
         <div
           className="text-center py-12"
-          style={{ color: 'rgba(255,255,255,0.4)' }}
+          style={{ color: 'var(--color-text-tertiary)' }}
         >
           <span className="material-symbols-outlined text-4xl">
             inventory_2

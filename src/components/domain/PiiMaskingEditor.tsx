@@ -345,12 +345,12 @@ export default function PiiMaskingEditor({ utteranceId, jobId, onMaskApplied }: 
   }, [utteranceId, intervals, jobId, onMaskApplied])
 
   return (
-    <div className="rounded-xl overflow-hidden" style={{ backgroundColor: '#1b1e2e' }}>
+    <div className="rounded-xl overflow-hidden" style={{ backgroundColor: 'var(--color-surface)' }}>
       {/* Header */}
-      <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+      <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--color-border-light)' }}>
         <div className="flex items-center gap-2">
           <span className="material-symbols-outlined text-base" style={{ color: '#ef4444' }}>security</span>
-          <span className="text-xs font-medium text-white">PII 마스킹 에디터</span>
+          <span className="text-xs font-medium text-txt">PII 마스킹 에디터</span>
         </div>
         <div className="flex items-center gap-2">
           {hasBackup && (
@@ -361,7 +361,7 @@ export default function PiiMaskingEditor({ utteranceId, jobId, onMaskApplied }: 
               마스킹됨
             </span>
           )}
-          <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.3)' }}>
+          <span className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>
             {intervals.length}개 구간
             {intervals.filter(i => i.source === 'auto').length > 0 && (
               <> (자동 {intervals.filter(i => i.source === 'auto').length})</>
@@ -373,12 +373,12 @@ export default function PiiMaskingEditor({ utteranceId, jobId, onMaskApplied }: 
       {maskAudit?.piiMasked ? (
         <div
           className="px-4 py-2 flex items-center gap-2 text-[10px]"
-          style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', backgroundColor: 'rgba(34,197,94,0.04)' }}
+          style={{ borderBottom: '1px solid var(--color-border-light)', backgroundColor: 'rgba(34,197,94,0.04)' }}
         >
           <span className="material-symbols-outlined text-xs" style={{ color: '#22c55e' }}>verified_user</span>
-          <span style={{ color: 'rgba(255,255,255,0.6)' }}>
+          <span style={{ color: 'var(--color-text-sub)' }}>
             마지막 적용:{' '}
-            <span style={{ color: 'rgba(255,255,255,0.9)' }}>
+            <span style={{ color: 'var(--color-text)' }}>
               {maskAudit.piiMaskedByEmail ?? maskAudit.piiMaskedBy ?? 'unknown'}
             </span>
             {' · '}
@@ -393,10 +393,10 @@ export default function PiiMaskingEditor({ utteranceId, jobId, onMaskApplied }: 
       ) : hasBackup ? (
         <div
           className="px-4 py-2 flex items-center gap-2 text-[10px]"
-          style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', backgroundColor: 'rgba(245,158,11,0.04)' }}
+          style={{ borderBottom: '1px solid var(--color-border-light)', backgroundColor: 'rgba(245,158,11,0.04)' }}
         >
           <span className="material-symbols-outlined text-xs" style={{ color: '#f59e0b' }}>history</span>
-          <span style={{ color: 'rgba(255,255,255,0.6)' }}>
+          <span style={{ color: 'var(--color-text-sub)' }}>
             이전에 마스킹된 발화 (작업자 정보 없음 — 036 마이그레이션 이전)
           </span>
         </div>
@@ -413,7 +413,7 @@ export default function PiiMaskingEditor({ utteranceId, jobId, onMaskApplied }: 
       </div>
 
       {/* Playback + New region defaults */}
-      <div className="px-4 pb-3 flex items-center gap-3 flex-wrap" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+      <div className="px-4 pb-3 flex items-center gap-3 flex-wrap" style={{ borderBottom: '1px solid var(--color-border-light)' }}>
         <button
           onClick={handlePlayPause}
           disabled={loading}
@@ -426,14 +426,14 @@ export default function PiiMaskingEditor({ utteranceId, jobId, onMaskApplied }: 
           {isPlaying ? '일시정지' : '재생'}
         </button>
 
-        <div className="w-px h-4" style={{ backgroundColor: 'rgba(255,255,255,0.08)' }} />
+        <div className="w-px h-4" style={{ backgroundColor: 'var(--color-border-light)' }} />
 
-        <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.3)' }}>새 구간 기본값:</span>
+        <span className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>새 구간 기본값:</span>
         <select
           value={newPiiType}
           onChange={e => setNewPiiType(e.target.value)}
           className="text-[10px] px-2 py-1 rounded-lg outline-none"
-          style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.1)' }}
+          style={{ backgroundColor: 'var(--color-surface-alt)', color: 'var(--color-text-sub)', border: '1px solid var(--color-border-light)' }}
         >
           {PII_TYPES.map(t => (
             <option key={t} value={t}>{t}</option>
@@ -443,7 +443,7 @@ export default function PiiMaskingEditor({ utteranceId, jobId, onMaskApplied }: 
           value={newMaskType}
           onChange={e => handleMaskTypeChange(e.target.value as 'beep' | 'silence')}
           className="text-[10px] px-2 py-1 rounded-lg outline-none"
-          style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.1)' }}
+          style={{ backgroundColor: 'var(--color-surface-alt)', color: 'var(--color-text-sub)', border: '1px solid var(--color-border-light)' }}
         >
           {MASK_TYPES.map(t => (
             <option key={t.value} value={t.value}>{t.label}</option>
@@ -454,7 +454,7 @@ export default function PiiMaskingEditor({ utteranceId, jobId, onMaskApplied }: 
       {/* Interval list */}
       <div className="px-4 py-3 space-y-1.5 max-h-[200px] overflow-y-auto">
         {intervals.length === 0 && (
-          <p className="text-[10px] text-center py-3" style={{ color: 'rgba(255,255,255,0.3)' }}>
+          <p className="text-[10px] text-center py-3" style={{ color: 'var(--color-text-tertiary)' }}>
             파형 위에서 드래그하여 PII 구간을 추가하세요
           </p>
         )}
@@ -466,7 +466,7 @@ export default function PiiMaskingEditor({ utteranceId, jobId, onMaskApplied }: 
               onClick={() => setSelectedIntervalId(interval.id)}
               className="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors"
               style={{
-                backgroundColor: isSelected ? 'rgba(139,92,246,0.1)' : 'rgba(255,255,255,0.03)',
+                backgroundColor: isSelected ? 'rgba(139,92,246,0.1)' : 'var(--color-surface-alt)',
                 border: isSelected ? '1px solid rgba(139,92,246,0.2)' : '1px solid transparent',
               }}
             >
@@ -477,7 +477,7 @@ export default function PiiMaskingEditor({ utteranceId, jobId, onMaskApplied }: 
               />
 
               {/* Time range */}
-              <span className="text-[10px] font-mono" style={{ color: 'rgba(255,255,255,0.5)' }}>
+              <span className="text-[10px] font-mono" style={{ color: 'var(--color-text-sub)' }}>
                 {interval.startSec.toFixed(2)}s – {interval.endSec.toFixed(2)}s
               </span>
 
@@ -487,7 +487,7 @@ export default function PiiMaskingEditor({ utteranceId, jobId, onMaskApplied }: 
                 onChange={e => handleUpdateInterval(interval.id, { piiType: e.target.value })}
                 onClick={e => e.stopPropagation()}
                 className="text-[10px] px-1.5 py-0.5 rounded outline-none"
-                style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.1)' }}
+                style={{ backgroundColor: 'var(--color-surface-alt)', color: 'var(--color-text-sub)', border: '1px solid var(--color-border-light)' }}
               >
                 {PII_TYPES.map(t => (
                   <option key={t} value={t}>{t}</option>
@@ -500,7 +500,7 @@ export default function PiiMaskingEditor({ utteranceId, jobId, onMaskApplied }: 
                 onChange={e => handleUpdateInterval(interval.id, { maskType: e.target.value as 'beep' | 'silence' })}
                 onClick={e => e.stopPropagation()}
                 className="text-[10px] px-1.5 py-0.5 rounded outline-none"
-                style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.1)' }}
+                style={{ backgroundColor: 'var(--color-surface-alt)', color: 'var(--color-text-sub)', border: '1px solid var(--color-border-light)' }}
               >
                 {MASK_TYPES.map(t => (
                   <option key={t.value} value={t.value}>{t.label}</option>
@@ -523,7 +523,7 @@ export default function PiiMaskingEditor({ utteranceId, jobId, onMaskApplied }: 
                 onClick={e => { e.stopPropagation(); handleDeleteInterval(interval.id) }}
                 className="ml-auto flex-shrink-0"
               >
-                <span className="material-symbols-outlined" style={{ fontSize: '14px', color: 'rgba(255,255,255,0.3)' }}>close</span>
+                <span className="material-symbols-outlined" style={{ fontSize: '14px', color: 'var(--color-text-tertiary)' }}>close</span>
               </button>
             </div>
           )
@@ -538,12 +538,12 @@ export default function PiiMaskingEditor({ utteranceId, jobId, onMaskApplied }: 
       )}
 
       {/* Actions */}
-      <div className="px-4 py-3 flex gap-2 flex-wrap" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+      <div className="px-4 py-3 flex gap-2 flex-wrap" style={{ borderTop: '1px solid var(--color-border-light)' }}>
         <button
           onClick={handleRestoreOriginal}
           disabled={!hasBackup || restoring || loading}
           className="text-xs px-3 py-2 rounded-lg font-medium transition-colors disabled:opacity-30"
-          style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)' }}
+          style={{ backgroundColor: 'var(--color-surface-alt)', color: 'var(--color-text-sub)' }}
         >
           {restoring ? '복원 중...' : '원본 초기화'}
         </button>
@@ -551,22 +551,22 @@ export default function PiiMaskingEditor({ utteranceId, jobId, onMaskApplied }: 
           onClick={handleReloadAudio}
           disabled={!isPreviewActive || loading}
           className="text-xs px-3 py-2 rounded-lg font-medium transition-colors disabled:opacity-30"
-          style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)' }}
+          style={{ backgroundColor: 'var(--color-surface-alt)', color: 'var(--color-text-sub)' }}
         >
           원본 복구
         </button>
         <button
           onClick={handleSave}
           disabled={saving || loading}
-          className="flex-1 text-xs py-2 rounded-lg font-medium text-white transition-colors disabled:opacity-30"
-          style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}
+          className="flex-1 text-xs py-2 rounded-lg font-medium text-txt transition-colors disabled:opacity-30"
+          style={{ backgroundColor: 'var(--color-border-light)' }}
         >
           {saving ? '저장 중...' : '저장'}
         </button>
         <button
           onClick={handleApplyMask}
           disabled={applying || loading || intervals.length === 0}
-          className="flex-1 text-xs py-2 rounded-lg font-medium text-white transition-colors disabled:opacity-30"
+          className="flex-1 text-xs py-2 rounded-lg font-medium text-txt transition-colors disabled:opacity-30"
           style={{ backgroundColor: '#ef4444' }}
         >
           <span className="material-symbols-outlined text-sm mr-1" style={{ verticalAlign: 'middle' }}>security</span>

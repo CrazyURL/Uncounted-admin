@@ -115,33 +115,33 @@ export default function MetadataExportConfirm({
     return (
       <>
         <LoadingOverlay isVisible={submitting} message="패키지 생성 중입니다..." />
-      <div className="rounded-xl p-4 space-y-3" style={{ backgroundColor: '#1b1e2e' }}>
-        <h3 className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.5)' }}>
+      <div className="rounded-xl p-4 space-y-3" style={{ backgroundColor: 'var(--color-surface)' }}>
+        <h3 className="text-xs font-semibold" style={{ color: 'var(--color-text-sub)' }}>
           패키지 확정
         </h3>
 
         {/* Summary */}
         <div
           className="rounded-lg p-3 grid grid-cols-3 gap-2 text-center"
-          style={{ backgroundColor: 'rgba(255,255,255,0.04)' }}
+          style={{ backgroundColor: 'var(--color-surface-alt)' }}
         >
           <div>
             <p className="text-sm font-bold font-mono" style={{ color: '#8b5cf6' }}>
               {displayEvents.toLocaleString()}
             </p>
-            <p className="text-[9px]" style={{ color: 'rgba(255,255,255,0.3)' }}>포함 이벤트</p>
+            <p className="text-[9px]" style={{ color: 'var(--color-text-tertiary)' }}>포함 이벤트</p>
           </div>
           <div>
             <p className="text-sm font-bold font-mono" style={{ color: '#22c55e' }}>
               {deviceCount}
             </p>
-            <p className="text-[9px]" style={{ color: 'rgba(255,255,255,0.3)' }}>디바이스</p>
+            <p className="text-[9px]" style={{ color: 'var(--color-text-tertiary)' }}>디바이스</p>
           </div>
           <div>
-            <p className="text-sm font-bold font-mono" style={{ color: 'rgba(255,255,255,0.6)' }}>
+            <p className="text-sm font-bold font-mono" style={{ color: 'var(--color-text-sub)' }}>
               {period || '-'}
             </p>
-            <p className="text-[9px]" style={{ color: 'rgba(255,255,255,0.3)' }}>수집 기간</p>
+            <p className="text-[9px]" style={{ color: 'var(--color-text-tertiary)' }}>수집 기간</p>
           </div>
         </div>
 
@@ -175,7 +175,7 @@ export default function MetadataExportConfirm({
           {filter.dateFrom && (
             <span
               className="px-1.5 py-0.5 rounded text-[10px] font-mono"
-              style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)' }}
+              style={{ backgroundColor: 'var(--color-surface-alt)', color: 'var(--color-text-sub)' }}
             >
               {filter.dateFrom}~
             </span>
@@ -183,7 +183,7 @@ export default function MetadataExportConfirm({
           {filter.dateTo && (
             <span
               className="px-1.5 py-0.5 rounded text-[10px] font-mono"
-              style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)' }}
+              style={{ backgroundColor: 'var(--color-surface-alt)', color: 'var(--color-text-sub)' }}
             >
               ~{filter.dateTo}
             </span>
@@ -193,7 +193,7 @@ export default function MetadataExportConfirm({
         {/* Client name input — hidden when passed via prop (wizard Step 0) */}
         {!clientNameProp && (
           <div>
-            <label className="text-[10px] block mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>
+            <label className="text-[10px] block mb-1" style={{ color: 'var(--color-text-tertiary)' }}>
               클라이언트명
             </label>
             <input
@@ -203,9 +203,9 @@ export default function MetadataExportConfirm({
               placeholder="납품 대상 클라이언트명 입력"
               className="w-full rounded-lg px-3 py-1.5 text-xs"
               style={{
-                backgroundColor: 'rgba(255,255,255,0.06)',
-                color: 'rgba(255,255,255,0.8)',
-                border: '1px solid rgba(255,255,255,0.1)',
+                backgroundColor: 'var(--color-surface-alt)',
+                color: 'var(--color-text)',
+                border: '1px solid var(--color-border-light)',
               }}
             />
           </div>
@@ -241,9 +241,9 @@ export default function MetadataExportConfirm({
 
   // Job result view (synchronous — already ready or failed)
   return (
-    <div className="rounded-xl p-4 space-y-3" style={{ backgroundColor: '#1b1e2e' }}>
+    <div className="rounded-xl p-4 space-y-3" style={{ backgroundColor: 'var(--color-surface)' }}>
       <div className="flex items-center justify-between">
-        <h3 className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.5)' }}>
+        <h3 className="text-xs font-semibold" style={{ color: 'var(--color-text-sub)' }}>
           추출 결과
         </h3>
         <StatusBadge status={job.status} />
@@ -252,19 +252,19 @@ export default function MetadataExportConfirm({
       {/* Result info */}
       <div
         className="rounded-lg p-3 grid grid-cols-2 gap-2 text-center"
-        style={{ backgroundColor: 'rgba(255,255,255,0.04)' }}
+        style={{ backgroundColor: 'var(--color-surface-alt)' }}
       >
         <div>
           <p className="text-sm font-bold font-mono" style={{ color: '#8b5cf6' }}>
             {(job.totalEvents ?? 0).toLocaleString()}
           </p>
-          <p className="text-[9px]" style={{ color: 'rgba(255,255,255,0.3)' }}>총 이벤트</p>
+          <p className="text-[9px]" style={{ color: 'var(--color-text-tertiary)' }}>총 이벤트</p>
         </div>
         <div>
-          <p className="text-sm font-bold font-mono" style={{ color: 'rgba(255,255,255,0.5)' }}>
+          <p className="text-sm font-bold font-mono" style={{ color: 'var(--color-text-sub)' }}>
             {job.storagePath ? job.storagePath.split('/').pop() : '-'}
           </p>
-          <p className="text-[9px]" style={{ color: 'rgba(255,255,255,0.3)' }}>저장 경로</p>
+          <p className="text-[9px]" style={{ color: 'var(--color-text-tertiary)' }}>저장 경로</p>
         </div>
       </div>
 
@@ -307,8 +307,8 @@ export default function MetadataExportConfirm({
           onClick={handleReset}
           className="rounded-lg py-2 px-4 text-sm font-medium transition-colors"
           style={{
-            backgroundColor: 'rgba(255,255,255,0.06)',
-            color: 'rgba(255,255,255,0.6)',
+            backgroundColor: 'var(--color-surface-alt)',
+            color: 'var(--color-text-sub)',
           }}
         >
           초기화

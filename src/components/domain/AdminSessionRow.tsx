@@ -12,9 +12,9 @@ type Props = {
 }
 
 const GRADE_COLORS: Record<string, string> = {
-  A: '#22c55e',
-  B: '#f59e0b',
-  C: '#ef4444',
+  A: 'var(--color-success)',
+  B: 'var(--color-warning)',
+  C: 'var(--color-danger)',
 }
 
 export default function AdminSessionRow({ session, selected, onToggle, hasTranscript }: Props) {
@@ -36,39 +36,32 @@ export default function AdminSessionRow({ session, selected, onToggle, hasTransc
   return (
     <button
       onClick={() => onToggle(session.id)}
-      className="w-full flex items-center gap-3 px-4 py-3 border-b transition-colors"
-      style={{
-        borderColor: 'rgba(255,255,255,0.06)',
-        backgroundColor: selected ? 'rgba(19,55,236,0.08)' : 'transparent',
-      }}
+      className={`w-full flex items-center gap-3 px-4 py-3 border-b border-border-light transition-colors ${
+        selected ? 'bg-accent-dim' : 'bg-transparent hover:bg-surface-alt'
+      }`}
     >
       {/* 체크박스 */}
       <div
-        className="w-5 h-5 rounded flex-shrink-0 flex items-center justify-center border"
-        style={{
-          borderColor: selected ? '#1337ec' : 'rgba(255,255,255,0.2)',
-          backgroundColor: selected ? '#1337ec' : 'transparent',
-        }}
+        className={`w-5 h-5 rounded flex-shrink-0 flex items-center justify-center border ${
+          selected ? 'bg-accent border-accent' : 'bg-transparent border-border'
+        }`}
       >
         {selected && (
-          <span className="material-symbols-outlined text-white text-sm">check</span>
+          <span className="material-symbols-outlined text-on-accent text-sm">check</span>
         )}
       </div>
 
       {/* 본문 */}
       <div className="flex-1 min-w-0 text-left">
-        <p className="text-sm text-white truncate">{maskSessionTitle(session.title)}</p>
+        <p className="text-sm text-txt truncate">{maskSessionTitle(session.title)}</p>
         <div className="flex items-center gap-2 mt-0.5">
-          <span className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
+          <span className="text-xs text-txt-tertiary">
             {session.date}
           </span>
-          <span className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
+          <span className="text-xs text-txt-tertiary">
             {formatDuration(session.duration)}
           </span>
-          <span
-            className="text-xs px-1.5 py-0.5 rounded"
-            style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)' }}
-          >
+          <span className="text-xs px-1.5 py-0.5 rounded bg-surface-alt text-txt-sub">
             {session.labels?.domain ?? '미지정'}
           </span>
         </div>
@@ -77,8 +70,9 @@ export default function AdminSessionRow({ session, selected, onToggle, hasTransc
       {/* 우측 배지 */}
       <div className="flex items-center gap-2 flex-shrink-0">
         <span
-          className="material-symbols-outlined text-base"
-          style={{ color: isPublic ? '#22c55e' : 'rgba(255,255,255,0.2)' }}
+          className={`material-symbols-outlined text-base ${
+            isPublic ? 'text-success' : 'text-txt-tertiary'
+          }`}
           title={isPublic ? '공개' : '비공개'}
         >
           {isPublic ? 'visibility' : 'visibility_off'}
@@ -87,16 +81,16 @@ export default function AdminSessionRow({ session, selected, onToggle, hasTransc
           {LABEL_FIELDS.map(f => (
             <div
               key={f.key}
-              className="w-1.5 h-1.5 rounded-full"
-              style={{ backgroundColor: session.labels?.[f.key] != null ? '#22c55e' : 'rgba(255,255,255,0.12)' }}
+              className={`w-1.5 h-1.5 rounded-full ${
+                session.labels?.[f.key] != null ? 'bg-success' : 'bg-border'
+              }`}
               title={`${f.labelKo}: ${session.labels?.[f.key] ?? '미입력'}`}
             />
           ))}
         </div>
         {session.audioUrl && (
           <span
-            className="material-symbols-outlined text-base"
-            style={{ color: '#60a5fa' }}
+            className="material-symbols-outlined text-base text-accent"
             title="비식별화 완료 (WAV 업로드됨)"
           >
             shield
@@ -104,8 +98,7 @@ export default function AdminSessionRow({ session, selected, onToggle, hasTransc
         )}
         {session.hasDiarization && (
           <span
-            className="material-symbols-outlined text-base"
-            style={{ color: '#a78bfa' }}
+            className="material-symbols-outlined text-base text-accent"
             title="화자분리 완료"
           >
             record_voice_over
@@ -113,8 +106,7 @@ export default function AdminSessionRow({ session, selected, onToggle, hasTransc
         )}
         {hasTranscript && (
           <span
-            className="material-symbols-outlined text-base"
-            style={{ color: '#22c55e' }}
+            className="material-symbols-outlined text-base text-success"
             title="STT 자막 있음"
           >
             subtitles
@@ -124,8 +116,9 @@ export default function AdminSessionRow({ session, selected, onToggle, hasTransc
           <button
             onClick={handleWavDownload}
             title="WAV 다운로드"
-            className="flex items-center justify-center w-6 h-6 rounded"
-            style={{ color: downloading ? 'rgba(255,255,255,0.2)' : '#a78bfa' }}
+            className={`flex items-center justify-center w-6 h-6 rounded ${
+              downloading ? 'text-txt-tertiary' : 'text-accent'
+            }`}
           >
             <span className="material-symbols-outlined text-base">
               {downloading ? 'hourglass_empty' : 'download'}
@@ -134,8 +127,7 @@ export default function AdminSessionRow({ session, selected, onToggle, hasTransc
         )}
         {session.isPiiCleaned && (
           <span
-            className="material-symbols-outlined text-base"
-            style={{ color: '#60a5fa' }}
+            className="material-symbols-outlined text-base text-accent"
             title="PII 처리 완료"
           >
             verified_user

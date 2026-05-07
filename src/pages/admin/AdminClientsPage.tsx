@@ -104,7 +104,7 @@ export default function AdminClientsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20" style={{ color: 'rgba(255,255,255,0.4)' }}>
+      <div className="flex items-center justify-center py-20" style={{ color: 'var(--color-text-tertiary)' }}>
         <span className="material-symbols-outlined text-3xl animate-spin">progress_activity</span>
       </div>
     )
@@ -114,13 +114,13 @@ export default function AdminClientsPage() {
     <div className="p-4 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold" style={{ color: 'rgba(255,255,255,0.7)' }}>
+        <h2 className="text-sm font-semibold" style={{ color: 'var(--color-text-sub)' }}>
           납품처 ({clients.length}건)
         </h2>
         <button
           onClick={openNew}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-white"
-          style={{ backgroundColor: '#1337ec' }}
+          className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-txt"
+          style={{ backgroundColor: 'var(--color-accent)' }}
         >
           <span className="material-symbols-outlined text-sm">add</span>
           새 납품처
@@ -143,8 +143,8 @@ export default function AdminClientsPage() {
 
       {/* Form modal */}
       {showForm && (
-        <div className="rounded-xl p-4 space-y-3" style={{ backgroundColor: '#1b1e2e', border: '1px solid rgba(19,55,236,0.3)' }}>
-          <h3 className="text-sm font-semibold text-white">
+        <div className="rounded-xl p-4 space-y-3" style={{ backgroundColor: 'var(--color-surface)', border: '1px solid rgba(19,55,236,0.3)' }}>
+          <h3 className="text-sm font-semibold text-txt">
             {editingId ? '납품처 수정' : '새 납품처'}
           </h3>
           <div className="space-y-2">
@@ -152,45 +152,45 @@ export default function AdminClientsPage() {
               value={form.name}
               onChange={e => setForm({ ...form, name: e.target.value })}
               placeholder="회사명 *"
-              className="w-full px-3 py-2 rounded-lg text-sm text-white outline-none"
-              style={{ backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+              className="w-full px-3 py-2 rounded-lg text-sm text-txt outline-none"
+              style={{ backgroundColor: 'var(--color-surface-alt)', border: '1px solid var(--color-border-light)' }}
             />
             <input
               value={form.contactName}
               onChange={e => setForm({ ...form, contactName: e.target.value })}
               placeholder="담당자 이름"
-              className="w-full px-3 py-2 rounded-lg text-sm text-white outline-none"
-              style={{ backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+              className="w-full px-3 py-2 rounded-lg text-sm text-txt outline-none"
+              style={{ backgroundColor: 'var(--color-surface-alt)', border: '1px solid var(--color-border-light)' }}
             />
             <input
               value={form.contactEmail}
               onChange={e => setForm({ ...form, contactEmail: e.target.value })}
               placeholder="담당자 이메일"
-              className="w-full px-3 py-2 rounded-lg text-sm text-white outline-none"
-              style={{ backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+              className="w-full px-3 py-2 rounded-lg text-sm text-txt outline-none"
+              style={{ backgroundColor: 'var(--color-surface-alt)', border: '1px solid var(--color-border-light)' }}
             />
             <textarea
               value={form.notes}
               onChange={e => setForm({ ...form, notes: e.target.value })}
               placeholder="메모"
               rows={2}
-              className="w-full px-3 py-2 rounded-lg text-sm text-white outline-none resize-none"
-              style={{ backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+              className="w-full px-3 py-2 rounded-lg text-sm text-txt outline-none resize-none"
+              style={{ backgroundColor: 'var(--color-surface-alt)', border: '1px solid var(--color-border-light)' }}
             />
           </div>
           <div className="flex gap-2 justify-end">
             <button
               onClick={() => setShowForm(false)}
               className="px-3 py-1.5 rounded-lg text-xs"
-              style={{ color: 'rgba(255,255,255,0.5)' }}
+              style={{ color: 'var(--color-text-sub)' }}
             >
               취소
             </button>
             <button
               onClick={handleSave}
               disabled={saving || !form.name.trim()}
-              className="px-4 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-40"
-              style={{ backgroundColor: '#1337ec' }}
+              className="px-4 py-1.5 rounded-lg text-xs font-medium text-txt disabled:opacity-40"
+              style={{ backgroundColor: 'var(--color-accent)' }}
             >
               {saving ? '저장 중...' : '저장'}
             </button>
@@ -200,7 +200,7 @@ export default function AdminClientsPage() {
 
       {/* Client list */}
       {clients.length === 0 ? (
-        <div className="text-center py-12" style={{ color: 'rgba(255,255,255,0.4)' }}>
+        <div className="text-center py-12" style={{ color: 'var(--color-text-tertiary)' }}>
           <span className="material-symbols-outlined text-4xl">business</span>
           <p className="text-sm mt-2">등록된 납품처가 없습니다</p>
         </div>
@@ -210,13 +210,13 @@ export default function AdminClientsPage() {
             <div
               key={c.id}
               className="rounded-xl p-4"
-              style={{ backgroundColor: '#1b1e2e', opacity: c.isActive ? 1 : 0.5 }}
+              style={{ backgroundColor: 'var(--color-surface)', opacity: c.isActive ? 1 : 0.5 }}
             >
               <div className="flex items-start justify-between mb-2">
                 <div>
-                  <h3 className="text-sm font-medium text-white">{c.name}</h3>
+                  <h3 className="text-sm font-medium text-txt">{c.name}</h3>
                   {c.contactName && (
-                    <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-sub)' }}>
                       {c.contactName}
                       {c.contactEmail && <span> &middot; {c.contactEmail}</span>}
                     </p>
@@ -225,8 +225,8 @@ export default function AdminClientsPage() {
                 <span
                   className="text-[10px] px-2 py-0.5 rounded-full"
                   style={{
-                    backgroundColor: c.isActive ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.06)',
-                    color: c.isActive ? '#22c55e' : 'rgba(255,255,255,0.4)',
+                    backgroundColor: c.isActive ? 'rgba(34,197,94,0.15)' : 'var(--color-surface-alt)',
+                    color: c.isActive ? '#22c55e' : 'var(--color-text-tertiary)',
                   }}
                 >
                   {c.isActive ? '활성' : '비활성'}
@@ -234,21 +234,21 @@ export default function AdminClientsPage() {
               </div>
 
               {c.notes && (
-                <p className="text-xs mb-2" style={{ color: 'rgba(255,255,255,0.35)' }}>{c.notes}</p>
+                <p className="text-xs mb-2" style={{ color: 'var(--color-text-tertiary)' }}>{c.notes}</p>
               )}
 
-              <div className="flex items-center gap-2 pt-2 border-t" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+              <div className="flex items-center gap-2 pt-2 border-t" style={{ borderColor: 'var(--color-surface-alt)' }}>
                 <button
                   onClick={() => openEdit(c)}
                   className="text-xs px-2 py-1 rounded"
-                  style={{ color: '#1337ec' }}
+                  style={{ color: 'var(--color-accent)' }}
                 >
                   수정
                 </button>
                 <button
                   onClick={() => toggleActive(c)}
                   className="text-xs px-2 py-1 rounded"
-                  style={{ color: 'rgba(255,255,255,0.4)' }}
+                  style={{ color: 'var(--color-text-tertiary)' }}
                 >
                   {c.isActive ? '비활성화' : '활성화'}
                 </button>

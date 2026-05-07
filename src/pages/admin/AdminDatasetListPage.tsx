@@ -55,7 +55,7 @@ export default function AdminDatasetListPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: '#1337ec', borderTopColor: 'transparent' }} />
+        <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--color-accent)', borderTopColor: 'transparent' }} />
       </div>
     )
   }
@@ -63,16 +63,16 @@ export default function AdminDatasetListPage() {
   if (datasets.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
-        <span className="material-symbols-outlined text-4xl mb-3" style={{ color: 'rgba(255,255,255,0.2)' }}>
+        <span className="material-symbols-outlined text-4xl mb-3" style={{ color: 'var(--color-border)' }}>
           inventory_2
         </span>
-        <p className="text-sm" style={{ color: 'rgba(255,255,255,0.4)' }}>
+        <p className="text-sm" style={{ color: 'var(--color-text-tertiary)' }}>
           아직 생성된 데이터셋이 없습니다
         </p>
         <button
           onClick={() => navigate('/admin/sessions')}
-          className="mt-4 px-4 py-2.5 rounded-xl text-sm font-semibold text-white"
-          style={{ backgroundColor: '#1337ec' }}
+          className="mt-4 px-4 py-2.5 rounded-xl text-sm font-semibold text-txt"
+          style={{ backgroundColor: 'var(--color-accent)' }}
         >
           공개 세션 보기
         </button>
@@ -87,7 +87,7 @@ export default function AdminDatasetListPage() {
       className="px-4 py-4 space-y-3"
     >
       <div className="flex items-center justify-between mb-1">
-        <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
+        <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
           총 {datasets.length}개 데이터셋
         </p>
       </div>
@@ -114,7 +114,7 @@ export default function AdminDatasetListPage() {
                   <button
                     onClick={() => setConfirmDelete(null)}
                     className="text-xs px-2 py-1 rounded"
-                    style={{ color: 'rgba(255,255,255,0.5)' }}
+                    style={{ color: 'var(--color-text-sub)' }}
                   >
                     취소
                   </button>

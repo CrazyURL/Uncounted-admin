@@ -24,8 +24,8 @@ export default function JobLogTimeline({ logs }: Props) {
               {cfg.icon}
             </span>
             <div className="flex-1 min-w-0">
-              <p className="text-xs text-white">{log.message}</p>
-              <p className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.3)' }}>
+              <p className="text-xs text-txt">{log.message}</p>
+              <p className="text-[10px] mt-0.5" style={{ color: 'var(--color-text-tertiary)' }}>
                 {log.timestamp}
               </p>
             </div>

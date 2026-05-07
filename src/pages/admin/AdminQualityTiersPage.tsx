@@ -40,7 +40,7 @@ export default function AdminQualityTiersPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <span className="material-symbols-outlined animate-spin text-2xl" style={{ color: '#1337ec' }}>progress_activity</span>
+        <span className="material-symbols-outlined animate-spin text-2xl" style={{ color: 'var(--color-accent)' }}>progress_activity</span>
       </div>
     )
   }
@@ -50,16 +50,16 @@ export default function AdminQualityTiersPage() {
   return (
     <div className="p-4 space-y-4">
       {/* 분포 바 */}
-      <div className="rounded-xl p-4" style={{ backgroundColor: '#1b1e2e' }}>
-        <p className="text-xs font-medium text-white mb-3">품질 등급 분포</p>
-        <div className="flex h-6 rounded-lg overflow-hidden" style={{ backgroundColor: 'rgba(255,255,255,0.06)' }}>
+      <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--color-surface)' }}>
+        <p className="text-xs font-medium text-txt mb-3">품질 등급 분포</p>
+        <div className="flex h-6 rounded-lg overflow-hidden" style={{ backgroundColor: 'var(--color-surface-alt)' }}>
           {(['A', 'B', 'C'] as const).map(g => {
             const pct = total > 0 ? (gradeStats[g].count / total) * 100 : 0
             if (pct === 0) return null
             return (
               <div
                 key={g}
-                className="flex items-center justify-center text-[10px] font-bold text-white"
+                className="flex items-center justify-center text-[10px] font-bold text-txt"
                 style={{ width: `${pct}%`, backgroundColor: GRADE_COLORS[g] }}
               >
                 {pct >= 8 ? `${g} ${Math.round(pct)}%` : ''}
@@ -74,7 +74,7 @@ export default function AdminQualityTiersPage() {
         const s = gradeStats[g]
         const threshold = GRADE_THRESHOLDS.find(t => t.grade === g)!
         return (
-          <div key={g} className="rounded-xl p-4" style={{ backgroundColor: '#1b1e2e' }}>
+          <div key={g} className="rounded-xl p-4" style={{ backgroundColor: 'var(--color-surface)' }}>
             <div className="flex items-center gap-2 mb-3">
               <span
                 className="text-sm font-bold w-7 h-7 flex items-center justify-center rounded-lg"
@@ -83,29 +83,29 @@ export default function AdminQualityTiersPage() {
                 {g}
               </span>
               <div>
-                <p className="text-sm font-medium text-white">{threshold.desc}</p>
-                <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                <p className="text-sm font-medium text-txt">{threshold.desc}</p>
+                <p className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>
                   {s.count.toLocaleString()}개 유닛 · {s.hours}시간
                 </p>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>동의율</p>
+                <p className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>동의율</p>
                 <div className="flex items-center gap-1.5 mt-0.5">
-                  <div className="flex-1 h-1.5 rounded-full" style={{ backgroundColor: 'rgba(255,255,255,0.06)' }}>
+                  <div className="flex-1 h-1.5 rounded-full" style={{ backgroundColor: 'var(--color-surface-alt)' }}>
                     <div className="h-full rounded-full" style={{ width: `${s.consentRate}%`, backgroundColor: '#22c55e' }} />
                   </div>
-                  <span className="text-xs text-white">{s.consentRate}%</span>
+                  <span className="text-xs text-txt">{s.consentRate}%</span>
                 </div>
               </div>
               <div>
-                <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>라벨률</p>
+                <p className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>라벨률</p>
                 <div className="flex items-center gap-1.5 mt-0.5">
-                  <div className="flex-1 h-1.5 rounded-full" style={{ backgroundColor: 'rgba(255,255,255,0.06)' }}>
-                    <div className="h-full rounded-full" style={{ width: `${s.labelRate}%`, backgroundColor: '#1337ec' }} />
+                  <div className="flex-1 h-1.5 rounded-full" style={{ backgroundColor: 'var(--color-surface-alt)' }}>
+                    <div className="h-full rounded-full" style={{ width: `${s.labelRate}%`, backgroundColor: 'var(--color-accent)' }} />
                   </div>
-                  <span className="text-xs text-white">{s.labelRate}%</span>
+                  <span className="text-xs text-txt">{s.labelRate}%</span>
                 </div>
               </div>
             </div>

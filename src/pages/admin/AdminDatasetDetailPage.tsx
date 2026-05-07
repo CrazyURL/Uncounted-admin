@@ -32,8 +32,8 @@ const STATUS_LABELS: Record<DatasetStatus, string> = {
   exported: '추출됨',
 }
 const STATUS_COLORS: Record<DatasetStatus, { color: string; bg: string }> = {
-  draft: { color: 'rgba(255,255,255,0.5)', bg: 'rgba(255,255,255,0.08)' },
-  finalized: { color: '#1337ec', bg: 'rgba(19,55,236,0.15)' },
+  draft: { color: 'var(--color-text-sub)', bg: 'var(--color-border-light)' },
+  finalized: { color: 'var(--color-accent)', bg: 'rgba(19,55,236,0.15)' },
   exported: { color: '#22c55e', bg: 'rgba(34,197,94,0.15)' },
 }
 
@@ -206,7 +206,7 @@ export default function AdminDatasetDetailPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: '#1337ec', borderTopColor: 'transparent' }} />
+        <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--color-accent)', borderTopColor: 'transparent' }} />
       </div>
     )
   }
@@ -214,16 +214,16 @@ export default function AdminDatasetDetailPage() {
   if (!dataset) {
     return (
       <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
-        <span className="material-symbols-outlined text-4xl mb-3" style={{ color: 'rgba(255,255,255,0.2)' }}>
+        <span className="material-symbols-outlined text-4xl mb-3" style={{ color: 'var(--color-border)' }}>
           error_outline
         </span>
-        <p className="text-sm" style={{ color: 'rgba(255,255,255,0.4)' }}>
+        <p className="text-sm" style={{ color: 'var(--color-text-tertiary)' }}>
           데이터셋을 찾을 수 없습니다
         </p>
         <button
           onClick={() => navigate('/admin/datasets')}
           className="mt-4 text-sm"
-          style={{ color: '#1337ec' }}
+          style={{ color: 'var(--color-accent)' }}
         >
           목록으로 돌아가기
         </button>
@@ -238,34 +238,34 @@ export default function AdminDatasetDetailPage() {
     <div className="pb-28">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="px-4 py-4 space-y-4">
         {/* 헤더 */}
-        <div className="rounded-xl p-4" style={{ backgroundColor: '#1b1e2e' }}>
+        <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--color-surface)' }}>
           {editing ? (
             <div className="space-y-2">
               <input
                 value={editName}
                 onChange={e => setEditName(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg text-sm text-white border outline-none"
-                style={{ backgroundColor: '#101322', borderColor: 'rgba(255,255,255,0.1)' }}
+                className="w-full px-3 py-2 rounded-lg text-sm text-txt border outline-none"
+                style={{ backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border-light)' }}
               />
               <textarea
                 value={editDesc}
                 onChange={e => setEditDesc(e.target.value)}
                 rows={2}
-                className="w-full px-3 py-2 rounded-lg text-sm text-white border outline-none resize-none"
-                style={{ backgroundColor: '#101322', borderColor: 'rgba(255,255,255,0.1)' }}
+                className="w-full px-3 py-2 rounded-lg text-sm text-txt border outline-none resize-none"
+                style={{ backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border-light)' }}
               />
               <div className="flex gap-2">
                 <button
                   onClick={handleSaveEdit}
-                  className="text-xs px-3 py-1.5 rounded-lg font-medium text-white"
-                  style={{ backgroundColor: '#1337ec' }}
+                  className="text-xs px-3 py-1.5 rounded-lg font-medium text-txt"
+                  style={{ backgroundColor: 'var(--color-accent)' }}
                 >
                   저장
                 </button>
                 <button
                   onClick={() => setEditing(false)}
                   className="text-xs px-3 py-1.5"
-                  style={{ color: 'rgba(255,255,255,0.4)' }}
+                  style={{ color: 'var(--color-text-tertiary)' }}
                 >
                   취소
                 </button>
@@ -275,9 +275,9 @@ export default function AdminDatasetDetailPage() {
             <>
               <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0 mr-2">
-                  <h2 className="text-base font-bold text-white">{dataset.name}</h2>
+                  <h2 className="text-base font-bold text-txt">{dataset.name}</h2>
                   {dataset.description && (
-                    <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                    <p className="text-xs mt-1" style={{ color: 'var(--color-text-tertiary)' }}>
                       {dataset.description}
                     </p>
                   )}
@@ -285,7 +285,7 @@ export default function AdminDatasetDetailPage() {
                 <button
                   onClick={() => setEditing(true)}
                   className="flex-shrink-0"
-                  style={{ color: 'rgba(255,255,255,0.4)' }}
+                  style={{ color: 'var(--color-text-tertiary)' }}
                 >
                   <span className="material-symbols-outlined text-lg">edit</span>
                 </button>
@@ -297,11 +297,11 @@ export default function AdminDatasetDetailPage() {
                 >
                   {STATUS_LABELS[dataset.status]}
                 </span>
-                <span className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
                   생성: {dataset.createdAt.slice(0, 10)}
                 </span>
                 {dataset.exportedAt && (
-                  <span className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                  <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
                     추출: {dataset.exportedAt.slice(0, 10)}
                   </span>
                 )}
@@ -321,18 +321,18 @@ export default function AdminDatasetDetailPage() {
             <div
               key={item.label}
               className="rounded-lg p-2.5 text-center"
-              style={{ backgroundColor: '#1b1e2e' }}
+              style={{ backgroundColor: 'var(--color-surface)' }}
             >
-              <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>{item.label}</p>
-              <p className="text-sm font-bold text-white mt-0.5">{item.value}</p>
+              <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>{item.label}</p>
+              <p className="text-sm font-bold text-txt mt-0.5">{item.value}</p>
             </div>
           ))}
         </div>
 
         {/* SKU 분류 */}
         {skuBreakdown.length > 0 && (
-          <div className="rounded-xl p-4" style={{ backgroundColor: '#1b1e2e' }}>
-            <p className="text-xs font-medium mb-3" style={{ color: 'rgba(255,255,255,0.5)' }}>SKU 적합성</p>
+          <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--color-surface)' }}>
+            <p className="text-xs font-medium mb-3" style={{ color: 'var(--color-text-sub)' }}>SKU 적합성</p>
             <div className="space-y-2">
               {skuBreakdown.map(sku => (
                 <div key={sku.skuId} className="flex items-center justify-between">
@@ -341,18 +341,18 @@ export default function AdminDatasetDetailPage() {
                       className="text-xs px-1.5 py-0.5 rounded font-mono font-medium"
                       style={{
                         backgroundColor: sku.category === 'voice' ? 'rgba(19,55,236,0.15)' : 'rgba(245,158,11,0.15)',
-                        color: sku.category === 'voice' ? '#1337ec' : '#f59e0b',
+                        color: sku.category === 'voice' ? 'var(--color-accent)' : '#f59e0b',
                       }}
                     >
                       {sku.skuId}
                     </span>
-                    <span className="text-xs text-white">{sku.nameKo}</span>
+                    <span className="text-xs text-txt">{sku.nameKo}</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                    <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
                       {sku.count}건
                     </span>
-                    <span className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                    <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
                       {sku.totalHours.toFixed(1)}h
                     </span>
                   </div>
@@ -364,8 +364,8 @@ export default function AdminDatasetDetailPage() {
 
         {/* 등급 + 라벨 분포 */}
         <div className="flex gap-2">
-          <div className="flex-1 rounded-xl p-3" style={{ backgroundColor: '#1b1e2e' }}>
-            <p className="text-xs font-medium mb-2" style={{ color: 'rgba(255,255,255,0.5)' }}>품질 분포</p>
+          <div className="flex-1 rounded-xl p-3" style={{ backgroundColor: 'var(--color-surface)' }}>
+            <p className="text-xs font-medium mb-2" style={{ color: 'var(--color-text-sub)' }}>품질 분포</p>
             <div className="flex gap-3">
               {(['A', 'B', 'C'] as const).map(g => {
                 const count = summary.qualityDistribution[g] ?? 0
@@ -373,23 +373,23 @@ export default function AdminDatasetDetailPage() {
                 return (
                   <div key={g} className="flex items-center gap-1.5">
                     <span className="text-xs font-bold" style={{ color }}>{g}</span>
-                    <span className="text-sm text-white font-medium">{count}</span>
+                    <span className="text-sm text-txt font-medium">{count}</span>
                   </div>
                 )
               })}
             </div>
           </div>
-          <div className="flex-1 rounded-xl p-3" style={{ backgroundColor: '#1b1e2e' }}>
-            <p className="text-xs font-medium mb-2" style={{ color: 'rgba(255,255,255,0.5)' }}>
+          <div className="flex-1 rounded-xl p-3" style={{ backgroundColor: 'var(--color-surface)' }}>
+            <p className="text-xs font-medium mb-2" style={{ color: 'var(--color-text-sub)' }}>
               라벨 현황 ({summary.labeledCount}/{summary.sessionCount})
             </p>
             <div className="space-y-1.5">
               {labelCoverage.fields.map(f => (
                 <div key={f.field} className="flex items-center gap-2">
-                  <span className="text-[10px] w-8 text-right" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                  <span className="text-[10px] w-8 text-right" style={{ color: 'var(--color-text-tertiary)' }}>
                     {f.labelKo}
                   </span>
-                  <div className="flex-1 h-1.5 rounded-full" style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}>
+                  <div className="flex-1 h-1.5 rounded-full" style={{ backgroundColor: 'var(--color-border-light)' }}>
                     <div
                       className="h-full rounded-full"
                       style={{
@@ -398,7 +398,7 @@ export default function AdminDatasetDetailPage() {
                       }}
                     />
                   </div>
-                  <span className="text-[10px] w-8" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                  <span className="text-[10px] w-8" style={{ color: 'var(--color-text-tertiary)' }}>
                     {Math.round(f.fillRate * 100)}%
                   </span>
                 </div>
@@ -419,7 +419,7 @@ export default function AdminDatasetDetailPage() {
 
         {/* 세션 목록 */}
         <div>
-          <p className="text-xs font-medium mb-2" style={{ color: 'rgba(255,255,255,0.5)' }}>
+          <p className="text-xs font-medium mb-2" style={{ color: 'var(--color-text-sub)' }}>
             세션 ({datasetSessions.length})
           </p>
           <div className="space-y-1">
@@ -431,15 +431,15 @@ export default function AdminDatasetDetailPage() {
                 <div
                   key={session.id}
                   className="flex items-center gap-3 px-3 py-2.5 rounded-lg"
-                  style={{ backgroundColor: '#1b1e2e' }}
+                  style={{ backgroundColor: 'var(--color-surface)' }}
                 >
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-white truncate">{maskSessionTitle(session.title)}</p>
+                    <p className="text-sm text-txt truncate">{maskSessionTitle(session.title)}</p>
                     <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                      <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
                         {session.date}
                       </span>
-                      <span className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                      <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
                         {formatDuration(session.duration)}
                       </span>
                       {hasAudio && (
@@ -463,7 +463,7 @@ export default function AdminDatasetDetailPage() {
                   <button
                     onClick={() => handleRemoveSession(session.id)}
                     className="flex-shrink-0"
-                    style={{ color: 'rgba(255,255,255,0.3)' }}
+                    style={{ color: 'var(--color-text-tertiary)' }}
                   >
                     <span className="material-symbols-outlined text-lg">close</span>
                   </button>
@@ -487,28 +487,28 @@ export default function AdminDatasetDetailPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
           <div
             className="w-80 rounded-2xl p-5 space-y-4"
-            style={{ backgroundColor: '#1b1e2e' }}
+            style={{ backgroundColor: 'var(--color-surface)' }}
           >
             <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-xl" style={{ color: '#1337ec' }}>graphic_eq</span>
-              <p className="text-sm font-semibold text-white">청크 ZIP 생성 중</p>
+              <span className="material-symbols-outlined text-xl" style={{ color: 'var(--color-accent)' }}>graphic_eq</span>
+              <p className="text-sm font-semibold text-txt">청크 ZIP 생성 중</p>
             </div>
 
             <div className="space-y-2">
-              <div className="flex justify-between text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>
+              <div className="flex justify-between text-xs" style={{ color: 'var(--color-text-sub)' }}>
                 <span>{wavProgress.done.toLocaleString()} / {wavProgress.total.toLocaleString()}건</span>
                 <span>{wavProgress.total > 0 ? Math.round((wavProgress.done / wavProgress.total) * 100) : 0}%</span>
               </div>
-              <div className="w-full h-1.5 rounded-full" style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}>
+              <div className="w-full h-1.5 rounded-full" style={{ backgroundColor: 'var(--color-border-light)' }}>
                 <div
                   className="h-full rounded-full transition-all duration-300"
                   style={{
-                    backgroundColor: '#1337ec',
+                    backgroundColor: 'var(--color-accent)',
                     width: `${wavProgress.total > 0 ? (wavProgress.done / wavProgress.total) * 100 : 0}%`,
                   }}
                 />
               </div>
-              <p className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>
+              <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
                 {wavProgress.phase === 'starting' && '준비 중...'}
                 {wavProgress.phase === 'fetching_urls' && 'URL 조회 중...'}
                 {wavProgress.phase === 'downloading' && '청크 다운로드 중...'}
@@ -520,7 +520,7 @@ export default function AdminDatasetDetailPage() {
             <button
               onClick={() => { wavCancelledRef.current = true }}
               className="w-full py-2 rounded-lg text-xs font-medium border"
-              style={{ color: 'rgba(255,255,255,0.5)', borderColor: 'rgba(255,255,255,0.12)' }}
+              style={{ color: 'var(--color-text-sub)', borderColor: 'var(--color-border)' }}
             >
               취소
             </button>
@@ -532,16 +532,16 @@ export default function AdminDatasetDetailPage() {
       <div
         className="fixed bottom-0 left-0 right-0 px-4 py-3 border-t space-y-2"
         style={{
-          backgroundColor: '#1b1e2e',
-          borderColor: 'rgba(255,255,255,0.08)',
+          backgroundColor: 'var(--color-surface)',
+          borderColor: 'var(--color-border-light)',
           paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))',
         }}
       >
         <div className="flex gap-2">
           <button
             onClick={() => setShowExport(true)}
-            className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-1.5"
-            style={{ backgroundColor: '#1337ec' }}
+            className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-txt flex items-center justify-center gap-1.5"
+            style={{ backgroundColor: 'var(--color-accent)' }}
           >
             <span className="material-symbols-outlined text-base">download</span>
             내보내기
@@ -549,8 +549,8 @@ export default function AdminDatasetDetailPage() {
           {canAdvance && (
             <button
               onClick={handleStatusAdvance}
-              className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-1.5 border"
-              style={{ borderColor: 'rgba(255,255,255,0.15)', backgroundColor: 'transparent' }}
+              className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-txt flex items-center justify-center gap-1.5 border"
+              style={{ borderColor: 'var(--color-border-light)', backgroundColor: 'transparent' }}
             >
               <span className="material-symbols-outlined text-base">arrow_forward</span>
               {STATUS_LABELS[STATUS_FLOW[STATUS_FLOW.indexOf(dataset.status) + 1]]}
@@ -560,7 +560,7 @@ export default function AdminDatasetDetailPage() {
         <button
           onClick={handleDelete}
           className="w-full py-2 text-xs"
-          style={{ color: 'rgba(255,255,255,0.3)' }}
+          style={{ color: 'var(--color-text-tertiary)' }}
         >
           데이터셋 삭제
         </button>

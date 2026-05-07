@@ -143,7 +143,7 @@ export default function AdminExportJobDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20" style={{ color: 'rgba(255,255,255,0.4)' }}>
+      <div className="flex items-center justify-center py-20" style={{ color: 'var(--color-text-tertiary)' }}>
         <span className="material-symbols-outlined text-3xl animate-spin">progress_activity</span>
       </div>
     )
@@ -151,10 +151,10 @@ export default function AdminExportJobDetailPage() {
 
   if (!job) {
     return (
-      <div className="text-center py-20" style={{ color: 'rgba(255,255,255,0.4)' }}>
+      <div className="text-center py-20" style={{ color: 'var(--color-text-tertiary)' }}>
         <span className="material-symbols-outlined text-4xl">error_outline</span>
         <p className="text-sm mt-2">작업을 찾을 수 없습니다</p>
-        <button onClick={() => navigate('/admin/jobs')} className="text-xs mt-3 underline" style={{ color: '#1337ec' }}>
+        <button onClick={() => navigate('/admin/jobs')} className="text-xs mt-3 underline" style={{ color: 'var(--color-accent)' }}>
           목록으로
         </button>
       </div>
@@ -169,9 +169,9 @@ export default function AdminExportJobDetailPage() {
         <PackagingStageChecklist currentStage={finalizeStage} />
       </LoadingOverlay>
       {/* Header */}
-      <div className="rounded-xl p-4" style={{ backgroundColor: '#1b1e2e' }}>
+      <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--color-surface)' }}>
         <div className="flex items-center justify-between mb-3">
-          <span className="text-xs font-mono" style={{ color: 'rgba(255,255,255,0.4)' }}>
+          <span className="text-xs font-mono" style={{ color: 'var(--color-text-tertiary)' }}>
             {job.id}
           </span>
           <span
@@ -183,35 +183,35 @@ export default function AdminExportJobDetailPage() {
         </div>
         <div className="grid grid-cols-2 gap-3 text-xs">
           <div>
-            <p style={{ color: 'rgba(255,255,255,0.4)' }}>SKU</p>
-            <p className="text-white font-medium">{job.skuId}</p>
+            <p style={{ color: 'var(--color-text-tertiary)' }}>SKU</p>
+            <p className="text-txt font-medium">{job.skuId}</p>
           </div>
           <div>
-            <p style={{ color: 'rgba(255,255,255,0.4)' }}>컴포넌트</p>
-            <p className="text-white font-medium">{job.componentIds.join(', ')}</p>
+            <p style={{ color: 'var(--color-text-tertiary)' }}>컴포넌트</p>
+            <p className="text-txt font-medium">{job.componentIds.join(', ')}</p>
           </div>
           <div>
-            <p style={{ color: 'rgba(255,255,255,0.4)' }}>요청 유닛</p>
-            <p className="text-white font-medium">{job.requestedUnits.toLocaleString()}</p>
+            <p style={{ color: 'var(--color-text-tertiary)' }}>요청 유닛</p>
+            <p className="text-txt font-medium">{job.requestedUnits.toLocaleString()}</p>
           </div>
           <div>
-            <p style={{ color: 'rgba(255,255,255,0.4)' }}>실제 유닛</p>
-            <p className="text-white font-medium">{job.actualUnits.toLocaleString()}</p>
+            <p style={{ color: 'var(--color-text-tertiary)' }}>실제 유닛</p>
+            <p className="text-txt font-medium">{job.actualUnits.toLocaleString()}</p>
           </div>
           <div>
-            <p style={{ color: 'rgba(255,255,255,0.4)' }}>샘플링</p>
-            <p className="text-white font-medium">{job.samplingStrategy}</p>
+            <p style={{ color: 'var(--color-text-tertiary)' }}>샘플링</p>
+            <p className="text-txt font-medium">{job.samplingStrategy}</p>
           </div>
           <div>
-            <p style={{ color: 'rgba(255,255,255,0.4)' }}>포맷</p>
-            <p className="text-white font-medium">{job.outputFormat}</p>
+            <p style={{ color: 'var(--color-text-tertiary)' }}>포맷</p>
+            <p className="text-txt font-medium">{job.outputFormat}</p>
           </div>
         </div>
 
-        <div className="mt-3 pt-3 border-t text-xs space-y-1" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-          <p style={{ color: 'rgba(255,255,255,0.4)' }}>생성: {job.createdAt}</p>
-          {job.startedAt && <p style={{ color: 'rgba(255,255,255,0.4)' }}>시작: {job.startedAt}</p>}
-          {job.completedAt && <p style={{ color: 'rgba(255,255,255,0.4)' }}>완료: {job.completedAt}</p>}
+        <div className="mt-3 pt-3 border-t text-xs space-y-1" style={{ borderColor: 'var(--color-surface-alt)' }}>
+          <p style={{ color: 'var(--color-text-tertiary)' }}>생성: {job.createdAt}</p>
+          {job.startedAt && <p style={{ color: 'var(--color-text-tertiary)' }}>시작: {job.startedAt}</p>}
+          {job.completedAt && <p style={{ color: 'var(--color-text-tertiary)' }}>완료: {job.completedAt}</p>}
         </div>
 
         {job.errorMessage && (
@@ -222,31 +222,31 @@ export default function AdminExportJobDetailPage() {
       </div>
 
       {/* Filters */}
-      <div className="rounded-xl p-4" style={{ backgroundColor: '#1b1e2e' }}>
-        <h3 className="text-xs font-semibold mb-2" style={{ color: 'rgba(255,255,255,0.7)' }}>필터 조건</h3>
+      <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--color-surface)' }}>
+        <h3 className="text-xs font-semibold mb-2" style={{ color: 'var(--color-text-sub)' }}>필터 조건</h3>
         <div className="flex flex-wrap gap-1.5">
           {job.filters.minQualityGrade && (
-            <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.6)' }}>
+            <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: 'var(--color-surface-alt)', color: 'var(--color-text-sub)' }}>
               최소 {job.filters.minQualityGrade}등급
             </span>
           )}
           {job.filters.requireConsent && (
-            <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.6)' }}>
+            <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: 'var(--color-surface-alt)', color: 'var(--color-text-sub)' }}>
               동의 필수
             </span>
           )}
           {job.filters.requirePiiCleaned && (
-            <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.6)' }}>
+            <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: 'var(--color-surface-alt)', color: 'var(--color-text-sub)' }}>
               PII 정제 필수
             </span>
           )}
           {job.filters.qualityTier && job.filters.qualityTier.length > 0 && (
-            <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.6)' }}>
+            <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: 'var(--color-surface-alt)', color: 'var(--color-text-sub)' }}>
               티어: {job.filters.qualityTier.join(', ')}
             </span>
           )}
           {job.filters.dateRange && (
-            <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.6)' }}>
+            <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: 'var(--color-surface-alt)', color: 'var(--color-text-sub)' }}>
               {job.filters.dateRange.from} ~ {job.filters.dateRange.to}
             </span>
           )}
@@ -255,9 +255,9 @@ export default function AdminExportJobDetailPage() {
 
       {/* Selection manifest */}
       {job.selectionManifest && (
-        <div className="rounded-xl p-4" style={{ backgroundColor: '#1b1e2e' }}>
-          <h3 className="text-xs font-semibold mb-1" style={{ color: 'rgba(255,255,255,0.7)' }}>선택 매니페스트</h3>
-          <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
+        <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--color-surface)' }}>
+          <h3 className="text-xs font-semibold mb-1" style={{ color: 'var(--color-text-sub)' }}>선택 매니페스트</h3>
+          <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
             {job.selectionManifest.length.toLocaleString()}개 유닛 선택됨
           </p>
         </div>
@@ -266,9 +266,9 @@ export default function AdminExportJobDetailPage() {
       {/* 발화 검수 섹션 — reviewing 상태 또는 수동 열기 */}
       {job.status !== 'draft' && job.status !== 'cancelled' && (
         <div className="space-y-3">
-          <div className="rounded-xl p-4" style={{ backgroundColor: '#1b1e2e' }}>
+          <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--color-surface)' }}>
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.7)' }}>발화 검수</h3>
+              <h3 className="text-xs font-semibold" style={{ color: 'var(--color-text-sub)' }}>발화 검수</h3>
               <button
                 onClick={reviewOpen ? () => setReviewOpen(false) : handleLoadUtterances}
                 disabled={utterancesLoading}
@@ -302,8 +302,8 @@ export default function AdminExportJobDetailPage() {
           )}
 
           {reviewOpen && utterances.length === 0 && !utterancesLoading && (
-            <div className="rounded-xl p-4" style={{ backgroundColor: '#1b1e2e' }}>
-              <p className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>
+            <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--color-surface)' }}>
+              <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
                 발화 데이터가 없습니다. 처리(process)가 먼저 완료되어야 합니다.
               </p>
             </div>
@@ -322,29 +322,29 @@ export default function AdminExportJobDetailPage() {
 
       {/* 납품 확정 섹션 */}
       {(job.status === 'completed' || job.status === 'draft') && (
-        <div className="rounded-xl p-4" style={{ backgroundColor: '#1b1e2e' }}>
-          <h3 className="text-xs font-semibold mb-3" style={{ color: 'rgba(255,255,255,0.7)' }}>납품 확정</h3>
+        <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--color-surface)' }}>
+          <h3 className="text-xs font-semibold mb-3" style={{ color: 'var(--color-text-sub)' }}>납품 확정</h3>
           {ledgerCount !== null && (
-            <p className="text-[10px] mb-2" style={{ color: 'rgba(255,255,255,0.4)' }}>
+            <p className="text-[10px] mb-2" style={{ color: 'var(--color-text-tertiary)' }}>
               연결된 원장: {ledgerCount}건 {ledgerCount === 0 && '(원장 미생성 — 빌드 재실행 필요)'}
             </p>
           )}
           <div className="flex gap-2 items-end">
             <div className="flex-1">
-              <p className="text-[10px] mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>수령 금액 (₩)</p>
+              <p className="text-[10px] mb-1" style={{ color: 'var(--color-text-tertiary)' }}>수령 금액 (₩)</p>
               <input
                 type="text"
                 value={paymentAmount}
                 onChange={e => setPaymentAmount(e.target.value.replace(/[^0-9,]/g, ''))}
                 placeholder="5,000,000"
-                className="w-full px-3 py-2 rounded-lg text-white text-sm outline-none"
-                style={{ backgroundColor: '#0d0f1a', border: '1px solid rgba(255,255,255,0.1)' }}
+                className="w-full px-3 py-2 rounded-lg text-txt text-sm outline-none"
+                style={{ backgroundColor: '#0d0f1a', border: '1px solid var(--color-border-light)' }}
               />
             </div>
             <button
               onClick={handleConfirmDelivery}
               disabled={confirming || !paymentAmount || (ledgerCount !== null && ledgerCount === 0)}
-              className="px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-30"
+              className="px-4 py-2 rounded-lg text-sm font-medium text-txt disabled:opacity-30"
               style={{ backgroundColor: '#8b5cf6' }}
             >
               {confirming ? '처리 중...' : '확정'}
@@ -368,8 +368,8 @@ export default function AdminExportJobDetailPage() {
 
       {/* Logs */}
       {job.logs.length > 0 && (
-        <div className="rounded-xl p-4" style={{ backgroundColor: '#1b1e2e' }}>
-          <h3 className="text-xs font-semibold mb-3" style={{ color: 'rgba(255,255,255,0.7)' }}>로그</h3>
+        <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--color-surface)' }}>
+          <h3 className="text-xs font-semibold mb-3" style={{ color: 'var(--color-text-sub)' }}>로그</h3>
           <JobLogTimeline logs={job.logs} />
         </div>
       )}

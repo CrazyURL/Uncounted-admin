@@ -67,7 +67,7 @@ export default function AdminFilterBar({
     <div className="px-4 py-3 space-y-3">
       {/* 도메인 */}
       <div>
-        <p className="text-xs font-medium mb-1.5" style={{ color: 'rgba(255,255,255,0.5)' }}>도메인</p>
+        <p className="text-xs font-medium mb-1.5" style={{ color: 'var(--color-text-sub)' }}>도메인</p>
         <div className="flex flex-wrap gap-1.5">
           {DOMAIN_OPTIONS.map(d => {
             const on = selectedDomains.includes(d)
@@ -78,8 +78,8 @@ export default function AdminFilterBar({
                 className="px-3 py-1 rounded-full text-xs font-medium border transition-colors"
                 style={{
                   backgroundColor: on ? 'rgba(19,55,236,0.15)' : 'transparent',
-                  borderColor: on ? '#1337ec' : 'rgba(255,255,255,0.12)',
-                  color: on ? '#1337ec' : 'rgba(255,255,255,0.6)',
+                  borderColor: on ? 'var(--color-accent)' : 'var(--color-border)',
+                  color: on ? 'var(--color-accent)' : 'var(--color-text-sub)',
                 }}
               >
                 {d}
@@ -92,7 +92,7 @@ export default function AdminFilterBar({
       {/* 등급 + 라벨 + 공개 + 업로드 + PII */}
       <div className="flex flex-wrap gap-4">
         <div>
-          <p className="text-xs font-medium mb-1.5" style={{ color: 'rgba(255,255,255,0.5)' }}>품질 등급</p>
+          <p className="text-xs font-medium mb-1.5" style={{ color: 'var(--color-text-sub)' }}>품질 등급</p>
           <div className="flex gap-1.5">
             {QUALITY_GRADES.map(g => {
               const on = selectedGrades.includes(g)
@@ -104,8 +104,8 @@ export default function AdminFilterBar({
                   className="w-8 h-8 rounded-lg text-xs font-bold border transition-colors"
                   style={{
                     backgroundColor: on ? `${color}20` : 'transparent',
-                    borderColor: on ? color : 'rgba(255,255,255,0.12)',
-                    color: on ? color : 'rgba(255,255,255,0.6)',
+                    borderColor: on ? color : 'var(--color-border)',
+                    color: on ? color : 'var(--color-text-sub)',
                   }}
                 >
                   {g}
@@ -116,7 +116,7 @@ export default function AdminFilterBar({
         </div>
 
         <div>
-          <p className="text-xs font-medium mb-1.5" style={{ color: 'rgba(255,255,255,0.5)' }}>라벨</p>
+          <p className="text-xs font-medium mb-1.5" style={{ color: 'var(--color-text-sub)' }}>라벨</p>
           <div className="flex gap-1.5">
             {LABEL_OPTIONS.map(o => {
               const on = labelStatus === o.value
@@ -127,8 +127,8 @@ export default function AdminFilterBar({
                   className="px-3 py-1 rounded-full text-xs font-medium border transition-colors"
                   style={{
                     backgroundColor: on ? 'rgba(19,55,236,0.15)' : 'transparent',
-                    borderColor: on ? '#1337ec' : 'rgba(255,255,255,0.12)',
-                    color: on ? '#1337ec' : 'rgba(255,255,255,0.6)',
+                    borderColor: on ? 'var(--color-accent)' : 'var(--color-border)',
+                    color: on ? 'var(--color-accent)' : 'var(--color-text-sub)',
                   }}
                 >
                   {o.label}
@@ -139,7 +139,7 @@ export default function AdminFilterBar({
         </div>
 
         <div>
-          <p className="text-xs font-medium mb-1.5" style={{ color: 'rgba(255,255,255,0.5)' }}>공개 상태</p>
+          <p className="text-xs font-medium mb-1.5" style={{ color: 'var(--color-text-sub)' }}>공개 상태</p>
           <div className="flex gap-1.5">
             {PUBLIC_OPTIONS.map(o => {
               const on = publicStatus === o.value
@@ -150,8 +150,8 @@ export default function AdminFilterBar({
                   className="px-3 py-1 rounded-full text-xs font-medium border transition-colors"
                   style={{
                     backgroundColor: on ? 'rgba(19,55,236,0.15)' : 'transparent',
-                    borderColor: on ? '#1337ec' : 'rgba(255,255,255,0.12)',
-                    color: on ? '#1337ec' : 'rgba(255,255,255,0.6)',
+                    borderColor: on ? 'var(--color-accent)' : 'var(--color-border)',
+                    color: on ? 'var(--color-accent)' : 'var(--color-text-sub)',
                   }}
                 >
                   {o.label}
@@ -162,7 +162,7 @@ export default function AdminFilterBar({
         </div>
 
         <div>
-          <p className="text-xs font-medium mb-1.5" style={{ color: 'rgba(255,255,255,0.5)' }}>업로드 상태</p>
+          <p className="text-xs font-medium mb-1.5" style={{ color: 'var(--color-text-sub)' }}>업로드 상태</p>
           <div className="flex gap-1.5">
             {UPLOAD_OPTIONS.map(o => {
               const on = selectedUploadStatuses.includes(o.value)
@@ -173,8 +173,8 @@ export default function AdminFilterBar({
                   className="px-3 py-1 rounded-full text-xs font-medium border transition-colors"
                   style={{
                     backgroundColor: on ? 'rgba(19,55,236,0.15)' : 'transparent',
-                    borderColor: on ? '#1337ec' : 'rgba(255,255,255,0.12)',
-                    color: on ? '#1337ec' : 'rgba(255,255,255,0.6)',
+                    borderColor: on ? 'var(--color-accent)' : 'var(--color-border)',
+                    color: on ? 'var(--color-accent)' : 'var(--color-text-sub)',
                   }}
                 >
                   {o.label}
@@ -185,14 +185,14 @@ export default function AdminFilterBar({
         </div>
 
         <div>
-          <p className="text-xs font-medium mb-1.5" style={{ color: 'rgba(255,255,255,0.5)' }}>PII 처리</p>
+          <p className="text-xs font-medium mb-1.5" style={{ color: 'var(--color-text-sub)' }}>PII 처리</p>
           <button
             onClick={() => onPiiOnly(!piiOnly)}
             className="px-3 py-1 rounded-full text-xs font-medium border transition-colors"
             style={{
               backgroundColor: piiOnly ? 'rgba(34,197,94,0.15)' : 'transparent',
-              borderColor: piiOnly ? '#22c55e' : 'rgba(255,255,255,0.12)',
-              color: piiOnly ? '#22c55e' : 'rgba(255,255,255,0.6)',
+              borderColor: piiOnly ? '#22c55e' : 'var(--color-border)',
+              color: piiOnly ? '#22c55e' : 'var(--color-text-sub)',
             }}
           >
             비식별 완료만
@@ -202,28 +202,28 @@ export default function AdminFilterBar({
 
       {/* 기간 */}
       <div>
-        <p className="text-xs font-medium mb-1.5" style={{ color: 'rgba(255,255,255,0.5)' }}>기간</p>
+        <p className="text-xs font-medium mb-1.5" style={{ color: 'var(--color-text-sub)' }}>기간</p>
         <div className="flex items-center gap-2">
           <input
             type="date"
             value={dateRange?.from ?? ''}
             onChange={e => handleDateChange('from', e.target.value)}
-            className="px-2 py-1 rounded-lg text-xs text-white border outline-none"
+            className="px-2 py-1 rounded-lg text-xs text-txt border outline-none"
             style={{
-              backgroundColor: '#101322',
-              borderColor: dateRange?.from ? '#1337ec' : 'rgba(255,255,255,0.1)',
+              backgroundColor: 'var(--color-bg)',
+              borderColor: dateRange?.from ? 'var(--color-accent)' : 'var(--color-border-light)',
               colorScheme: 'dark',
             }}
           />
-          <span className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>~</span>
+          <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>~</span>
           <input
             type="date"
             value={dateRange?.to ?? ''}
             onChange={e => handleDateChange('to', e.target.value)}
-            className="px-2 py-1 rounded-lg text-xs text-white border outline-none"
+            className="px-2 py-1 rounded-lg text-xs text-txt border outline-none"
             style={{
-              backgroundColor: '#101322',
-              borderColor: dateRange?.to ? '#1337ec' : 'rgba(255,255,255,0.1)',
+              backgroundColor: 'var(--color-bg)',
+              borderColor: dateRange?.to ? 'var(--color-accent)' : 'var(--color-border-light)',
               colorScheme: 'dark',
             }}
           />
@@ -235,7 +235,7 @@ export default function AdminFilterBar({
         <button
           onClick={onReset}
           className="text-xs flex items-center gap-1"
-          style={{ color: 'rgba(255,255,255,0.4)' }}
+          style={{ color: 'var(--color-text-tertiary)' }}
         >
           <span className="material-symbols-outlined text-sm">restart_alt</span>
           필터 초기화 ({activeCount})

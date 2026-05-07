@@ -49,11 +49,11 @@ export default function ConsentOverridePanel({ sessionId, currentStatus, onStatu
   const current = STATUS_CONFIG[currentStatus]
 
   return (
-    <div className="rounded-xl overflow-hidden" style={{ backgroundColor: '#1b1e2e' }}>
+    <div className="rounded-xl overflow-hidden" style={{ backgroundColor: 'var(--color-surface)' }}>
       {/* Header */}
-      <div className="px-4 py-3 flex items-center gap-2" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+      <div className="px-4 py-3 flex items-center gap-2" style={{ borderBottom: '1px solid var(--color-border-light)' }}>
         <span className="material-symbols-outlined text-base" style={{ color: '#f59e0b' }}>shield</span>
-        <span className="text-xs font-medium text-white">동의 상태 변경</span>
+        <span className="text-xs font-medium text-txt">동의 상태 변경</span>
         <span
           className="text-[9px] font-medium px-1.5 py-0.5 rounded ml-auto"
           style={{ backgroundColor: current.bgColor, color: current.color }}
@@ -65,7 +65,7 @@ export default function ConsentOverridePanel({ sessionId, currentStatus, onStatu
       {/* Status options */}
       <div className="px-4 py-3 space-y-3">
         <div>
-          <p className="text-[10px] mb-1.5" style={{ color: 'rgba(255,255,255,0.4)' }}>변경할 상태</p>
+          <p className="text-[10px] mb-1.5" style={{ color: 'var(--color-text-tertiary)' }}>변경할 상태</p>
           <div className="flex gap-1.5">
             {STATUS_OPTIONS.map(status => {
               const config = STATUS_CONFIG[status]
@@ -76,8 +76,8 @@ export default function ConsentOverridePanel({ sessionId, currentStatus, onStatu
                   onClick={() => setSelectedStatus(status)}
                   className="text-[10px] px-3 py-1.5 rounded-lg transition-colors font-medium"
                   style={{
-                    backgroundColor: active ? config.bgColor : 'rgba(255,255,255,0.06)',
-                    color: active ? config.color : 'rgba(255,255,255,0.5)',
+                    backgroundColor: active ? config.bgColor : 'var(--color-surface-alt)',
+                    color: active ? config.color : 'var(--color-text-sub)',
                     border: active ? `1px solid ${config.color}30` : '1px solid transparent',
                   }}
                 >
@@ -90,7 +90,7 @@ export default function ConsentOverridePanel({ sessionId, currentStatus, onStatu
 
         {/* Reason (required) */}
         <div>
-          <p className="text-[10px] mb-1.5" style={{ color: 'rgba(255,255,255,0.4)' }}>
+          <p className="text-[10px] mb-1.5" style={{ color: 'var(--color-text-tertiary)' }}>
             변경 사유 <span style={{ color: '#ef4444' }}>*</span>
           </p>
           <textarea
@@ -98,10 +98,10 @@ export default function ConsentOverridePanel({ sessionId, currentStatus, onStatu
             onChange={e => setReason(e.target.value)}
             placeholder="변경 사유를 입력하세요 (필수)"
             rows={2}
-            className="w-full px-3 py-2 rounded-lg text-xs text-white outline-none resize-none"
+            className="w-full px-3 py-2 rounded-lg text-xs text-txt outline-none resize-none"
             style={{
-              backgroundColor: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.1)',
+              backgroundColor: 'var(--color-surface-alt)',
+              border: '1px solid var(--color-border-light)',
             }}
           />
         </div>
@@ -112,11 +112,11 @@ export default function ConsentOverridePanel({ sessionId, currentStatus, onStatu
       </div>
 
       {/* Action */}
-      <div className="px-4 py-3" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+      <div className="px-4 py-3" style={{ borderTop: '1px solid var(--color-border-light)' }}>
         <button
           onClick={handleSave}
           disabled={!canSave || saving}
-          className="w-full text-xs py-2 rounded-lg font-medium text-white transition-colors disabled:opacity-30"
+          className="w-full text-xs py-2 rounded-lg font-medium text-txt transition-colors disabled:opacity-30"
           style={{ backgroundColor: '#f59e0b' }}
         >
           {saving ? '저장 중...' : '동의 상태 변경'}

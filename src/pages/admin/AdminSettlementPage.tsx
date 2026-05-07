@@ -87,7 +87,7 @@ export default function AdminSettlementPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20" style={{ color: 'rgba(255,255,255,0.4)' }}>
+      <div className="flex items-center justify-center py-20" style={{ color: 'var(--color-text-tertiary)' }}>
         <span className="material-symbols-outlined text-3xl animate-spin">progress_activity</span>
       </div>
     )
@@ -97,21 +97,21 @@ export default function AdminSettlementPage() {
     <div className="p-4 space-y-4">
       {/* 요약 카드 */}
       <div className="grid grid-cols-3 gap-3">
-        <div className="rounded-xl p-3" style={{ backgroundColor: '#1b1e2e' }}>
-          <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>확정 대기</p>
+        <div className="rounded-xl p-3" style={{ backgroundColor: 'var(--color-surface)' }}>
+          <p className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>확정 대기</p>
           <p className="text-lg font-bold" style={{ color: '#f59e0b' }}>
             {totalConfirmed.toLocaleString()}<span className="text-xs font-normal">원</span>
           </p>
-          <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.3)' }}>{confirmedCount}건</p>
+          <p className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>{confirmedCount}건</p>
         </div>
-        <div className="rounded-xl p-3" style={{ backgroundColor: '#1b1e2e' }}>
-          <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>출금 가능</p>
+        <div className="rounded-xl p-3" style={{ backgroundColor: 'var(--color-surface)' }}>
+          <p className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>출금 가능</p>
           <p className="text-lg font-bold" style={{ color: '#22c55e' }}>
             {totalWithdrawable.toLocaleString()}<span className="text-xs font-normal">원</span>
           </p>
         </div>
-        <div className="rounded-xl p-3" style={{ backgroundColor: '#1b1e2e' }}>
-          <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>지급 완료</p>
+        <div className="rounded-xl p-3" style={{ backgroundColor: 'var(--color-surface)' }}>
+          <p className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>지급 완료</p>
           <p className="text-lg font-bold" style={{ color: '#6b7280' }}>
             {totalPaid.toLocaleString()}<span className="text-xs font-normal">원</span>
           </p>
@@ -119,13 +119,13 @@ export default function AdminSettlementPage() {
       </div>
 
       {/* 배치 전환 버튼 */}
-      <div className="rounded-xl p-4" style={{ backgroundColor: '#1b1e2e' }}>
-        <h3 className="text-xs font-semibold mb-3" style={{ color: 'rgba(255,255,255,0.7)' }}>배치 상태 전환</h3>
+      <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--color-surface)' }}>
+        <h3 className="text-xs font-semibold mb-3" style={{ color: 'var(--color-text-sub)' }}>배치 상태 전환</h3>
         <div className="flex gap-2 flex-wrap">
           <button
             onClick={() => handleBatchTransition('confirmed', 'withdrawable')}
             disabled={processing || confirmedCount === 0}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-30"
+            className="px-3 py-1.5 rounded-lg text-xs font-medium text-txt disabled:opacity-30"
             style={{ backgroundColor: '#22c55e' }}
           >
             확정{' \u2192 '}출금 가능 ({confirmedCount}건)
@@ -133,7 +133,7 @@ export default function AdminSettlementPage() {
           <button
             onClick={() => handleBatchTransition('withdrawable', 'paid')}
             disabled={processing || entries.filter(e => e.status === 'withdrawable').length === 0}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-30"
+            className="px-3 py-1.5 rounded-lg text-xs font-medium text-txt disabled:opacity-30"
             style={{ backgroundColor: '#6b7280' }}
           >
             출금 가능{' \u2192 '}지급 완료
@@ -154,8 +154,8 @@ export default function AdminSettlementPage() {
             onClick={() => setFilter(s)}
             className="text-[10px] px-2.5 py-1 rounded-lg whitespace-nowrap transition-colors"
             style={{
-              backgroundColor: filter === s ? '#1337ec' : 'rgba(255,255,255,0.06)',
-              color: filter === s ? 'white' : 'rgba(255,255,255,0.5)',
+              backgroundColor: filter === s ? 'var(--color-accent)' : 'var(--color-surface-alt)',
+              color: filter === s ? 'white' : 'var(--color-text-sub)',
             }}
           >
             {s === 'all' ? '전체' : LEDGER_STATUS_LABEL_KO[s]}
@@ -165,16 +165,16 @@ export default function AdminSettlementPage() {
 
       {/* 사용자별 그룹 */}
       {groups.length === 0 && (
-        <p className="text-xs text-center py-8" style={{ color: 'rgba(255,255,255,0.3)' }}>원장 데이터 없음</p>
+        <p className="text-xs text-center py-8" style={{ color: 'var(--color-text-tertiary)' }}>원장 데이터 없음</p>
       )}
       {groups.map(g => (
-        <div key={g.userId} className="rounded-xl overflow-hidden" style={{ backgroundColor: '#1b1e2e' }}>
+        <div key={g.userId} className="rounded-xl overflow-hidden" style={{ backgroundColor: 'var(--color-surface)' }}>
           <button
             onClick={() => setExpandedUser(expandedUser === g.userId ? null : g.userId)}
             className="w-full text-left p-3 flex items-center justify-between"
           >
             <div>
-              <p className="text-xs text-white font-medium font-mono">{g.userId.slice(0, 12)}...</p>
+              <p className="text-xs text-txt font-medium font-mono">{g.userId.slice(0, 12)}...</p>
               <div className="flex gap-3 mt-1">
                 {g.confirmedTotal > 0 && (
                   <span className="text-[10px]" style={{ color: '#f59e0b' }}>확정 ₩{g.confirmedTotal.toLocaleString()}</span>
@@ -190,13 +190,13 @@ export default function AdminSettlementPage() {
                 )}
               </div>
             </div>
-            <span className="material-symbols-outlined text-base" style={{ color: 'rgba(255,255,255,0.3)' }}>
+            <span className="material-symbols-outlined text-base" style={{ color: 'var(--color-text-tertiary)' }}>
               {expandedUser === g.userId ? 'expand_less' : 'expand_more'}
             </span>
           </button>
 
           {expandedUser === g.userId && (
-            <div className="border-t px-3 pb-3 space-y-1.5" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+            <div className="border-t px-3 pb-3 space-y-1.5" style={{ borderColor: 'var(--color-surface-alt)' }}>
               {g.entries.map(e => (
                 <div key={e.id} className="flex items-center justify-between py-1.5 text-[10px]">
                   <div className="flex items-center gap-2">
@@ -206,9 +206,9 @@ export default function AdminSettlementPage() {
                     >
                       {LEDGER_STATUS_LABEL_KO[e.status]}
                     </span>
-                    <span style={{ color: 'rgba(255,255,255,0.6)' }}>{LEDGER_TYPE_LABEL_KO[e.ledgerType]}</span>
+                    <span style={{ color: 'var(--color-text-sub)' }}>{LEDGER_TYPE_LABEL_KO[e.ledgerType]}</span>
                   </div>
-                  <span className="text-white font-mono">
+                  <span className="text-txt font-mono">
                     {e.amountConfirmed !== null
                       ? `₩${e.amountConfirmed.toLocaleString()}`
                       : `₩${e.amountLow.toLocaleString()}~${e.amountHigh.toLocaleString()}`

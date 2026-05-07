@@ -38,7 +38,7 @@ export default function AdminConsentsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <span className="material-symbols-outlined animate-spin text-2xl" style={{ color: '#1337ec' }}>progress_activity</span>
+        <span className="material-symbols-outlined animate-spin text-2xl" style={{ color: 'var(--color-accent)' }}>progress_activity</span>
       </div>
     )
   }
@@ -50,18 +50,18 @@ export default function AdminConsentsPage() {
         {[
           { label: '동의 유닛', value: consented.length.toLocaleString(), color: '#22c55e' },
           { label: '비동의', value: private_.length.toLocaleString(), color: '#ef4444' },
-          { label: '동의율', value: `${consentRate}%`, color: '#1337ec' },
+          { label: '동의율', value: `${consentRate}%`, color: 'var(--color-accent)' },
         ].map(c => (
-          <div key={c.label} className="rounded-xl p-3 text-center" style={{ backgroundColor: '#1b1e2e' }}>
+          <div key={c.label} className="rounded-xl p-3 text-center" style={{ backgroundColor: 'var(--color-surface)' }}>
             <p className="text-lg font-bold" style={{ color: c.color }}>{c.value}</p>
-            <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>{c.label}</p>
+            <p className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>{c.label}</p>
           </div>
         ))}
       </div>
 
       {/* 유저별 */}
       <div>
-        <p className="text-xs font-medium mb-2" style={{ color: 'rgba(255,255,255,0.5)' }}>
+        <p className="text-xs font-medium mb-2" style={{ color: 'var(--color-text-sub)' }}>
           사용자별 동의 현황
         </p>
         <div className="space-y-1">
@@ -71,13 +71,13 @@ export default function AdminConsentsPage() {
               <div
                 key={uid}
                 className="flex items-center gap-2 px-3 py-2 rounded-lg"
-                style={{ backgroundColor: '#1b1e2e' }}
+                style={{ backgroundColor: 'var(--color-surface)' }}
               >
-                <span className="text-xs text-white flex-1 truncate">{uid.slice(0, 12)}</span>
-                <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                <span className="text-xs text-txt flex-1 truncate">{uid.slice(0, 12)}</span>
+                <span className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>
                   {data.total}유닛
                 </span>
-                <div className="w-16 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}>
+                <div className="w-16 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--color-border-light)' }}>
                   <div className="h-full rounded-full" style={{ width: `${rate}%`, backgroundColor: '#22c55e' }} />
                 </div>
                 <span className="text-[10px] w-8 text-right" style={{ color: rate >= 80 ? '#22c55e' : rate >= 50 ? '#f59e0b' : '#ef4444' }}>

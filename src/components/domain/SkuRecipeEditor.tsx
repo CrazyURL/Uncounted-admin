@@ -99,11 +99,11 @@ export default function SkuRecipeEditor({ isOpen, recipe, onSave, onReset, onClo
     >
       <div
         className="w-full max-w-md mx-4 rounded-2xl overflow-hidden"
-        style={{ backgroundColor: '#1b1e2e', maxHeight: '85vh' }}
+        style={{ backgroundColor: 'var(--color-surface)', maxHeight: '85vh' }}
         onClick={e => e.stopPropagation()}
       >
         {/* 헤더 */}
-        <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+        <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--color-surface-alt)' }}>
           <div className="flex items-center gap-2">
             <span
               className="text-[10px] font-bold px-1.5 py-0.5 rounded"
@@ -111,17 +111,17 @@ export default function SkuRecipeEditor({ isOpen, recipe, onSave, onReset, onClo
             >
               {recipe.skuId}
             </span>
-            <h3 className="text-sm font-semibold text-white">{skuDef?.nameKo ?? recipe.skuId} 설정</h3>
+            <h3 className="text-sm font-semibold text-txt">{skuDef?.nameKo ?? recipe.skuId} 설정</h3>
           </div>
           <button onClick={onClose}>
-            <span className="material-symbols-outlined text-base" style={{ color: 'rgba(255,255,255,0.4)' }}>close</span>
+            <span className="material-symbols-outlined text-base" style={{ color: 'var(--color-text-tertiary)' }}>close</span>
           </button>
         </div>
 
         <div className="overflow-y-auto p-4 space-y-5" style={{ maxHeight: 'calc(85vh - 120px)' }}>
           {/* 소스 필터 */}
           <section>
-            <p className="text-xs font-medium text-white mb-2">소스 필터</p>
+            <p className="text-xs font-medium text-txt mb-2">소스 필터</p>
 
             <div className="space-y-2">
               <ToggleRow label="오디오 필수" value={filters.requireAudio} onChange={v => updateFilter('requireAudio', v)} />
@@ -130,7 +130,7 @@ export default function SkuRecipeEditor({ isOpen, recipe, onSave, onReset, onClo
 
               {/* 라벨 필수 */}
               <div>
-                <p className="text-[11px] mb-1" style={{ color: 'rgba(255,255,255,0.5)' }}>라벨 필수</p>
+                <p className="text-[11px] mb-1" style={{ color: 'var(--color-text-sub)' }}>라벨 필수</p>
                 <div className="flex gap-1">
                   {(['none', 'any', 'specific'] as const).map(m => (
                     <button
@@ -138,8 +138,8 @@ export default function SkuRecipeEditor({ isOpen, recipe, onSave, onReset, onClo
                       onClick={() => setLabelMode(m)}
                       className="text-[11px] px-2 py-1 rounded transition-colors"
                       style={{
-                        backgroundColor: labelMode === m ? '#1337ec' : 'rgba(255,255,255,0.06)',
-                        color: labelMode === m ? 'white' : 'rgba(255,255,255,0.4)',
+                        backgroundColor: labelMode === m ? 'var(--color-accent)' : 'var(--color-surface-alt)',
+                        color: labelMode === m ? 'white' : 'var(--color-text-tertiary)',
                       }}
                     >
                       {m === 'none' ? '없음' : m === 'any' ? '아무거나' : '특정 필드'}
@@ -154,8 +154,8 @@ export default function SkuRecipeEditor({ isOpen, recipe, onSave, onReset, onClo
                         onClick={() => toggleSpecificLabelField(f.key)}
                         className="text-[10px] px-2 py-0.5 rounded transition-colors"
                         style={{
-                          backgroundColor: specificLabelFields.includes(f.key) ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.04)',
-                          color: specificLabelFields.includes(f.key) ? '#22c55e' : 'rgba(255,255,255,0.3)',
+                          backgroundColor: specificLabelFields.includes(f.key) ? 'rgba(34,197,94,0.15)' : 'var(--color-surface-alt)',
+                          color: specificLabelFields.includes(f.key) ? '#22c55e' : 'var(--color-text-tertiary)',
                         }}
                       >
                         {f.labelKo}
@@ -167,7 +167,7 @@ export default function SkuRecipeEditor({ isOpen, recipe, onSave, onReset, onClo
 
               {/* 최소 품질 등급 */}
               <div>
-                <p className="text-[11px] mb-1" style={{ color: 'rgba(255,255,255,0.5)' }}>최소 품질 등급</p>
+                <p className="text-[11px] mb-1" style={{ color: 'var(--color-text-sub)' }}>최소 품질 등급</p>
                 <div className="flex gap-1">
                   {QUALITY_OPTIONS.map(opt => (
                     <button
@@ -175,8 +175,8 @@ export default function SkuRecipeEditor({ isOpen, recipe, onSave, onReset, onClo
                       onClick={() => updateFilter('minQualityGrade', opt.value)}
                       className="text-[11px] px-2 py-1 rounded transition-colors"
                       style={{
-                        backgroundColor: filters.minQualityGrade === opt.value ? '#1337ec' : 'rgba(255,255,255,0.06)',
-                        color: filters.minQualityGrade === opt.value ? 'white' : 'rgba(255,255,255,0.4)',
+                        backgroundColor: filters.minQualityGrade === opt.value ? 'var(--color-accent)' : 'var(--color-surface-alt)',
+                        color: filters.minQualityGrade === opt.value ? 'white' : 'var(--color-text-tertiary)',
                       }}
                     >
                       {opt.label}
@@ -187,7 +187,7 @@ export default function SkuRecipeEditor({ isOpen, recipe, onSave, onReset, onClo
 
               {/* 도메인 필터 */}
               <div>
-                <p className="text-[11px] mb-1" style={{ color: 'rgba(255,255,255,0.5)' }}>도메인 (빈칸=전체)</p>
+                <p className="text-[11px] mb-1" style={{ color: 'var(--color-text-sub)' }}>도메인 (빈칸=전체)</p>
                 <div className="flex flex-wrap gap-1">
                   {DOMAIN_OPTIONS.map(d => (
                     <button
@@ -195,8 +195,8 @@ export default function SkuRecipeEditor({ isOpen, recipe, onSave, onReset, onClo
                       onClick={() => toggleDomain(d)}
                       className="text-[10px] px-2 py-0.5 rounded transition-colors"
                       style={{
-                        backgroundColor: filters.domainFilter.includes(d) ? 'rgba(19,55,236,0.15)' : 'rgba(255,255,255,0.04)',
-                        color: filters.domainFilter.includes(d) ? '#7b9aff' : 'rgba(255,255,255,0.3)',
+                        backgroundColor: filters.domainFilter.includes(d) ? 'rgba(19,55,236,0.15)' : 'var(--color-surface-alt)',
+                        color: filters.domainFilter.includes(d) ? '#7b9aff' : 'var(--color-text-tertiary)',
                       }}
                     >
                       {d}
@@ -209,11 +209,11 @@ export default function SkuRecipeEditor({ isOpen, recipe, onSave, onReset, onClo
 
           {/* 출력 필드 */}
           <section>
-            <p className="text-xs font-medium text-white mb-2">출력 필드 ({exportFields.size}개)</p>
+            <p className="text-xs font-medium text-txt mb-2">출력 필드 ({exportFields.size}개)</p>
             <div className="space-y-2">
               {[...fieldGroups.entries()].map(([group, groupFields]) => (
                 <div key={group}>
-                  <p className="text-[10px] mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                  <p className="text-[10px] mb-1" style={{ color: 'var(--color-text-tertiary)' }}>
                     {FIELD_GROUP_LABELS[group]}
                   </p>
                   <div className="flex flex-wrap gap-1">
@@ -223,8 +223,8 @@ export default function SkuRecipeEditor({ isOpen, recipe, onSave, onReset, onClo
                         onClick={() => toggleExportField(f.key)}
                         className="text-[10px] px-1.5 py-0.5 rounded transition-colors"
                         style={{
-                          backgroundColor: exportFields.has(f.key) ? 'rgba(19,55,236,0.15)' : 'rgba(255,255,255,0.04)',
-                          color: exportFields.has(f.key) ? '#7b9aff' : 'rgba(255,255,255,0.25)',
+                          backgroundColor: exportFields.has(f.key) ? 'rgba(19,55,236,0.15)' : 'var(--color-surface-alt)',
+                          color: exportFields.has(f.key) ? '#7b9aff' : 'var(--color-text-tertiary)',
                         }}
                       >
                         {f.labelKo}
@@ -238,7 +238,7 @@ export default function SkuRecipeEditor({ isOpen, recipe, onSave, onReset, onClo
 
           {/* 선호 포맷 */}
           <section>
-            <p className="text-xs font-medium text-white mb-2">선호 포맷</p>
+            <p className="text-xs font-medium text-txt mb-2">선호 포맷</p>
             <div className="flex gap-1">
               {(['json', 'jsonl', 'csv'] as const).map(fmt => (
                 <button
@@ -246,8 +246,8 @@ export default function SkuRecipeEditor({ isOpen, recipe, onSave, onReset, onClo
                   onClick={() => setPreferredFormat(fmt)}
                   className="text-xs px-3 py-1 rounded transition-colors"
                   style={{
-                    backgroundColor: preferredFormat === fmt ? '#1337ec' : 'rgba(255,255,255,0.06)',
-                    color: preferredFormat === fmt ? 'white' : 'rgba(255,255,255,0.4)',
+                    backgroundColor: preferredFormat === fmt ? 'var(--color-accent)' : 'var(--color-surface-alt)',
+                    color: preferredFormat === fmt ? 'white' : 'var(--color-text-tertiary)',
                   }}
                 >
                   {fmt.toUpperCase()}
@@ -258,18 +258,18 @@ export default function SkuRecipeEditor({ isOpen, recipe, onSave, onReset, onClo
         </div>
 
         {/* Footer */}
-        <div className="flex gap-2 px-4 py-3 border-t" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+        <div className="flex gap-2 px-4 py-3 border-t" style={{ borderColor: 'var(--color-surface-alt)' }}>
           <button
             onClick={onReset}
             className="px-3 py-2 text-xs rounded-lg"
-            style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)' }}
+            style={{ backgroundColor: 'var(--color-surface-alt)', color: 'var(--color-text-sub)' }}
           >
             초기화
           </button>
           <button
             onClick={handleSave}
-            className="flex-1 py-2 text-sm font-medium text-white rounded-lg"
-            style={{ backgroundColor: '#1337ec' }}
+            className="flex-1 py-2 text-sm font-medium text-txt rounded-lg"
+            style={{ backgroundColor: 'var(--color-accent)' }}
           >
             저장
           </button>
@@ -287,10 +287,10 @@ function ToggleRow({ label, value, onChange }: { label: string; value: boolean; 
       onClick={() => onChange(!value)}
       className="w-full flex items-center justify-between py-1"
     >
-      <span className="text-[11px]" style={{ color: 'rgba(255,255,255,0.5)' }}>{label}</span>
+      <span className="text-[11px]" style={{ color: 'var(--color-text-sub)' }}>{label}</span>
       <div
         className="w-8 h-4 rounded-full relative transition-colors"
-        style={{ backgroundColor: value ? '#1337ec' : 'rgba(255,255,255,0.12)' }}
+        style={{ backgroundColor: value ? 'var(--color-accent)' : 'var(--color-border)' }}
       >
         <div
           className="w-3 h-3 rounded-full bg-white absolute top-0.5 transition-all"

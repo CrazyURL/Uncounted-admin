@@ -13,7 +13,7 @@ const GRADE_COLORS: Record<string, string> = {
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
-  voice: '#1337ec',
+  voice: 'var(--color-accent)',
   metadata: '#f59e0b',
 }
 
@@ -24,7 +24,7 @@ export default function SkuStudioCard({ entry, onBuild, onCustomize }: Props) {
   return (
     <div
       className="rounded-xl p-3 space-y-3"
-      style={{ backgroundColor: '#1b1e2e' }}
+      style={{ backgroundColor: 'var(--color-surface)' }}
     >
       {/* 헤더 */}
       <div className="flex items-start justify-between">
@@ -35,13 +35,13 @@ export default function SkuStudioCard({ entry, onBuild, onCustomize }: Props) {
           >
             {def.id}
           </span>
-          <span className="text-xs font-medium text-white">{def.nameKo}</span>
+          <span className="text-xs font-medium text-txt">{def.nameKo}</span>
         </div>
         <span
           className="text-xs font-bold px-2 py-0.5 rounded-full"
           style={{
-            backgroundColor: matchCount > 0 ? 'rgba(19,55,236,0.15)' : 'rgba(255,255,255,0.06)',
-            color: matchCount > 0 ? '#7b9aff' : 'rgba(255,255,255,0.3)',
+            backgroundColor: matchCount > 0 ? 'rgba(19,55,236,0.15)' : 'var(--color-surface-alt)',
+            color: matchCount > 0 ? '#7b9aff' : 'var(--color-text-tertiary)',
           }}
         >
           {matchCount}건
@@ -51,22 +51,22 @@ export default function SkuStudioCard({ entry, onBuild, onCustomize }: Props) {
       {/* 스탯 */}
       <div className="grid grid-cols-3 gap-2">
         <div>
-          <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>매칭</p>
-          <p className="text-sm font-medium text-white">{matchCount.toLocaleString()}</p>
+          <p className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>매칭</p>
+          <p className="text-sm font-medium text-txt">{matchCount.toLocaleString()}</p>
         </div>
         <div>
-          <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>총 시간</p>
-          <p className="text-sm font-medium text-white">{totalHours.toFixed(1)}h</p>
+          <p className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>총 시간</p>
+          <p className="text-sm font-medium text-txt">{totalHours.toFixed(1)}h</p>
         </div>
         <div>
-          <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>라벨률</p>
-          <p className="text-sm font-medium text-white">{Math.round(labelCoverage * 100)}%</p>
+          <p className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>라벨률</p>
+          <p className="text-sm font-medium text-txt">{Math.round(labelCoverage * 100)}%</p>
         </div>
       </div>
 
       {/* 품질 미니바 */}
       {totalQuality > 0 && (
-        <div className="flex h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'rgba(255,255,255,0.06)' }}>
+        <div className="flex h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--color-surface-alt)' }}>
           {(['A', 'B', 'C'] as const).map(g => {
             const pct = (qualityBreakdown[g] / totalQuality) * 100
             if (pct === 0) return null
@@ -88,8 +88,8 @@ export default function SkuStudioCard({ entry, onBuild, onCustomize }: Props) {
           disabled={matchCount === 0}
           className="flex-1 py-1.5 text-xs font-medium rounded-lg transition-colors"
           style={{
-            backgroundColor: matchCount > 0 ? '#1337ec' : 'rgba(255,255,255,0.04)',
-            color: matchCount > 0 ? 'white' : 'rgba(255,255,255,0.2)',
+            backgroundColor: matchCount > 0 ? 'var(--color-accent)' : 'var(--color-surface-alt)',
+            color: matchCount > 0 ? 'white' : 'var(--color-border)',
           }}
         >
           빌드
@@ -97,7 +97,7 @@ export default function SkuStudioCard({ entry, onBuild, onCustomize }: Props) {
         <button
           onClick={() => onCustomize(def.id)}
           className="flex-1 py-1.5 text-xs font-medium rounded-lg"
-          style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)' }}
+          style={{ backgroundColor: 'var(--color-surface-alt)', color: 'var(--color-text-sub)' }}
         >
           설정
         </button>

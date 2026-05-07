@@ -160,7 +160,7 @@ export default function AdminClientSkuMapPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20" style={{ color: 'rgba(255,255,255,0.4)' }}>
+      <div className="flex items-center justify-center py-20" style={{ color: 'var(--color-text-tertiary)' }}>
         <span className="material-symbols-outlined text-3xl animate-spin">progress_activity</span>
       </div>
     )
@@ -168,7 +168,7 @@ export default function AdminClientSkuMapPage() {
 
   if (clients.length === 0) {
     return (
-      <div className="text-center py-20" style={{ color: 'rgba(255,255,255,0.4)' }}>
+      <div className="text-center py-20" style={{ color: 'var(--color-text-tertiary)' }}>
         <span className="material-symbols-outlined text-4xl">business</span>
         <p className="text-sm mt-2">먼저 납품처를 등록하세요</p>
       </div>
@@ -179,13 +179,13 @@ export default function AdminClientSkuMapPage() {
     <div className="p-4 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold" style={{ color: 'rgba(255,255,255,0.7)' }}>
+        <h2 className="text-sm font-semibold" style={{ color: 'var(--color-text-sub)' }}>
           고객-SKU 매핑
         </h2>
         <button
           onClick={openNew}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-white"
-          style={{ backgroundColor: '#1337ec' }}
+          className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-txt"
+          style={{ backgroundColor: 'var(--color-accent)' }}
         >
           <span className="material-symbols-outlined text-sm">add</span>
           규칙 추가
@@ -200,8 +200,8 @@ export default function AdminClientSkuMapPage() {
             onClick={() => setSelectedClientId(c.id)}
             className="text-xs px-3 py-1 rounded-full whitespace-nowrap"
             style={{
-              backgroundColor: selectedClientId === c.id ? 'rgba(19,55,236,0.2)' : 'rgba(255,255,255,0.06)',
-              color: selectedClientId === c.id ? '#1337ec' : 'rgba(255,255,255,0.5)',
+              backgroundColor: selectedClientId === c.id ? 'rgba(19,55,236,0.2)' : 'var(--color-surface-alt)',
+              color: selectedClientId === c.id ? 'var(--color-accent)' : 'var(--color-text-sub)',
             }}
           >
             {c.name}
@@ -220,29 +220,29 @@ export default function AdminClientSkuMapPage() {
       {/* Preset quick-apply */}
       {!showForm && presets.length > 0 && (
         <div>
-          <p className="text-xs mb-1.5" style={{ color: 'rgba(255,255,255,0.4)' }}>프리셋에서 적용</p>
+          <p className="text-xs mb-1.5" style={{ color: 'var(--color-text-tertiary)' }}>프리셋에서 적용</p>
           <div className="flex gap-2 overflow-x-auto pb-1">
             {presets.filter(p => p.isActive).map(p => (
               <button
                 key={p.id}
                 onClick={() => applyPreset(p)}
                 className="flex-shrink-0 text-xs px-3 py-2 rounded-lg text-left"
-                style={{ backgroundColor: 'rgba(19,55,236,0.08)', border: '1px solid rgba(19,55,236,0.2)', color: 'rgba(255,255,255,0.7)' }}
+                style={{ backgroundColor: 'rgba(19,55,236,0.08)', border: '1px solid rgba(19,55,236,0.2)', color: 'var(--color-text-sub)' }}
               >
                 <span className="font-medium">{p.name}</span>
-                <span className="ml-1.5" style={{ color: 'rgba(255,255,255,0.35)' }}>{p.baseSkuId}</span>
+                <span className="ml-1.5" style={{ color: 'var(--color-text-tertiary)' }}>{p.baseSkuId}</span>
                 <div className="flex flex-wrap gap-1 mt-1">
                   <span
                     className="text-[9px] px-1 py-0.5 rounded"
                     style={{
-                      backgroundColor: p.requireLabels === false ? 'rgba(255,255,255,0.06)' : 'rgba(139,92,246,0.15)',
-                      color: p.requireLabels === false ? 'rgba(255,255,255,0.3)' : '#8b5cf6',
+                      backgroundColor: p.requireLabels === false ? 'var(--color-surface-alt)' : 'rgba(139,92,246,0.15)',
+                      color: p.requireLabels === false ? 'var(--color-text-tertiary)' : '#8b5cf6',
                     }}
                   >
                     라벨: {labelSummary(p.requireLabels)}
                   </span>
                   {p.minQualityGrade && (
-                    <span className="text-[9px] px-1 py-0.5 rounded" style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.35)' }}>
+                    <span className="text-[9px] px-1 py-0.5 rounded" style={{ backgroundColor: 'var(--color-surface-alt)', color: 'var(--color-text-tertiary)' }}>
                       {p.minQualityGrade}등급+
                     </span>
                   )}
@@ -260,8 +260,8 @@ export default function AdminClientSkuMapPage() {
 
       {/* Form */}
       {showForm && (
-        <div className="rounded-xl p-4 space-y-3" style={{ backgroundColor: '#1b1e2e', border: '1px solid rgba(19,55,236,0.3)' }}>
-          <h3 className="text-sm font-semibold text-white">
+        <div className="rounded-xl p-4 space-y-3" style={{ backgroundColor: 'var(--color-surface)', border: '1px solid rgba(19,55,236,0.3)' }}>
+          <h3 className="text-sm font-semibold text-txt">
             {editingId ? 'SKU 규칙 수정' : '새 SKU 규칙'}
           </h3>
 
@@ -276,10 +276,10 @@ export default function AdminClientSkuMapPage() {
                   라벨: {labelSummary(selectedPreset.requireLabels)}
                 </span>
                 {selectedPreset.requireAudio && (
-                  <span className="text-[9px] px-1 py-0.5 rounded" style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.4)' }}>오디오 필수</span>
+                  <span className="text-[9px] px-1 py-0.5 rounded" style={{ backgroundColor: 'var(--color-surface-alt)', color: 'var(--color-text-tertiary)' }}>오디오 필수</span>
                 )}
                 {selectedPreset.minQualityGrade && (
-                  <span className="text-[9px] px-1 py-0.5 rounded" style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.4)' }}>{selectedPreset.minQualityGrade}등급+</span>
+                  <span className="text-[9px] px-1 py-0.5 rounded" style={{ backgroundColor: 'var(--color-surface-alt)', color: 'var(--color-text-tertiary)' }}>{selectedPreset.minQualityGrade}등급+</span>
                 )}
                 {selectedPreset.requireConsent && (
                   <span className="text-[9px] px-1 py-0.5 rounded" style={{ backgroundColor: 'rgba(34,197,94,0.1)', color: '#22c55e' }}>동의 필수</span>
@@ -287,7 +287,7 @@ export default function AdminClientSkuMapPage() {
                 {selectedPreset.domainFilter.length > 0 && (
                   <span className="text-[9px] px-1 py-0.5 rounded" style={{ backgroundColor: 'rgba(19,55,236,0.1)', color: '#7b9aff' }}>도메인: {selectedPreset.domainFilter.join(', ')}</span>
                 )}
-                <span className="text-[9px] px-1 py-0.5 rounded" style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.35)' }}>
+                <span className="text-[9px] px-1 py-0.5 rounded" style={{ backgroundColor: 'var(--color-surface-alt)', color: 'var(--color-text-tertiary)' }}>
                   {selectedPreset.preferredFormat.toUpperCase()} / 필드 {selectedPreset.exportFields.length}개
                 </span>
               </div>
@@ -308,8 +308,8 @@ export default function AdminClientSkuMapPage() {
                   pricePerUnit: dp != null ? String(dp) : '',
                 })
               }}
-              className="w-full px-3 py-2 rounded-lg text-sm text-white outline-none"
-              style={{ backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+              className="w-full px-3 py-2 rounded-lg text-sm text-txt outline-none"
+              style={{ backgroundColor: 'var(--color-surface-alt)', border: '1px solid var(--color-border-light)' }}
             >
               <option value="">SKU 선택 *</option>
               {MVP_SKUS.map(s => (
@@ -319,7 +319,7 @@ export default function AdminClientSkuMapPage() {
 
             {/* Preset selector (for linking) */}
             <div>
-              <p className="text-[10px] mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>프리셋 연결 (라벨/필터/출력 설정 결정)</p>
+              <p className="text-[10px] mb-1" style={{ color: 'var(--color-text-tertiary)' }}>프리셋 연결 (라벨/필터/출력 설정 결정)</p>
               <select
                 value={form.presetId ?? ''}
                 onChange={e => {
@@ -335,8 +335,8 @@ export default function AdminClientSkuMapPage() {
                     } : {}),
                   }))
                 }}
-                className="w-full px-3 py-2 rounded-lg text-sm text-white outline-none"
-                style={{ backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+                className="w-full px-3 py-2 rounded-lg text-sm text-txt outline-none"
+                style={{ backgroundColor: 'var(--color-surface-alt)', border: '1px solid var(--color-border-light)' }}
               >
                 <option value="">프리셋 없음 (수동 설정)</option>
                 {presets.filter(p => p.isActive).map(p => (
@@ -347,7 +347,7 @@ export default function AdminClientSkuMapPage() {
 
             {/* Components */}
             <div>
-              <p className="text-xs mb-1.5" style={{ color: 'rgba(255,255,255,0.5)' }}>컴포넌트</p>
+              <p className="text-xs mb-1.5" style={{ color: 'var(--color-text-sub)' }}>컴포넌트</p>
               <div className="flex flex-wrap gap-1.5">
                 {MVP_COMPONENTS.map(comp => {
                   const selected = form.componentIds.includes(comp.id)
@@ -358,9 +358,9 @@ export default function AdminClientSkuMapPage() {
                       disabled={comp.id === 'BASIC'}
                       className="text-xs px-2.5 py-1 rounded-lg transition-colors disabled:cursor-not-allowed"
                       style={{
-                        backgroundColor: selected ? 'rgba(19,55,236,0.2)' : 'rgba(255,255,255,0.05)',
-                        color: selected ? '#1337ec' : 'rgba(255,255,255,0.4)',
-                        border: `1px solid ${selected ? 'rgba(19,55,236,0.4)' : 'rgba(255,255,255,0.08)'}`,
+                        backgroundColor: selected ? 'rgba(19,55,236,0.2)' : 'var(--color-surface-alt)',
+                        color: selected ? 'var(--color-accent)' : 'var(--color-text-tertiary)',
+                        border: `1px solid ${selected ? 'rgba(19,55,236,0.4)' : 'var(--color-border-light)'}`,
                       }}
                     >
                       {comp.nameKo}
@@ -373,29 +373,29 @@ export default function AdminClientSkuMapPage() {
             {/* Limits + Pricing */}
             <div className="grid grid-cols-3 gap-2">
               <div>
-                <p className="text-[10px] mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>월 최대 유닛</p>
+                <p className="text-[10px] mb-1" style={{ color: 'var(--color-text-tertiary)' }}>월 최대 유닛</p>
                 <input
                   type="number"
                   value={form.maxUnitsPerMonth}
                   onChange={e => setForm({ ...form, maxUnitsPerMonth: e.target.value })}
                   placeholder="제한 없음"
-                  className="w-full px-3 py-2 rounded-lg text-sm text-white outline-none"
-                  style={{ backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+                  className="w-full px-3 py-2 rounded-lg text-sm text-txt outline-none"
+                  style={{ backgroundColor: 'var(--color-surface-alt)', border: '1px solid var(--color-border-light)' }}
                 />
               </div>
               <div>
-                <p className="text-[10px] mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>기본 단가 (원)</p>
+                <p className="text-[10px] mb-1" style={{ color: 'var(--color-text-tertiary)' }}>기본 단가 (원)</p>
                 <input
                   type="number"
                   value={form.pricePerUnit}
                   onChange={e => setForm({ ...form, pricePerUnit: e.target.value })}
                   placeholder="미정"
-                  className="w-full px-3 py-2 rounded-lg text-sm text-white outline-none"
-                  style={{ backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+                  className="w-full px-3 py-2 rounded-lg text-sm text-txt outline-none"
+                  style={{ backgroundColor: 'var(--color-surface-alt)', border: '1px solid var(--color-border-light)' }}
                 />
               </div>
               <div>
-                <p className="text-[10px] mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>할인율 (%)</p>
+                <p className="text-[10px] mb-1" style={{ color: 'var(--color-text-tertiary)' }}>할인율 (%)</p>
                 <input
                   type="number"
                   min="0"
@@ -403,8 +403,8 @@ export default function AdminClientSkuMapPage() {
                   value={form.discountPct}
                   onChange={e => setForm({ ...form, discountPct: e.target.value })}
                   placeholder="0"
-                  className="w-full px-3 py-2 rounded-lg text-sm text-white outline-none"
-                  style={{ backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+                  className="w-full px-3 py-2 rounded-lg text-sm text-txt outline-none"
+                  style={{ backgroundColor: 'var(--color-surface-alt)', border: '1px solid var(--color-border-light)' }}
                 />
               </div>
             </div>
@@ -412,11 +412,11 @@ export default function AdminClientSkuMapPage() {
             {/* Discounted price preview */}
             {form.pricePerUnit && parseInt(form.discountPct, 10) > 0 && (
               <div className="rounded-lg p-2.5 flex items-center justify-between" style={{ backgroundColor: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.15)' }}>
-                <span className="text-[11px]" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                <span className="text-[11px]" style={{ color: 'var(--color-text-sub)' }}>
                   적용 단가
                 </span>
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] line-through" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                  <span className="text-[11px] line-through" style={{ color: 'var(--color-text-tertiary)' }}>
                     {parseInt(form.pricePerUnit, 10).toLocaleString()}원
                   </span>
                   <span className="text-sm font-medium" style={{ color: '#22c55e' }}>
@@ -433,15 +433,15 @@ export default function AdminClientSkuMapPage() {
             <button
               onClick={() => setShowForm(false)}
               className="px-3 py-1.5 rounded-lg text-xs"
-              style={{ color: 'rgba(255,255,255,0.5)' }}
+              style={{ color: 'var(--color-text-sub)' }}
             >
               취소
             </button>
             <button
               onClick={handleSave}
               disabled={saving || !form.skuId}
-              className="px-4 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-40"
-              style={{ backgroundColor: '#1337ec' }}
+              className="px-4 py-1.5 rounded-lg text-xs font-medium text-txt disabled:opacity-40"
+              style={{ backgroundColor: 'var(--color-accent)' }}
             >
               {saving ? '저장 중...' : '저장'}
             </button>
@@ -451,7 +451,7 @@ export default function AdminClientSkuMapPage() {
 
       {/* Rules list */}
       {rules.length === 0 ? (
-        <div className="text-center py-12" style={{ color: 'rgba(255,255,255,0.4)' }}>
+        <div className="text-center py-12" style={{ color: 'var(--color-text-tertiary)' }}>
           <span className="material-symbols-outlined text-4xl">account_tree</span>
           <p className="text-sm mt-2">등록된 SKU 규칙이 없습니다</p>
         </div>
@@ -460,10 +460,10 @@ export default function AdminClientSkuMapPage() {
           {rules.map(rule => {
             const preset = getPresetForRule(rule)
             return (
-              <div key={rule.id} className="rounded-xl p-4" style={{ backgroundColor: '#1b1e2e' }}>
+              <div key={rule.id} className="rounded-xl p-4" style={{ backgroundColor: 'var(--color-surface)' }}>
                 <div className="flex items-start justify-between mb-2">
                   <div>
-                    <h3 className="text-sm font-medium text-white">
+                    <h3 className="text-sm font-medium text-txt">
                       {rule.skuId} — {skuName(rule.skuId)}
                     </h3>
                     <div className="flex gap-1 mt-1">
@@ -471,7 +471,7 @@ export default function AdminClientSkuMapPage() {
                         <span
                           key={cid}
                           className="text-[10px] px-1.5 py-0.5 rounded"
-                          style={{ backgroundColor: 'rgba(19,55,236,0.15)', color: '#1337ec' }}
+                          style={{ backgroundColor: 'rgba(19,55,236,0.15)', color: 'var(--color-accent)' }}
                         >
                           {cid}
                         </span>
@@ -481,8 +481,8 @@ export default function AdminClientSkuMapPage() {
                   <span
                     className="text-[10px] px-2 py-0.5 rounded-full"
                     style={{
-                      backgroundColor: rule.isActive ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.06)',
-                      color: rule.isActive ? '#22c55e' : 'rgba(255,255,255,0.4)',
+                      backgroundColor: rule.isActive ? 'rgba(34,197,94,0.15)' : 'var(--color-surface-alt)',
+                      color: rule.isActive ? '#22c55e' : 'var(--color-text-tertiary)',
                     }}
                   >
                     {rule.isActive ? '활성' : '비활성'}
@@ -499,14 +499,14 @@ export default function AdminClientSkuMapPage() {
                       <span
                         className="text-[9px] px-1 py-0.5 rounded"
                         style={{
-                          backgroundColor: preset.requireLabels === false ? 'rgba(255,255,255,0.06)' : 'rgba(139,92,246,0.15)',
-                          color: preset.requireLabels === false ? 'rgba(255,255,255,0.3)' : '#8b5cf6',
+                          backgroundColor: preset.requireLabels === false ? 'var(--color-surface-alt)' : 'rgba(139,92,246,0.15)',
+                          color: preset.requireLabels === false ? 'var(--color-text-tertiary)' : '#8b5cf6',
                         }}
                       >
                         라벨: {labelSummary(preset.requireLabels)}
                       </span>
                       {preset.minQualityGrade && (
-                        <span className="text-[9px] px-1 py-0.5 rounded" style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.35)' }}>
+                        <span className="text-[9px] px-1 py-0.5 rounded" style={{ backgroundColor: 'var(--color-surface-alt)', color: 'var(--color-text-tertiary)' }}>
                           {preset.minQualityGrade}등급+
                         </span>
                       )}
@@ -515,7 +515,7 @@ export default function AdminClientSkuMapPage() {
                           도메인: {preset.domainFilter.join(', ')}
                         </span>
                       )}
-                      <span className="text-[9px] px-1 py-0.5 rounded" style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.35)' }}>
+                      <span className="text-[9px] px-1 py-0.5 rounded" style={{ backgroundColor: 'var(--color-surface-alt)', color: 'var(--color-text-tertiary)' }}>
                         {preset.preferredFormat.toUpperCase()} / 필드 {preset.exportFields.length}개
                       </span>
                     </div>
@@ -538,13 +538,13 @@ export default function AdminClientSkuMapPage() {
                   </div>
                 )}
 
-                <div className="flex flex-wrap gap-3 text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                <div className="flex flex-wrap gap-3 text-xs" style={{ color: 'var(--color-text-sub)' }}>
                   {rule.maxUnitsPerMonth != null && (
                     <span>월 {rule.maxUnitsPerMonth.toLocaleString()}유닛</span>
                   )}
                   {rule.pricePerUnit != null && rule.discountPct > 0 ? (
                     <span className="flex items-center gap-1.5">
-                      <span className="line-through" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                      <span className="line-through" style={{ color: 'var(--color-text-tertiary)' }}>
                         {rule.pricePerUnit.toLocaleString()}원
                       </span>
                       <span style={{ color: '#22c55e' }}>
@@ -565,11 +565,11 @@ export default function AdminClientSkuMapPage() {
                   )}
                 </div>
 
-                <div className="flex items-center gap-2 pt-2 mt-2 border-t" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                <div className="flex items-center gap-2 pt-2 mt-2 border-t" style={{ borderColor: 'var(--color-surface-alt)' }}>
                   <button
                     onClick={() => openEdit(rule)}
                     className="text-xs px-2 py-1 rounded"
-                    style={{ color: '#1337ec' }}
+                    style={{ color: 'var(--color-accent)' }}
                   >
                     수정
                   </button>

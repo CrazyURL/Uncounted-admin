@@ -88,7 +88,7 @@ export function MetadataStepInventory({
 
   if (loading) {
     return (
-      <div className="text-center py-12" style={{ color: 'rgba(255,255,255,0.4)' }}>
+      <div className="text-center py-12" style={{ color: 'var(--color-text-tertiary)' }}>
         <span className="material-symbols-outlined text-3xl animate-spin">progress_activity</span>
         <p className="text-xs mt-2">메타데이터 인벤토리 로딩 중...</p>
       </div>
@@ -99,7 +99,7 @@ export function MetadataStepInventory({
 
   return (
     <div className="space-y-4">
-      <p className="text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>메타데이터 SKU 선택</p>
+      <p className="text-xs" style={{ color: 'var(--color-text-sub)' }}>메타데이터 SKU 선택</p>
 
       <div className="grid grid-cols-2 gap-2">
         {metaSkus.map(sku => {
@@ -111,7 +111,7 @@ export function MetadataStepInventory({
               onClick={() => selectSku(sku.schemaId)}
               className="text-left p-3 rounded-xl transition-colors"
               style={{
-                backgroundColor: selected ? 'rgba(139,92,246,0.12)' : '#1b1e2e',
+                backgroundColor: selected ? 'rgba(139,92,246,0.12)' : 'var(--color-surface)',
                 border: selected ? '2px solid rgba(139,92,246,0.5)' : '2px solid transparent',
               }}
             >
@@ -121,8 +121,8 @@ export function MetadataStepInventory({
               >
                 {skuCode}
               </span>
-              <p className="text-xs text-white mt-1">{sku.displayName}</p>
-              <p className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>
+              <p className="text-xs text-txt mt-1">{sku.displayName}</p>
+              <p className="text-[10px] mt-0.5" style={{ color: 'var(--color-text-tertiary)' }}>
                 {sku.totalEvents.toLocaleString()} events · {sku.deviceCount} devices
               </p>
             </button>

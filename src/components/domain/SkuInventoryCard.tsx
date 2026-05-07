@@ -21,16 +21,16 @@ export default function SkuInventoryCard({ inventory, skuName, selected, onClick
       onClick={onClick}
       className="w-full text-left p-4 rounded-xl transition-colors"
       style={{
-        backgroundColor: selected ? 'rgba(19,55,236,0.15)' : '#1b1e2e',
+        backgroundColor: selected ? 'rgba(19,55,236,0.15)' : 'var(--color-surface)',
         borderWidth: 1,
-        borderColor: selected ? '#1337ec' : 'transparent',
+        borderColor: selected ? 'var(--color-accent)' : 'transparent',
       }}
     >
       {/* SKU ID badge */}
       <div className="flex items-center justify-between mb-2">
         <span
           className="text-sm font-bold"
-          style={{ color: '#1337ec' }}
+          style={{ color: 'var(--color-accent)' }}
         >
           {inventory.skuId}
         </span>
@@ -44,7 +44,7 @@ export default function SkuInventoryCard({ inventory, skuName, selected, onClick
 
       {/* SKU name */}
       {skuName && (
-        <p className="text-xs text-white mb-2">{skuName}</p>
+        <p className="text-xs text-txt mb-2">{skuName}</p>
       )}
 
       {/* Quality distribution bar */}
@@ -69,7 +69,7 @@ export default function SkuInventoryCard({ inventory, skuName, selected, onClick
       )}
 
       {/* Bottom stats */}
-      <div className="flex items-center gap-3 text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>
+      <div className="flex items-center gap-3 text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>
         <span>{inventory.availableBUs.toLocaleString()} BU</span>
         <span>화자 {inventory.speakerCount}명</span>
         {inventory.labelCoverage > 0 && (

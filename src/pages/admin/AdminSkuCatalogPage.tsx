@@ -271,8 +271,8 @@ export default function AdminSkuCatalogPage() {
           onClick={() => setTab('presets')}
           className="text-xs px-3 py-1.5 rounded-lg font-medium"
           style={{
-            backgroundColor: tab === 'presets' ? 'rgba(19,55,236,0.2)' : 'rgba(255,255,255,0.06)',
-            color: tab === 'presets' ? '#1337ec' : 'rgba(255,255,255,0.5)',
+            backgroundColor: tab === 'presets' ? 'rgba(19,55,236,0.2)' : 'var(--color-surface-alt)',
+            color: tab === 'presets' ? 'var(--color-accent)' : 'var(--color-text-sub)',
           }}
         >
           커스텀 프리셋 ({presets.length})
@@ -281,8 +281,8 @@ export default function AdminSkuCatalogPage() {
           onClick={() => setTab('catalog')}
           className="text-xs px-3 py-1.5 rounded-lg font-medium"
           style={{
-            backgroundColor: tab === 'catalog' ? 'rgba(19,55,236,0.2)' : 'rgba(255,255,255,0.06)',
-            color: tab === 'catalog' ? '#1337ec' : 'rgba(255,255,255,0.5)',
+            backgroundColor: tab === 'catalog' ? 'rgba(19,55,236,0.2)' : 'var(--color-surface-alt)',
+            color: tab === 'catalog' ? 'var(--color-accent)' : 'var(--color-text-sub)',
           }}
         >
           기본 카탈로그 ({SKU_CATALOG.length})
@@ -307,13 +307,13 @@ export default function AdminSkuCatalogPage() {
       {tab === 'presets' && (
         <>
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold" style={{ color: 'rgba(255,255,255,0.7)' }}>
+            <h2 className="text-sm font-semibold" style={{ color: 'var(--color-text-sub)' }}>
               커스텀 SKU 프리셋
             </h2>
             <button
               onClick={openNew}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-white"
-              style={{ backgroundColor: '#1337ec' }}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-txt"
+              style={{ backgroundColor: 'var(--color-accent)' }}
             >
               <span className="material-symbols-outlined text-sm">add</span>
               새 프리셋
@@ -322,8 +322,8 @@ export default function AdminSkuCatalogPage() {
 
           {/* ===== Preset Form ===== */}
           {showForm && (
-            <div className="rounded-xl p-4 space-y-4" style={{ backgroundColor: '#1b1e2e', border: '1px solid rgba(19,55,236,0.3)' }}>
-              <h3 className="text-sm font-semibold text-white">
+            <div className="rounded-xl p-4 space-y-4" style={{ backgroundColor: 'var(--color-surface)', border: '1px solid rgba(19,55,236,0.3)' }}>
+              <h3 className="text-sm font-semibold text-txt">
                 {editingId ? '프리셋 수정' : '새 프리셋'}
               </h3>
 
@@ -332,13 +332,13 @@ export default function AdminSkuCatalogPage() {
                 value={form.name}
                 onChange={e => setForm({ ...form, name: e.target.value })}
                 placeholder="프리셋 이름 * (예: 음성+라벨 골드팩)"
-                className="w-full px-3 py-2 rounded-lg text-sm text-white outline-none"
-                style={{ backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+                className="w-full px-3 py-2 rounded-lg text-sm text-txt outline-none"
+                style={{ backgroundColor: 'var(--color-surface-alt)', border: '1px solid var(--color-border-light)' }}
               />
 
               {/* Base SKU */}
               <div>
-                <p className="text-xs mb-1.5" style={{ color: 'rgba(255,255,255,0.5)' }}>기본 SKU *</p>
+                <p className="text-xs mb-1.5" style={{ color: 'var(--color-text-sub)' }}>기본 SKU *</p>
                 <div className="grid grid-cols-2 gap-1.5">
                   {MVP_SKUS.map(s => {
                     const selected = form.baseSkuId === s.id
@@ -355,17 +355,17 @@ export default function AdminSkuCatalogPage() {
                         }}
                         className="text-left text-xs px-3 py-2 rounded-lg transition-colors"
                         style={{
-                          backgroundColor: selected ? 'rgba(19,55,236,0.15)' : 'rgba(255,255,255,0.03)',
-                          border: `1px solid ${selected ? 'rgba(19,55,236,0.4)' : 'rgba(255,255,255,0.06)'}`,
-                          color: selected ? '#fff' : 'rgba(255,255,255,0.5)',
+                          backgroundColor: selected ? 'rgba(19,55,236,0.15)' : 'var(--color-surface-alt)',
+                          border: `1px solid ${selected ? 'rgba(19,55,236,0.4)' : 'var(--color-surface-alt)'}`,
+                          color: selected ? '#fff' : 'var(--color-text-sub)',
                         }}
                       >
                         <span className="font-medium">{s.id}</span>
-                        <span className="text-[10px] ml-1" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                        <span className="text-[10px] ml-1" style={{ color: 'var(--color-text-tertiary)' }}>
                           {s.baseRateLow.toLocaleString()}~{s.baseRateHigh.toLocaleString()}원
                         </span>
                         <br />
-                        <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>{s.nameKo}</span>
+                        <span className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>{s.nameKo}</span>
                       </button>
                     )
                   })}
@@ -374,7 +374,7 @@ export default function AdminSkuCatalogPage() {
 
               {/* Components */}
               <div>
-                <p className="text-xs mb-1.5" style={{ color: 'rgba(255,255,255,0.5)' }}>컴포넌트</p>
+                <p className="text-xs mb-1.5" style={{ color: 'var(--color-text-sub)' }}>컴포넌트</p>
                 <div className="flex flex-wrap gap-1.5">
                   {MVP_COMPONENTS.map(comp => {
                     const selected = form.componentIds.includes(comp.id)
@@ -385,9 +385,9 @@ export default function AdminSkuCatalogPage() {
                         disabled={comp.id === 'BASIC'}
                         className="text-xs px-2.5 py-1 rounded-lg transition-colors disabled:cursor-not-allowed"
                         style={{
-                          backgroundColor: selected ? 'rgba(19,55,236,0.2)' : 'rgba(255,255,255,0.05)',
-                          color: selected ? '#1337ec' : 'rgba(255,255,255,0.4)',
-                          border: `1px solid ${selected ? 'rgba(19,55,236,0.4)' : 'rgba(255,255,255,0.08)'}`,
+                          backgroundColor: selected ? 'rgba(19,55,236,0.2)' : 'var(--color-surface-alt)',
+                          color: selected ? 'var(--color-accent)' : 'var(--color-text-tertiary)',
+                          border: `1px solid ${selected ? 'rgba(19,55,236,0.4)' : 'var(--color-border-light)'}`,
                         }}
                       >
                         {comp.nameKo}
@@ -399,7 +399,7 @@ export default function AdminSkuCatalogPage() {
 
               {/* ── 소스 필터 ── */}
               <div className="space-y-2.5 pt-1">
-                <p className="text-xs font-medium text-white">소스 필터</p>
+                <p className="text-xs font-medium text-txt">소스 필터</p>
 
                 <ToggleRow label="오디오 필수" value={form.requireAudio} onChange={v => setForm({ ...form, requireAudio: v })} />
                 <ToggleRow label="공개 동의 필수" value={form.requireConsent} onChange={v => setForm({ ...form, requireConsent: v })} />
@@ -407,7 +407,7 @@ export default function AdminSkuCatalogPage() {
 
                 {/* Label requirement */}
                 <div>
-                  <p className="text-[11px] mb-1" style={{ color: 'rgba(255,255,255,0.5)' }}>라벨 필수</p>
+                  <p className="text-[11px] mb-1" style={{ color: 'var(--color-text-sub)' }}>라벨 필수</p>
                   <div className="flex gap-1">
                     {(['none', 'any', 'specific'] as const).map(m => (
                       <button
@@ -415,8 +415,8 @@ export default function AdminSkuCatalogPage() {
                         onClick={() => setForm({ ...form, labelMode: m, specificLabelFields: m === 'specific' ? form.specificLabelFields : [] })}
                         className="text-[11px] px-2 py-1 rounded transition-colors"
                         style={{
-                          backgroundColor: form.labelMode === m ? '#1337ec' : 'rgba(255,255,255,0.06)',
-                          color: form.labelMode === m ? 'white' : 'rgba(255,255,255,0.4)',
+                          backgroundColor: form.labelMode === m ? 'var(--color-accent)' : 'var(--color-surface-alt)',
+                          color: form.labelMode === m ? 'white' : 'var(--color-text-tertiary)',
                         }}
                       >
                         {m === 'none' ? '없음' : m === 'any' ? '아무거나' : '특정 필드'}
@@ -431,8 +431,8 @@ export default function AdminSkuCatalogPage() {
                           onClick={() => toggleLabelField(f.key)}
                           className="text-[10px] px-2 py-0.5 rounded transition-colors"
                           style={{
-                            backgroundColor: form.specificLabelFields.includes(f.key) ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.04)',
-                            color: form.specificLabelFields.includes(f.key) ? '#22c55e' : 'rgba(255,255,255,0.3)',
+                            backgroundColor: form.specificLabelFields.includes(f.key) ? 'rgba(34,197,94,0.15)' : 'var(--color-surface-alt)',
+                            color: form.specificLabelFields.includes(f.key) ? '#22c55e' : 'var(--color-text-tertiary)',
                           }}
                         >
                           {f.labelKo}
@@ -452,7 +452,7 @@ export default function AdminSkuCatalogPage() {
                       const selected = form.labelValueFilter[field.key] ?? []
                       return (
                         <div key={field.key}>
-                          <p className="text-[10px] mb-1" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                          <p className="text-[10px] mb-1" style={{ color: 'var(--color-text-sub)' }}>
                             {field.labelKo}
                             {selected.length > 0 && (
                               <span style={{ color: '#8b5cf6' }}> ({selected.length}개 선택)</span>
@@ -467,8 +467,8 @@ export default function AdminSkuCatalogPage() {
                                   onClick={() => toggleLabelValue(field.key, opt)}
                                   className="text-[10px] px-2 py-0.5 rounded transition-colors"
                                   style={{
-                                    backgroundColor: active ? 'rgba(139,92,246,0.2)' : 'rgba(255,255,255,0.04)',
-                                    color: active ? '#a78bfa' : 'rgba(255,255,255,0.3)',
+                                    backgroundColor: active ? 'rgba(139,92,246,0.2)' : 'var(--color-surface-alt)',
+                                    color: active ? '#a78bfa' : 'var(--color-text-tertiary)',
                                     border: `1px solid ${active ? 'rgba(139,92,246,0.3)' : 'transparent'}`,
                                   }}
                                 >
@@ -485,7 +485,7 @@ export default function AdminSkuCatalogPage() {
 
                 {/* Min quality grade */}
                 <div>
-                  <p className="text-[11px] mb-1" style={{ color: 'rgba(255,255,255,0.5)' }}>최소 품질 등급</p>
+                  <p className="text-[11px] mb-1" style={{ color: 'var(--color-text-sub)' }}>최소 품질 등급</p>
                   <div className="flex gap-1">
                     {QUALITY_OPTIONS.map(opt => (
                       <button
@@ -493,8 +493,8 @@ export default function AdminSkuCatalogPage() {
                         onClick={() => setForm({ ...form, minQualityGrade: opt.value })}
                         className="text-[11px] px-2 py-1 rounded transition-colors"
                         style={{
-                          backgroundColor: form.minQualityGrade === opt.value ? '#1337ec' : 'rgba(255,255,255,0.06)',
-                          color: form.minQualityGrade === opt.value ? 'white' : 'rgba(255,255,255,0.4)',
+                          backgroundColor: form.minQualityGrade === opt.value ? 'var(--color-accent)' : 'var(--color-surface-alt)',
+                          color: form.minQualityGrade === opt.value ? 'white' : 'var(--color-text-tertiary)',
                         }}
                       >
                         {opt.label}
@@ -505,7 +505,7 @@ export default function AdminSkuCatalogPage() {
 
                 {/* Domain filter */}
                 <div>
-                  <p className="text-[11px] mb-1" style={{ color: 'rgba(255,255,255,0.5)' }}>도메인 (빈칸=전체)</p>
+                  <p className="text-[11px] mb-1" style={{ color: 'var(--color-text-sub)' }}>도메인 (빈칸=전체)</p>
                   <div className="flex flex-wrap gap-1">
                     {DOMAIN_OPTIONS.map(d => (
                       <button
@@ -513,8 +513,8 @@ export default function AdminSkuCatalogPage() {
                         onClick={() => toggleDomain(d)}
                         className="text-[10px] px-2 py-0.5 rounded transition-colors"
                         style={{
-                          backgroundColor: form.domainFilter.includes(d) ? 'rgba(19,55,236,0.15)' : 'rgba(255,255,255,0.04)',
-                          color: form.domainFilter.includes(d) ? '#7b9aff' : 'rgba(255,255,255,0.3)',
+                          backgroundColor: form.domainFilter.includes(d) ? 'rgba(19,55,236,0.15)' : 'var(--color-surface-alt)',
+                          color: form.domainFilter.includes(d) ? '#7b9aff' : 'var(--color-text-tertiary)',
                         }}
                       >
                         {d}
@@ -526,10 +526,10 @@ export default function AdminSkuCatalogPage() {
 
               {/* ── 출력 필드 ── */}
               <div className="space-y-2 pt-1">
-                <p className="text-xs font-medium text-white">출력 필드 ({form.exportFields.size}개)</p>
+                <p className="text-xs font-medium text-txt">출력 필드 ({form.exportFields.size}개)</p>
                 {[...fieldGroups.entries()].map(([group, groupFields]) => (
                   <div key={group}>
-                    <p className="text-[10px] mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                    <p className="text-[10px] mb-1" style={{ color: 'var(--color-text-tertiary)' }}>
                       {FIELD_GROUP_LABELS[group]}
                     </p>
                     <div className="flex flex-wrap gap-1">
@@ -539,8 +539,8 @@ export default function AdminSkuCatalogPage() {
                           onClick={() => toggleExportField(f.key)}
                           className="text-[10px] px-1.5 py-0.5 rounded transition-colors"
                           style={{
-                            backgroundColor: form.exportFields.has(f.key) ? 'rgba(19,55,236,0.15)' : 'rgba(255,255,255,0.04)',
-                            color: form.exportFields.has(f.key) ? '#7b9aff' : 'rgba(255,255,255,0.25)',
+                            backgroundColor: form.exportFields.has(f.key) ? 'rgba(19,55,236,0.15)' : 'var(--color-surface-alt)',
+                            color: form.exportFields.has(f.key) ? '#7b9aff' : 'var(--color-text-tertiary)',
                           }}
                         >
                           {f.labelKo}
@@ -553,7 +553,7 @@ export default function AdminSkuCatalogPage() {
 
               {/* ── 선호 포맷 ── */}
               <div>
-                <p className="text-xs font-medium text-white mb-1.5">선호 포맷</p>
+                <p className="text-xs font-medium text-txt mb-1.5">선호 포맷</p>
                 <div className="flex gap-1">
                   {(['json', 'jsonl', 'csv'] as const).map(fmt => (
                     <button
@@ -561,8 +561,8 @@ export default function AdminSkuCatalogPage() {
                       onClick={() => setForm({ ...form, preferredFormat: fmt })}
                       className="text-xs px-3 py-1 rounded transition-colors"
                       style={{
-                        backgroundColor: form.preferredFormat === fmt ? '#1337ec' : 'rgba(255,255,255,0.06)',
-                        color: form.preferredFormat === fmt ? 'white' : 'rgba(255,255,255,0.4)',
+                        backgroundColor: form.preferredFormat === fmt ? 'var(--color-accent)' : 'var(--color-surface-alt)',
+                        color: form.preferredFormat === fmt ? 'white' : 'var(--color-text-tertiary)',
                       }}
                     >
                       {fmt.toUpperCase()}
@@ -574,38 +574,38 @@ export default function AdminSkuCatalogPage() {
               {/* ── 가격/메모 ── */}
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <p className="text-[10px] mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>참고 단가 (원/유닛)</p>
+                  <p className="text-[10px] mb-1" style={{ color: 'var(--color-text-tertiary)' }}>참고 단가 (원/유닛)</p>
                   <input
                     type="number"
                     value={form.suggestedPricePerUnit}
                     onChange={e => setForm({ ...form, suggestedPricePerUnit: e.target.value })}
                     placeholder="미정"
-                    className="w-full px-3 py-2 rounded-lg text-sm text-white outline-none"
-                    style={{ backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+                    className="w-full px-3 py-2 rounded-lg text-sm text-txt outline-none"
+                    style={{ backgroundColor: 'var(--color-surface-alt)', border: '1px solid var(--color-border-light)' }}
                   />
                 </div>
                 <div>
-                  <p className="text-[10px] mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>메모</p>
+                  <p className="text-[10px] mb-1" style={{ color: 'var(--color-text-tertiary)' }}>메모</p>
                   <input
                     value={form.notes}
                     onChange={e => setForm({ ...form, notes: e.target.value })}
                     placeholder="옵션"
-                    className="w-full px-3 py-2 rounded-lg text-sm text-white outline-none"
-                    style={{ backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+                    className="w-full px-3 py-2 rounded-lg text-sm text-txt outline-none"
+                    style={{ backgroundColor: 'var(--color-surface-alt)', border: '1px solid var(--color-border-light)' }}
                   />
                 </div>
               </div>
 
               {/* Save / Cancel */}
               <div className="flex gap-2 justify-end pt-1">
-                <button onClick={() => setShowForm(false)} className="px-3 py-1.5 rounded-lg text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                <button onClick={() => setShowForm(false)} className="px-3 py-1.5 rounded-lg text-xs" style={{ color: 'var(--color-text-sub)' }}>
                   취소
                 </button>
                 <button
                   onClick={handleSave}
                   disabled={saving || !form.name.trim() || !form.baseSkuId}
-                  className="px-4 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-40"
-                  style={{ backgroundColor: '#1337ec' }}
+                  className="px-4 py-1.5 rounded-lg text-xs font-medium text-txt disabled:opacity-40"
+                  style={{ backgroundColor: 'var(--color-accent)' }}
                 >
                   {saving ? '저장 중...' : '저장'}
                 </button>
@@ -615,11 +615,11 @@ export default function AdminSkuCatalogPage() {
 
           {/* Preset list */}
           {loading ? (
-            <div className="text-center py-12" style={{ color: 'rgba(255,255,255,0.4)' }}>
+            <div className="text-center py-12" style={{ color: 'var(--color-text-tertiary)' }}>
               <span className="material-symbols-outlined text-3xl animate-spin">progress_activity</span>
             </div>
           ) : presets.length === 0 ? (
-            <div className="text-center py-12" style={{ color: 'rgba(255,255,255,0.4)' }}>
+            <div className="text-center py-12" style={{ color: 'var(--color-text-tertiary)' }}>
               <span className="material-symbols-outlined text-4xl">tune</span>
               <p className="text-sm mt-2">등록된 프리셋이 없습니다</p>
               <p className="text-xs mt-1">기본 SKU에서 라벨/필터/출력 필드를 커스텀하여 프리셋을 만드세요</p>
@@ -627,21 +627,21 @@ export default function AdminSkuCatalogPage() {
           ) : (
             <div className="space-y-3">
               {presets.map(p => (
-                <div key={p.id} className="rounded-xl p-4" style={{ backgroundColor: '#1b1e2e', opacity: p.isActive ? 1 : 0.5 }}>
+                <div key={p.id} className="rounded-xl p-4" style={{ backgroundColor: 'var(--color-surface)', opacity: p.isActive ? 1 : 0.5 }}>
                   <div className="flex items-start justify-between mb-2">
                     <div>
-                      <h3 className="text-sm font-medium text-white">{p.name}</h3>
-                      <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                      <h3 className="text-sm font-medium text-txt">{p.name}</h3>
+                      <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-sub)' }}>
                         {p.baseSkuId} - {skuName(p.baseSkuId)}
                       </p>
                     </div>
                     <div className="text-right">
                       {p.suggestedPricePerUnit != null && (
-                        <span className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.6)' }}>
+                        <span className="text-xs font-medium" style={{ color: 'var(--color-text-sub)' }}>
                           {p.suggestedPricePerUnit.toLocaleString()}원/유닛
                         </span>
                       )}
-                      <p className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                      <p className="text-[10px] mt-0.5" style={{ color: 'var(--color-text-tertiary)' }}>
                         {p.preferredFormat.toUpperCase()}
                       </p>
                     </div>
@@ -653,7 +653,7 @@ export default function AdminSkuCatalogPage() {
                       <span
                         key={cid}
                         className="text-[10px] px-1.5 py-0.5 rounded"
-                        style={{ backgroundColor: 'rgba(19,55,236,0.15)', color: '#1337ec' }}
+                        style={{ backgroundColor: 'rgba(19,55,236,0.15)', color: 'var(--color-accent)' }}
                       >
                         {compName(cid)}
                       </span>
@@ -663,21 +663,21 @@ export default function AdminSkuCatalogPage() {
                   {/* Filter tags */}
                   <div className="flex flex-wrap gap-1 mb-2">
                     {p.requireAudio && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)' }}>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: 'var(--color-surface-alt)', color: 'var(--color-text-sub)' }}>
                         오디오 필수
                       </span>
                     )}
                     <span
                       className="text-[10px] px-1.5 py-0.5 rounded"
                       style={{
-                        backgroundColor: p.requireLabels === false ? 'rgba(255,255,255,0.06)' : 'rgba(139,92,246,0.15)',
-                        color: p.requireLabels === false ? 'rgba(255,255,255,0.4)' : '#8b5cf6',
+                        backgroundColor: p.requireLabels === false ? 'var(--color-surface-alt)' : 'rgba(139,92,246,0.15)',
+                        color: p.requireLabels === false ? 'var(--color-text-tertiary)' : '#8b5cf6',
                       }}
                     >
                       라벨: {labelSummary(p.requireLabels)}
                     </span>
                     {p.minQualityGrade && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)' }}>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: 'var(--color-surface-alt)', color: 'var(--color-text-sub)' }}>
                         최소 {p.minQualityGrade}등급
                       </span>
                     )}
@@ -723,17 +723,17 @@ export default function AdminSkuCatalogPage() {
 
                   {/* Export fields summary */}
                   {p.exportFields.length > 0 && (
-                    <p className="text-[10px] mb-2" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                    <p className="text-[10px] mb-2" style={{ color: 'var(--color-text-tertiary)' }}>
                       출력 필드 {p.exportFields.length}개
                     </p>
                   )}
 
                   {p.notes && (
-                    <p className="text-xs mb-2" style={{ color: 'rgba(255,255,255,0.35)' }}>{p.notes}</p>
+                    <p className="text-xs mb-2" style={{ color: 'var(--color-text-tertiary)' }}>{p.notes}</p>
                   )}
 
-                  <div className="flex items-center gap-2 pt-2 border-t" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-                    <button onClick={() => openEdit(p)} className="text-xs px-2 py-1 rounded" style={{ color: '#1337ec' }}>
+                  <div className="flex items-center gap-2 pt-2 border-t" style={{ borderColor: 'var(--color-surface-alt)' }}>
+                    <button onClick={() => openEdit(p)} className="text-xs px-2 py-1 rounded" style={{ color: 'var(--color-accent)' }}>
                       수정
                     </button>
                     <button onClick={() => handleDelete(p.id)} className="text-xs px-2 py-1 rounded" style={{ color: '#ef4444' }}>
@@ -750,15 +750,15 @@ export default function AdminSkuCatalogPage() {
       {/* === Base Catalog Tab === */}
       {tab === 'catalog' && (
         <div className="space-y-3">
-          <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
+          <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
             기본 SKU 정의 (수정 불가). 프리셋 탭에서 라벨/필터/출력 필드를 커스텀한 구성을 만드세요.
           </p>
           {SKU_CATALOG.map(sku => (
-            <div key={sku.id} className="rounded-xl p-4" style={{ backgroundColor: '#1b1e2e', opacity: sku.isAvailableMvp ? 1 : 0.4 }}>
+            <div key={sku.id} className="rounded-xl p-4" style={{ backgroundColor: 'var(--color-surface)', opacity: sku.isAvailableMvp ? 1 : 0.4 }}>
               <div className="flex items-start justify-between mb-1">
                 <div>
-                  <span className="text-xs font-mono font-medium text-white">{sku.id}</span>
-                  <span className="text-xs ml-2 text-white">{sku.nameKo}</span>
+                  <span className="text-xs font-mono font-medium text-txt">{sku.id}</span>
+                  <span className="text-xs ml-2 text-txt">{sku.nameKo}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span
@@ -772,14 +772,14 @@ export default function AdminSkuCatalogPage() {
                   </span>
                   <span
                     className="text-[10px] px-1.5 py-0.5 rounded"
-                    style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.4)' }}
+                    style={{ backgroundColor: 'var(--color-surface-alt)', color: 'var(--color-text-tertiary)' }}
                   >
                     {sku.category}
                   </span>
                 </div>
               </div>
-              <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>{sku.descriptionKo}</p>
-              <div className="flex items-center gap-3 mt-2 text-[10px]" style={{ color: 'rgba(255,255,255,0.35)' }}>
+              <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>{sku.descriptionKo}</p>
+              <div className="flex items-center gap-3 mt-2 text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>
                 <span>{sku.baseRateLow.toLocaleString()}~{sku.baseRateHigh.toLocaleString()}원/시간</span>
                 <span>라벨 배수 x{sku.labelMultiplierMax}</span>
               </div>
@@ -790,7 +790,7 @@ export default function AdminSkuCatalogPage() {
               {/* 예상 구매자 */}
               {sku.buyersKo && sku.buyersKo.length > 0 && (
                 <div className="mt-2.5">
-                  <p className="text-[10px] font-medium mb-1" style={{ color: 'rgba(255,255,255,0.5)' }}>예상 구매자</p>
+                  <p className="text-[10px] font-medium mb-1" style={{ color: 'var(--color-text-sub)' }}>예상 구매자</p>
                   <div className="flex flex-wrap gap-1">
                     {sku.buyersKo.map(b => (
                       <span
@@ -808,7 +808,7 @@ export default function AdminSkuCatalogPage() {
               {/* 활용도 */}
               {sku.useCasesKo && sku.useCasesKo.length > 0 && (
                 <div className="mt-1.5">
-                  <p className="text-[10px] font-medium mb-1" style={{ color: 'rgba(255,255,255,0.5)' }}>활용도</p>
+                  <p className="text-[10px] font-medium mb-1" style={{ color: 'var(--color-text-sub)' }}>활용도</p>
                   <div className="flex flex-wrap gap-1">
                     {sku.useCasesKo.map(u => (
                       <span
@@ -845,10 +845,10 @@ function ToggleRow({ label, value, onChange }: { label: string; value: boolean; 
       onClick={() => onChange(!value)}
       className="w-full flex items-center justify-between py-1"
     >
-      <span className="text-[11px]" style={{ color: 'rgba(255,255,255,0.5)' }}>{label}</span>
+      <span className="text-[11px]" style={{ color: 'var(--color-text-sub)' }}>{label}</span>
       <div
         className="w-8 h-4 rounded-full relative transition-colors"
-        style={{ backgroundColor: value ? '#1337ec' : 'rgba(255,255,255,0.12)' }}
+        style={{ backgroundColor: value ? 'var(--color-accent)' : 'var(--color-border)' }}
       >
         <div
           className="w-3 h-3 rounded-full bg-white absolute top-0.5 transition-all"

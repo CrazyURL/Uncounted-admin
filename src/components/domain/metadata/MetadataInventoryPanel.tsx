@@ -101,38 +101,38 @@ export default function MetadataInventoryPanel({ sku }: MetadataInventoryPanelPr
         >
           {skuCode}
         </span>
-        <span className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.8)' }}>
+        <span className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
           {sku.displayName}
         </span>
       </div>
 
       {/* Summary cards */}
       <div className="grid grid-cols-3 gap-2">
-        <div className="rounded-xl p-3 text-center" style={{ backgroundColor: '#1b1e2e' }}>
+        <div className="rounded-xl p-3 text-center" style={{ backgroundColor: 'var(--color-surface)' }}>
           <p className="text-base font-bold font-mono" style={{ color: '#8b5cf6' }}>{sku.totalEvents.toLocaleString()}</p>
-          <p className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>총 이벤트</p>
+          <p className="text-[10px] mt-0.5" style={{ color: 'var(--color-text-tertiary)' }}>총 이벤트</p>
         </div>
-        <div className="rounded-xl p-3 text-center" style={{ backgroundColor: '#1b1e2e' }}>
+        <div className="rounded-xl p-3 text-center" style={{ backgroundColor: 'var(--color-surface)' }}>
           <p className="text-base font-bold font-mono" style={{ color: '#22c55e' }}>{sku.deviceCount.toLocaleString()}</p>
-          <p className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>디바이스</p>
+          <p className="text-[10px] mt-0.5" style={{ color: 'var(--color-text-tertiary)' }}>디바이스</p>
         </div>
-        <div className="rounded-xl p-3 text-center" style={{ backgroundColor: '#1b1e2e' }}>
-          <p className="text-base font-bold font-mono" style={{ color: 'rgba(255,255,255,0.6)' }}>
+        <div className="rounded-xl p-3 text-center" style={{ backgroundColor: 'var(--color-surface)' }}>
+          <p className="text-base font-bold font-mono" style={{ color: 'var(--color-text-sub)' }}>
             {computePeriodLabel(sku.periodStart, sku.periodEnd)}
           </p>
           {sku.periodStart && sku.periodEnd && (
-            <p className="text-[9px] mt-0.5 font-mono" style={{ color: 'rgba(255,255,255,0.3)' }}>
+            <p className="text-[9px] mt-0.5 font-mono" style={{ color: 'var(--color-text-tertiary)' }}>
               {sku.periodStart} ~ {sku.periodEnd}
             </p>
           )}
-          <p className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>기간</p>
+          <p className="text-[10px] mt-0.5" style={{ color: 'var(--color-text-tertiary)' }}>기간</p>
         </div>
       </div>
 
       {/* Device sync table */}
-      <div className="rounded-xl overflow-hidden" style={{ backgroundColor: '#1b1e2e' }}>
-        <div className="px-3 py-2" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-          <h3 className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.5)' }}>
+      <div className="rounded-xl overflow-hidden" style={{ backgroundColor: 'var(--color-surface)' }}>
+        <div className="px-3 py-2" style={{ borderBottom: '1px solid var(--color-border-light)' }}>
+          <h3 className="text-xs font-semibold" style={{ color: 'var(--color-text-sub)' }}>
             디바이스 동기화 현황
           </h3>
         </div>
@@ -148,37 +148,37 @@ export default function MetadataInventoryPanel({ sku }: MetadataInventoryPanelPr
             <p className="text-xs" style={{ color: '#ef4444' }}>{error}</p>
           </div>
         ) : !stats || stats.devices.length === 0 ? (
-          <div className="p-4 text-center" style={{ color: 'rgba(255,255,255,0.3)' }}>
+          <div className="p-4 text-center" style={{ color: 'var(--color-text-tertiary)' }}>
             <p className="text-xs">디바이스 데이터 없음</p>
           </div>
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-                <th className="text-left p-3 font-medium text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>
+              <tr style={{ borderBottom: '1px solid var(--color-border-light)' }}>
+                <th className="text-left p-3 font-medium text-xs" style={{ color: 'var(--color-text-sub)' }}>
                   Pseudo ID
                 </th>
-                <th className="text-right p-3 font-medium text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                <th className="text-right p-3 font-medium text-xs" style={{ color: 'var(--color-text-sub)' }}>
                   이벤트 수
                 </th>
-                <th className="text-right p-3 font-medium text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                <th className="text-right p-3 font-medium text-xs" style={{ color: 'var(--color-text-sub)' }}>
                   마지막 동기화
                 </th>
-                <th className="text-center p-3 font-medium text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                <th className="text-center p-3 font-medium text-xs" style={{ color: 'var(--color-text-sub)' }}>
                   상태
                 </th>
               </tr>
             </thead>
             <tbody>
               {stats.devices.map(device => (
-                <tr key={device.pseudoId} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                  <td className="p-3 font-mono text-xs" style={{ color: 'rgba(255,255,255,0.7)' }}>
+                <tr key={device.pseudoId} style={{ borderBottom: '1px solid var(--color-border-light)' }}>
+                  <td className="p-3 font-mono text-xs" style={{ color: 'var(--color-text-sub)' }}>
                     {device.pseudoId.slice(0, 8)}…
                   </td>
-                  <td className="p-3 text-right font-mono text-xs" style={{ color: 'rgba(255,255,255,0.7)' }}>
+                  <td className="p-3 text-right font-mono text-xs" style={{ color: 'var(--color-text-sub)' }}>
                     {device.eventCount.toLocaleString()}
                   </td>
-                  <td className="p-3 text-right font-mono text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                  <td className="p-3 text-right font-mono text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
                     {formatDate(device.lastSyncAt)}
                   </td>
                   <td className="p-3 text-center">

@@ -59,12 +59,12 @@ export default function PackagingStageChecklist({ currentStage }: PackagingStage
           ? '#22c55e'
           : isCurrent
             ? '#8b5cf6'
-            : 'rgba(255,255,255,0.25)'
+            : 'var(--color-text-tertiary)'
         const textColor = isCompleted
-          ? 'rgba(255,255,255,0.55)'
+          ? 'var(--color-text-sub)'
           : isCurrent
             ? '#ffffff'
-            : 'rgba(255,255,255,0.35)'
+            : 'var(--color-text-tertiary)'
 
         const detail = isCurrent ? resolved?.detail : null
 
@@ -82,7 +82,7 @@ export default function PackagingStageChecklist({ currentStage }: PackagingStage
             >
               {stage}
               {detail && (
-                <span className="ml-1.5" style={{ color: 'rgba(255,255,255,0.55)' }}>
+                <span className="ml-1.5" style={{ color: 'var(--color-text-sub)' }}>
                   {detail}
                 </span>
               )}

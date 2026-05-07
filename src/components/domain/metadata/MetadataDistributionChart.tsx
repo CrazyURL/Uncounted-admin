@@ -17,11 +17,11 @@ export default function MetadataDistributionChart({
 
   if (entries.length === 0) {
     return (
-      <div className="rounded-xl p-4" style={{ backgroundColor: '#1b1e2e' }}>
-        <h3 className="text-xs font-semibold mb-2" style={{ color: 'rgba(255,255,255,0.5)' }}>
+      <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--color-surface)' }}>
+        <h3 className="text-xs font-semibold mb-2" style={{ color: 'var(--color-text-sub)' }}>
           {title}
         </h3>
-        <p className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>데이터 없음</p>
+        <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>데이터 없음</p>
       </div>
     )
   }
@@ -29,8 +29,8 @@ export default function MetadataDistributionChart({
   const total = entries.reduce((sum, [, v]) => sum + v, 0)
 
   return (
-    <div className="rounded-xl p-4" style={{ backgroundColor: '#1b1e2e' }}>
-      <h3 className="text-xs font-semibold mb-3" style={{ color: 'rgba(255,255,255,0.5)' }}>
+    <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--color-surface)' }}>
+      <h3 className="text-xs font-semibold mb-3" style={{ color: 'var(--color-text-sub)' }}>
         {title}
       </h3>
 
@@ -43,16 +43,16 @@ export default function MetadataDistributionChart({
           return (
             <div key={label}>
               <div className="flex items-center justify-between mb-0.5">
-                <span className="text-[11px] font-mono" style={{ color: 'rgba(255,255,255,0.6)' }}>
+                <span className="text-[11px] font-mono" style={{ color: 'var(--color-text-sub)' }}>
                   {label}
                 </span>
-                <span className="text-[10px] font-mono" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                <span className="text-[10px] font-mono" style={{ color: 'var(--color-text-tertiary)' }}>
                   {count.toLocaleString()} ({pct}%)
                 </span>
               </div>
               <div
                 className="h-2 rounded-full"
-                style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
+                style={{ backgroundColor: 'var(--color-surface-alt)' }}
               >
                 <div
                   className="h-full rounded-full transition-all"

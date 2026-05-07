@@ -59,17 +59,17 @@ export function UtteranceToolbar({
   const progress = totalCount > 0 ? Math.round((reviewedCount / totalCount) * 100) : 0
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl p-4" style={{ backgroundColor: '#1b1e2e', border: '1px solid rgba(255,255,255,0.06)' }}>
+    <div className="flex flex-col gap-3 rounded-xl p-4" style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border-light)' }}>
       {/* Row 1: Progress + Auto Filters + View Mode */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-4 flex-1">
           {/* Progress bar */}
           <div className="flex flex-col gap-1 flex-1 max-w-xs">
-            <div className="flex justify-between text-[10px] font-medium" style={{ color: 'rgba(255,255,255,0.5)' }}>
+            <div className="flex justify-between text-[10px] font-medium" style={{ color: 'var(--color-text-sub)' }}>
               <span>검수 진행률 ({reviewedCount}/{totalCount})</span>
               <span>{progress}%</span>
             </div>
-            <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}>
+            <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--color-border-light)' }}>
               <div
                 className="h-full transition-all duration-500 rounded-full"
                 style={{
@@ -80,11 +80,11 @@ export function UtteranceToolbar({
             </div>
           </div>
 
-          <div className="w-px h-6" style={{ backgroundColor: 'rgba(255,255,255,0.1)' }} />
+          <div className="w-px h-6" style={{ backgroundColor: 'var(--color-border-light)' }} />
 
           {/* Auto Filters */}
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-medium" style={{ color: 'rgba(255,255,255,0.4)' }}>자동 필터:</span>
+            <span className="text-[10px] font-medium" style={{ color: 'var(--color-text-tertiary)' }}>자동 필터:</span>
             <button
               onClick={() => autoFilter('short')}
               className="text-[11px] px-2.5 py-1 rounded-lg transition-colors"
@@ -110,13 +110,13 @@ export function UtteranceToolbar({
         </div>
 
         {/* View Mode Toggle */}
-        <div className="flex rounded-lg overflow-hidden" style={{ backgroundColor: 'rgba(255,255,255,0.06)' }}>
+        <div className="flex rounded-lg overflow-hidden" style={{ backgroundColor: 'var(--color-surface-alt)' }}>
           <button
             onClick={() => setViewMode('card')}
             className="text-[11px] px-3 py-1.5 transition-colors"
             style={{
               backgroundColor: viewMode === 'card' ? 'rgba(139,92,246,0.2)' : 'transparent',
-              color: viewMode === 'card' ? '#a78bfa' : 'rgba(255,255,255,0.4)',
+              color: viewMode === 'card' ? '#a78bfa' : 'var(--color-text-tertiary)',
             }}
           >
             카드뷰
@@ -126,7 +126,7 @@ export function UtteranceToolbar({
             className="text-[11px] px-3 py-1.5 transition-colors"
             style={{
               backgroundColor: viewMode === 'table' ? 'rgba(139,92,246,0.2)' : 'transparent',
-              color: viewMode === 'table' ? '#a78bfa' : 'rgba(255,255,255,0.4)',
+              color: viewMode === 'table' ? '#a78bfa' : 'var(--color-text-tertiary)',
             }}
           >
             테이블뷰
@@ -135,7 +135,7 @@ export function UtteranceToolbar({
       </div>
 
       {/* Row 2: Filter Tabs + Sort */}
-      <div className="flex items-center justify-between pt-2" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+      <div className="flex items-center justify-between pt-2" style={{ borderTop: '1px solid var(--color-border-light)' }}>
         <div className="flex gap-1.5">
           {FILTER_TABS.map(tab => (
             <button
@@ -143,15 +143,15 @@ export function UtteranceToolbar({
               onClick={() => setFilterMode(tab.id)}
               className="text-[11px] px-3 py-1.5 rounded-lg transition-all"
               style={{
-                backgroundColor: filterMode === tab.id ? 'rgba(139,92,246,0.2)' : 'rgba(255,255,255,0.04)',
-                color: filterMode === tab.id ? '#a78bfa' : 'rgba(255,255,255,0.5)',
-                border: filterMode === tab.id ? '1px solid rgba(139,92,246,0.3)' : '1px solid rgba(255,255,255,0.06)',
+                backgroundColor: filterMode === tab.id ? 'rgba(139,92,246,0.2)' : 'var(--color-surface-alt)',
+                color: filterMode === tab.id ? '#a78bfa' : 'var(--color-text-sub)',
+                border: filterMode === tab.id ? '1px solid rgba(139,92,246,0.3)' : '1px solid var(--color-border-light)',
               }}
             >
               {tab.label}
               <span
                 className="ml-1 text-[10px]"
-                style={{ color: filterMode === tab.id ? 'rgba(167,139,250,0.6)' : 'rgba(255,255,255,0.3)' }}
+                style={{ color: filterMode === tab.id ? 'rgba(167,139,250,0.6)' : 'var(--color-text-tertiary)' }}
               >
                 {counts[tab.id]}
               </span>
@@ -160,15 +160,15 @@ export function UtteranceToolbar({
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>정렬:</span>
+          <span className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>정렬:</span>
           <select
             value={sortField}
             onChange={(e) => setSortField(e.target.value as SortField)}
             className="text-[11px] px-2 py-1 rounded-lg outline-none"
             style={{
-              backgroundColor: 'rgba(255,255,255,0.06)',
-              color: 'rgba(255,255,255,0.7)',
-              border: '1px solid rgba(255,255,255,0.1)',
+              backgroundColor: 'var(--color-surface-alt)',
+              color: 'var(--color-text-sub)',
+              border: '1px solid var(--color-border-light)',
             }}
           >
             {SORT_OPTIONS.map(opt => (
@@ -179,9 +179,9 @@ export function UtteranceToolbar({
             onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
             className="text-[11px] px-2 py-1 rounded-lg transition-colors"
             style={{
-              backgroundColor: 'rgba(255,255,255,0.06)',
-              color: 'rgba(255,255,255,0.6)',
-              border: '1px solid rgba(255,255,255,0.1)',
+              backgroundColor: 'var(--color-surface-alt)',
+              color: 'var(--color-text-sub)',
+              border: '1px solid var(--color-border-light)',
             }}
             title={sortOrder === 'asc' ? '오름차순' : '내림차순'}
           >
@@ -191,7 +191,7 @@ export function UtteranceToolbar({
       </div>
 
       {/* Row 3: Bulk Actions */}
-      <div className="flex items-center justify-between pt-2" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+      <div className="flex items-center justify-between pt-2" style={{ borderTop: '1px solid var(--color-border-light)' }}>
         <div className="flex items-center gap-3">
           <button
             onClick={onSelectAll}
@@ -200,8 +200,8 @@ export function UtteranceToolbar({
           >
             {allFilteredSelected ? '이 목록 전체 해제' : '이 목록 전체 선택'}
           </button>
-          <span className="w-px h-3" style={{ backgroundColor: 'rgba(255,255,255,0.1)' }} />
-          <span className="text-[11px]" style={{ color: 'rgba(255,255,255,0.5)' }}>
+          <span className="w-px h-3" style={{ backgroundColor: 'var(--color-border-light)' }} />
+          <span className="text-[11px]" style={{ color: 'var(--color-text-sub)' }}>
             <span style={{ color: '#a78bfa', fontWeight: 600 }}>{selectedCount}</span>개 선택됨
           </span>
         </div>

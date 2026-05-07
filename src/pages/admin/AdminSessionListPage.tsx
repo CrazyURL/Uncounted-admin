@@ -297,7 +297,7 @@ export default function AdminSessionListPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: '#1337ec', borderTopColor: 'transparent' }} />
+        <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--color-accent)', borderTopColor: 'transparent' }} />
       </div>
     )
   }
@@ -306,13 +306,13 @@ export default function AdminSessionListPage() {
     <div className="pb-24">
       {/* 총 건수 요약 */}
       <div className="px-4 py-3 flex items-center gap-3">
-        <div className="rounded-lg p-2.5 text-center flex-1" style={{ backgroundColor: '#1b1e2e' }}>
-          <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>전체 세션</p>
-          <p className="text-sm font-bold text-white mt-0.5">{totalSessions.toLocaleString()}건</p>
+        <div className="rounded-lg p-2.5 text-center flex-1" style={{ backgroundColor: 'var(--color-surface)' }}>
+          <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>전체 세션</p>
+          <p className="text-sm font-bold text-txt mt-0.5">{totalSessions.toLocaleString()}건</p>
         </div>
-        <div className="rounded-lg p-2.5 text-center flex-1" style={{ backgroundColor: '#1b1e2e' }}>
-          <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>전체 사용자</p>
-          <p className="text-sm font-bold text-white mt-0.5">{totalUsers.toLocaleString()}명</p>
+        <div className="rounded-lg p-2.5 text-center flex-1" style={{ backgroundColor: 'var(--color-surface)' }}>
+          <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>전체 사용자</p>
+          <p className="text-sm font-bold text-txt mt-0.5">{totalUsers.toLocaleString()}명</p>
         </div>
       </div>
 
@@ -324,8 +324,8 @@ export default function AdminSessionListPage() {
             onClick={() => setViewMode(mode)}
             className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
             style={{
-              backgroundColor: viewMode === mode ? '#1337ec' : 'rgba(255,255,255,0.06)',
-              color: viewMode === mode ? '#fff' : 'rgba(255,255,255,0.5)',
+              backgroundColor: viewMode === mode ? 'var(--color-accent)' : 'var(--color-surface-alt)',
+              color: viewMode === mode ? '#fff' : 'var(--color-text-sub)',
             }}
           >
             {mode === 'flat' ? '전체' : '사용자별'}
@@ -338,7 +338,7 @@ export default function AdminSessionListPage() {
         <button
           onClick={() => setShowFilters(!showFilters)}
           className="flex items-center gap-1 text-xs font-medium"
-          style={{ color: showFilters ? '#1337ec' : 'rgba(255,255,255,0.5)' }}
+          style={{ color: showFilters ? 'var(--color-accent)' : 'var(--color-text-sub)' }}
         >
           <span className="material-symbols-outlined text-base">filter_list</span>
           필터
@@ -349,17 +349,17 @@ export default function AdminSessionListPage() {
             <select
               value={sortKey}
               onChange={e => setSortKey(e.target.value as AdminSortKey)}
-              className="text-xs py-1 px-2 rounded-lg border outline-none bg-transparent text-white"
-              style={{ borderColor: 'rgba(255,255,255,0.1)' }}
+              className="text-xs py-1 px-2 rounded-lg border outline-none bg-transparent text-txt"
+              style={{ borderColor: 'var(--color-border-light)' }}
             >
               {SORT_OPTIONS.map(o => (
-                <option key={o.key} value={o.key} style={{ backgroundColor: '#1b1e2e' }}>{o.label}</option>
+                <option key={o.key} value={o.key} style={{ backgroundColor: 'var(--color-surface)' }}>{o.label}</option>
               ))}
             </select>
             <button
               onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
               className="text-xs"
-              style={{ color: 'rgba(255,255,255,0.5)' }}
+              style={{ color: 'var(--color-text-sub)' }}
             >
               <span className="material-symbols-outlined text-base">
                 {sortDir === 'asc' ? 'arrow_upward' : 'arrow_downward'}
@@ -373,17 +373,17 @@ export default function AdminSessionListPage() {
             <select
               value={userSortKey}
               onChange={e => setUserSortKey(e.target.value as typeof userSortKey)}
-              className="text-xs py-1 px-2 rounded-lg border outline-none bg-transparent text-white"
-              style={{ borderColor: 'rgba(255,255,255,0.1)' }}
+              className="text-xs py-1 px-2 rounded-lg border outline-none bg-transparent text-txt"
+              style={{ borderColor: 'var(--color-border-light)' }}
             >
               {USER_SORT_OPTIONS.map(o => (
-                <option key={o.key} value={o.key} style={{ backgroundColor: '#1b1e2e' }}>{o.label}</option>
+                <option key={o.key} value={o.key} style={{ backgroundColor: 'var(--color-surface)' }}>{o.label}</option>
               ))}
             </select>
             <button
               onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
               className="text-xs"
-              style={{ color: 'rgba(255,255,255,0.5)' }}
+              style={{ color: 'var(--color-text-sub)' }}
             >
               <span className="material-symbols-outlined text-base">
                 {sortDir === 'asc' ? 'arrow_upward' : 'arrow_downward'}
@@ -429,21 +429,21 @@ export default function AdminSessionListPage() {
               onClick={() => toggleGrade(g)}
               className="px-2.5 py-1 rounded-lg text-xs font-bold transition-colors flex-shrink-0"
               style={{
-                backgroundColor: active ? `${GRADE_COLORS[g]}20` : 'rgba(255,255,255,0.06)',
-                color: active ? GRADE_COLORS[g] : 'rgba(255,255,255,0.4)',
+                backgroundColor: active ? `${GRADE_COLORS[g]}20` : 'var(--color-surface-alt)',
+                color: active ? GRADE_COLORS[g] : 'var(--color-text-tertiary)',
               }}
             >
               {g}
             </button>
           )
         })}
-        <span className="w-px h-4 flex-shrink-0" style={{ backgroundColor: 'rgba(255,255,255,0.1)' }} />
+        <span className="w-px h-4 flex-shrink-0" style={{ backgroundColor: 'var(--color-border-light)' }} />
         <button
           onClick={() => updateFilters({ ...filters, hasAudioUrl: !filters.hasAudioUrl })}
           className="px-2.5 py-1 rounded-lg text-xs font-medium transition-colors flex-shrink-0"
           style={{
-            backgroundColor: filters.hasAudioUrl ? 'rgba(96,165,250,0.15)' : 'rgba(255,255,255,0.06)',
-            color: filters.hasAudioUrl ? '#60a5fa' : 'rgba(255,255,255,0.4)',
+            backgroundColor: filters.hasAudioUrl ? 'rgba(96,165,250,0.15)' : 'var(--color-surface-alt)',
+            color: filters.hasAudioUrl ? '#60a5fa' : 'var(--color-text-tertiary)',
           }}
         >
           비식별화완료
@@ -455,8 +455,8 @@ export default function AdminSessionListPage() {
           })}
           className="px-2.5 py-1 rounded-lg text-xs font-medium transition-colors flex-shrink-0"
           style={{
-            backgroundColor: filters.diarizationStatus === 'done' ? 'rgba(167,139,250,0.15)' : 'rgba(255,255,255,0.06)',
-            color: filters.diarizationStatus === 'done' ? '#a78bfa' : 'rgba(255,255,255,0.4)',
+            backgroundColor: filters.diarizationStatus === 'done' ? 'rgba(167,139,250,0.15)' : 'var(--color-surface-alt)',
+            color: filters.diarizationStatus === 'done' ? '#a78bfa' : 'var(--color-text-tertiary)',
           }}
         >
           화자분리완료
@@ -468,8 +468,8 @@ export default function AdminSessionListPage() {
           })}
           className="px-2.5 py-1 rounded-lg text-xs font-medium transition-colors flex-shrink-0"
           style={{
-            backgroundColor: filters.transcriptStatus === 'done' ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.06)',
-            color: filters.transcriptStatus === 'done' ? '#22c55e' : 'rgba(255,255,255,0.4)',
+            backgroundColor: filters.transcriptStatus === 'done' ? 'rgba(34,197,94,0.15)' : 'var(--color-surface-alt)',
+            color: filters.transcriptStatus === 'done' ? '#22c55e' : 'var(--color-text-tertiary)',
           }}
         >
           자막있음
@@ -478,7 +478,7 @@ export default function AdminSessionListPage() {
           onClick={handleSyncAudioUrls}
           disabled={syncing}
           className="px-2.5 py-1 rounded-lg text-xs font-medium transition-colors flex-shrink-0 disabled:opacity-50"
-          style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.4)' }}
+          style={{ backgroundColor: 'var(--color-surface-alt)', color: 'var(--color-text-tertiary)' }}
         >
           {syncing ? '동기화중...' : '스토리지동기화'}
         </button>
@@ -490,27 +490,27 @@ export default function AdminSessionListPage() {
           {/* 전체선택 + 카운트 */}
           <div
             className="flex items-center justify-between px-4 py-2 border-b"
-            style={{ borderColor: 'rgba(255,255,255,0.06)' }}
+            style={{ borderColor: 'var(--color-surface-alt)' }}
           >
             <button
               onClick={toggleAll}
               className="flex items-center gap-2 text-xs"
-              style={{ color: 'rgba(255,255,255,0.5)' }}
+              style={{ color: 'var(--color-text-sub)' }}
             >
               <div
                 className="w-4 h-4 rounded flex items-center justify-center border"
                 style={{
-                  borderColor: selectedIds.size === sessions.length && sessions.length > 0 ? '#1337ec' : 'rgba(255,255,255,0.2)',
-                  backgroundColor: selectedIds.size === sessions.length && sessions.length > 0 ? '#1337ec' : 'transparent',
+                  borderColor: selectedIds.size === sessions.length && sessions.length > 0 ? 'var(--color-accent)' : 'var(--color-border)',
+                  backgroundColor: selectedIds.size === sessions.length && sessions.length > 0 ? 'var(--color-accent)' : 'transparent',
                 }}
               >
                 {selectedIds.size === sessions.length && sessions.length > 0 && (
-                  <span className="material-symbols-outlined text-white text-xs">check</span>
+                  <span className="material-symbols-outlined text-txt text-xs">check</span>
                 )}
               </div>
               전체 선택
             </button>
-            <span className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
+            <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
               {sessions.length.toLocaleString()}건 표시 중
             </span>
           </div>
@@ -529,8 +529,8 @@ export default function AdminSessionListPage() {
 
           {sessions.length === 0 && (
             <div className="flex flex-col items-center py-12">
-              <span className="material-symbols-outlined text-3xl mb-2" style={{ color: 'rgba(255,255,255,0.15)' }}>search_off</span>
-              <p className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>필터 조건에 맞는 세션이 없습니다</p>
+              <span className="material-symbols-outlined text-3xl mb-2" style={{ color: 'var(--color-border-light)' }}>search_off</span>
+              <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>필터 조건에 맞는 세션이 없습니다</p>
             </div>
           )}
 
@@ -548,8 +548,8 @@ export default function AdminSessionListPage() {
       {/* ── 사용자별 뷰 ── */}
       {viewMode === 'byUser' && (
         <>
-          <div className="px-4 py-2 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-            <span className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
+          <div className="px-4 py-2 border-b" style={{ borderColor: 'var(--color-surface-alt)' }}>
+            <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
               {totalUsers.toLocaleString()}명의 사용자
             </span>
           </div>
@@ -566,8 +566,8 @@ export default function AdminSessionListPage() {
 
           {userGroups.length === 0 && (
             <div className="flex flex-col items-center py-12">
-              <span className="material-symbols-outlined text-3xl mb-2" style={{ color: 'rgba(255,255,255,0.15)' }}>search_off</span>
-              <p className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>필터 조건에 맞는 사용자가 없습니다</p>
+              <span className="material-symbols-outlined text-3xl mb-2" style={{ color: 'var(--color-border-light)' }}>search_off</span>
+              <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>필터 조건에 맞는 사용자가 없습니다</p>
             </div>
           )}
 
@@ -587,17 +587,17 @@ export default function AdminSessionListPage() {
         <div
           className="fixed bottom-0 left-0 right-0 px-4 py-3 flex items-center justify-between border-t"
           style={{
-            backgroundColor: '#1b1e2e',
-            borderColor: 'rgba(255,255,255,0.08)',
+            backgroundColor: 'var(--color-surface)',
+            borderColor: 'var(--color-border-light)',
             paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))',
           }}
         >
-          <span className="text-sm text-white font-medium">{selectedIds.size}건 선택됨</span>
+          <span className="text-sm text-txt font-medium">{selectedIds.size}건 선택됨</span>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowCreate(true)}
-              className="px-4 py-2.5 rounded-xl text-sm font-semibold text-white flex items-center gap-1.5"
-              style={{ backgroundColor: '#1337ec' }}
+              className="px-4 py-2.5 rounded-xl text-sm font-semibold text-txt flex items-center gap-1.5"
+              style={{ backgroundColor: 'var(--color-accent)' }}
             >
               <span className="material-symbols-outlined text-base">add_box</span>
               데이터셋 생성
@@ -648,7 +648,7 @@ function LoadMoreBar({
 }) {
   return (
     <div className="flex items-center justify-between px-4 py-3">
-      <span className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>
+      <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
         {shown.toLocaleString()}건 표시 중 / 총 {total.toLocaleString()}건
       </span>
       {hasMore && (
@@ -656,10 +656,10 @@ function LoadMoreBar({
           onClick={onLoadMore}
           disabled={loading}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
-          style={{ backgroundColor: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)' }}
+          style={{ backgroundColor: 'var(--color-border-light)', color: 'var(--color-text-sub)' }}
         >
           {loading
-            ? <span className="w-3.5 h-3.5 border border-t-transparent rounded-full animate-spin" style={{ borderColor: 'rgba(255,255,255,0.5)', borderTopColor: 'transparent' }} />
+            ? <span className="w-3.5 h-3.5 border border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--color-text-sub)', borderTopColor: 'transparent' }} />
             : <span className="material-symbols-outlined text-sm">expand_more</span>
           }
           더 보기
@@ -676,14 +676,14 @@ function UserGroupCard({ group, onClick }: { group: UserGroupSummary; onClick: (
     <button
       onClick={onClick}
       className="w-full rounded-xl p-3.5 text-left transition-colors"
-      style={{ backgroundColor: '#1b1e2e' }}
+      style={{ backgroundColor: 'var(--color-surface)' }}
     >
       <div className="flex items-center justify-between mb-2.5">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="material-symbols-outlined text-lg" style={{ color: 'rgba(255,255,255,0.3)' }}>person</span>
-          <p className="text-sm font-medium text-white truncate">{group.displayId}</p>
+          <span className="material-symbols-outlined text-lg" style={{ color: 'var(--color-text-tertiary)' }}>person</span>
+          <p className="text-sm font-medium text-txt truncate">{group.displayId}</p>
         </div>
-        <span className="material-symbols-outlined text-base" style={{ color: 'rgba(255,255,255,0.3)' }}>chevron_right</span>
+        <span className="material-symbols-outlined text-base" style={{ color: 'var(--color-text-tertiary)' }}>chevron_right</span>
       </div>
 
       <div className="grid grid-cols-4 gap-2">
@@ -694,8 +694,8 @@ function UserGroupCard({ group, onClick }: { group: UserGroupSummary; onClick: (
           { label: '라벨률', value: `${Math.round(group.labeledRatio * 100)}%` },
         ].map(item => (
           <div key={item.label} className="text-center">
-            <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.35)' }}>{item.label}</p>
-            <p className="text-xs font-bold text-white">{item.value}</p>
+            <p className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>{item.label}</p>
+            <p className="text-xs font-bold text-txt">{item.value}</p>
           </div>
         ))}
       </div>
