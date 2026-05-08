@@ -279,8 +279,12 @@ function AlertsTab({ stats, onNavigate }: { stats: DashboardStats; onNavigate: (
             {stats.alerts.pipelineFailedCount.toLocaleString('ko-KR')}
           </div>
           <div className="mt-3">
-            <Button size="sm" variant="secondary" onClick={() => onNavigate('/admin/sessions')}>
-              세션 목록 보기
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => onNavigate('/admin/sessions?pipeline=failed')}
+            >
+              실패 세션 보기
             </Button>
           </div>
         </CardBody>

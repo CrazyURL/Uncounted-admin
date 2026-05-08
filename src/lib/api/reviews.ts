@@ -18,6 +18,7 @@ export interface ReviewQueueFilters {
 export interface ReviewQueueResponse {
   sessions: AdminSession[]
   total: number
+  filteredDurationSec: number  // 페이지네이션 무관, 현재 필터에 맞는 sessions 전체 duration 합산
   pendingCount: number
   inReviewCount: number
   approvedCount: number

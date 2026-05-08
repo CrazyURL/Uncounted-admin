@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useCallback, useEffect, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Button,
   Card,
@@ -48,6 +48,7 @@ const CONSENT_FILTER_OPTIONS: SelectOption[] = [
 
 export default function AdminReviewQueuePage() {
   const [searchParams, setSearchParams] = useSearchParams()
+  const navigate = useNavigate()
   const toast = useToast()
 
   const reviewFilter = (searchParams.get('review') ?? 'pending') as ReviewStatus | 'all'
@@ -100,9 +101,8 @@ export default function AdminReviewQueuePage() {
     load()
   }, [load])
 
-  const totalDurationSec = useMemo(() => {
-    return (data?.sessions ?? []).reduce((sum, s) => sum + (s.duration_seconds ?? 0), 0)
-  }, [data])
+  // backend 가 반환하는 filteredDurationSec — 페이지네이션 무관 전체 합산
+  const totalDurationSec = data?.filteredDurationSec ?? 0
 
   const handleAction = async () => {
     if (!confirmAction) return
@@ -244,6 +244,20 @@ export default function AdminReviewQueuePage() {
         error={null}
         emptyTitle={labels.empty.review}
         emptyHint={labels.empty.reviewHint}
+        onRowClick={(s) => {
+          if (isPipelineComplete(s)) {
+            navigate(`/admin/sessions/${s.id}`)
+          } else {
+            const failed = firstFailedStep(s)
+            const progress = pipelineProgress(s)
+            toast.show(
+              failed
+                ? `처리 흐름 ${labels.pipeline[failed]} 단계 실패 — 재시도 필요 (${progress}/5 완료)`
+                : `처리 흐름 진행 중 (${progress}/5 완료) — 모든 단계 완료 후 발화 검수 가능`,
+              'info',
+            )
+          }
+        }}
       />
 
       {/* 빈 상태에서도 도움말 */}
