@@ -67,8 +67,10 @@ export function pipelineProgress(s: SessionPipeline): number {
   return done / steps.length
 }
 
+export type PipelineStep = 'upload' | 'stt' | 'diarize' | 'pii' | 'quality'
+
 // 실패한 단계 이름 (있으면)
-export function firstFailedStep(s: SessionPipeline): string | null {
+export function firstFailedStep(s: SessionPipeline): PipelineStep | null {
   if (s.upload_status === 'failed') return 'upload'
   if (s.stt_status === 'failed') return 'stt'
   if (s.diarize_status === 'failed') return 'diarize'
