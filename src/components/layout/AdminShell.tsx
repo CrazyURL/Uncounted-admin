@@ -84,11 +84,11 @@ export default function AdminShell() {
     return (
       <div
         className="flex items-center justify-center h-screen"
-        style={{ backgroundColor: '#101322' }}
+        style={{ backgroundColor: 'var(--color-bg)' }}
       >
         <span
           className="material-symbols-outlined text-3xl animate-spin"
-          style={{ color: '#1337ec' }}
+          style={{ color: 'var(--color-accent)' }}
         >
           autorenew
         </span>
@@ -100,20 +100,20 @@ export default function AdminShell() {
   if (adminState === 'unauthenticated') {
     return (
       <div
-        className="flex flex-col items-center justify-center h-screen text-white px-6"
-        style={{ backgroundColor: '#101322' }}
+        className="flex flex-col items-center justify-center h-screen text-txt px-6"
+        style={{ backgroundColor: 'var(--color-bg)' }}
       >
-        <span className="material-symbols-outlined text-5xl mb-4" style={{ color: '#1337ec' }}>
+        <span className="material-symbols-outlined text-5xl mb-4" style={{ color: 'var(--color-accent)' }}>
           admin_panel_settings
         </span>
         <h1 className="text-xl font-bold mb-1">관리자 로그인</h1>
-        <p className="text-sm mb-8" style={{ color: 'rgba(255,255,255,0.5)' }}>
+        <p className="text-sm mb-8" style={{ color: 'var(--color-text-sub)' }}>
           관리자 페이지에 접근하려면 로그인이 필요합니다
         </p>
         <button
           onClick={handleGoogleLogin}
-          className="w-full max-w-xs py-3 rounded-xl text-white text-sm font-semibold flex items-center justify-center gap-2"
-          style={{ backgroundColor: '#1337ec' }}
+          className="w-full max-w-xs py-3 rounded-xl text-txt text-sm font-semibold flex items-center justify-center gap-2"
+          style={{ backgroundColor: 'var(--color-accent)' }}
         >
           <span className="material-symbols-outlined text-base">login</span>
           Google로 로그인
@@ -126,21 +126,21 @@ export default function AdminShell() {
   if (adminState === 'unauthorized') {
     return (
       <div
-        className="flex flex-col items-center justify-center h-screen text-white px-6"
-        style={{ backgroundColor: '#101322' }}
+        className="flex flex-col items-center justify-center h-screen text-txt px-6"
+        style={{ backgroundColor: 'var(--color-bg)' }}
       >
         <span className="material-symbols-outlined text-5xl mb-4" style={{ color: '#ef4444' }}>
           block
         </span>
         <h1 className="text-xl font-bold mb-1">접근 권한 없음</h1>
-        <p className="text-sm mb-8 text-center" style={{ color: 'rgba(255,255,255,0.5)' }}>
+        <p className="text-sm mb-8 text-center" style={{ color: 'var(--color-text-sub)' }}>
           현재 계정에 관리자 권한이 없습니다.<br />
           관리자 계정으로 다시 로그인해 주세요.
         </p>
         <button
           onClick={handleSignOut}
           className="w-full max-w-xs py-3 rounded-xl text-sm font-semibold"
-          style={{ backgroundColor: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)' }}
+          style={{ backgroundColor: 'var(--color-border-light)', color: 'var(--color-text-sub)' }}
         >
           다른 계정으로 로그인
         </button>
@@ -150,28 +150,28 @@ export default function AdminShell() {
 
   // ── authorized: admin layout ────────────────────────────────────────────
   return (
-    <div className="flex flex-col h-screen text-white" style={{ backgroundColor: '#101322' }}>
+    <div className="flex flex-col h-screen text-txt" style={{ backgroundColor: 'var(--color-bg)' }}>
       <header
         className="flex items-center px-4 border-b flex-shrink-0"
         style={{
-          borderColor: 'rgba(255,255,255,0.08)',
+          borderColor: 'var(--color-border-light)',
           paddingTop: 'env(safe-area-inset-top)',
           minHeight: 'calc(3.5rem + env(safe-area-inset-top))',
         }}
       >
         {showBack ? (
-          <button onClick={() => navigate(-1)} className="mr-3 text-gray-400 hover:text-white">
+          <button onClick={() => navigate(-1)} className="mr-3 text-gray-400 hover:text-txt">
             <span className="material-symbols-outlined text-xl">arrow_back_ios</span>
           </button>
         ) : (
-          <button onClick={() => navigate('/admin')} className="mr-3 text-gray-400 hover:text-white">
+          <button onClick={() => navigate('/admin')} className="mr-3 text-gray-400 hover:text-txt">
             <span className="material-symbols-outlined text-xl">home</span>
           </button>
         )}
-        <h1 className="text-white font-semibold text-base flex-1">{title}</h1>
+        <h1 className="text-txt font-semibold text-base flex-1">{title}</h1>
         <span
           className="text-xs px-2 py-0.5 rounded-full font-medium"
-          style={{ backgroundColor: 'rgba(19,55,236,0.2)', color: '#1337ec' }}
+          style={{ backgroundColor: 'rgba(19,55,236,0.2)', color: 'var(--color-accent)' }}
         >
           관리자
         </span>

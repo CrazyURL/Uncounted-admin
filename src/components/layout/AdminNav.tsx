@@ -98,11 +98,11 @@ export default function AdminNav() {
   }
 
   return (
-    <div className="flex-shrink-0" style={{ backgroundColor: '#101322' }}>
+    <div className="flex-shrink-0" style={{ backgroundColor: 'var(--color-bg)' }}>
       {/* Group tabs */}
       <nav
         className="flex border-b"
-        style={{ borderColor: 'rgba(255,255,255,0.08)' }}
+        style={{ borderColor: 'var(--color-border-light)' }}
       >
         {ADMIN_MENU.map(g => {
           const active = g.id === activeGroupId
@@ -115,8 +115,8 @@ export default function AdminNav() {
               }}
               className="flex-1 flex items-center justify-center gap-1 py-2.5 text-xs font-medium transition-colors"
               style={{
-                color: active ? '#1337ec' : 'rgba(255,255,255,0.45)',
-                borderBottom: active ? '2px solid #1337ec' : '2px solid transparent',
+                color: active ? 'var(--color-accent)' : 'var(--color-text-sub)',
+                borderBottom: active ? '2px solid var(--color-accent)' : '2px solid transparent',
               }}
             >
               <span className="material-symbols-outlined text-base">{g.icon}</span>
@@ -130,7 +130,7 @@ export default function AdminNav() {
       {activeGroup && (
       <nav
         className="flex border-b overflow-x-auto"
-        style={{ borderColor: 'rgba(255,255,255,0.06)' }}
+        style={{ borderColor: 'var(--color-surface-alt)' }}
       >
         {activeGroup.items.map(item => {
           const active = isSubActive(item.path)
@@ -140,7 +140,7 @@ export default function AdminNav() {
               onClick={() => navigate(item.path)}
               className="flex items-center gap-1 px-3 py-2 text-xs whitespace-nowrap transition-colors"
               style={{
-                color: active ? '#fff' : 'rgba(255,255,255,0.4)',
+                color: active ? '#fff' : 'var(--color-text-tertiary)',
                 backgroundColor: active ? 'rgba(19,55,236,0.15)' : 'transparent',
                 borderRadius: '6px',
                 margin: '4px 2px',
