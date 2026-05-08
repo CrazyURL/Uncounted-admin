@@ -57,6 +57,7 @@ export default function AdminReviewQueuePage() {
     | 'user_only'
     | 'all'
   const qualityLow = searchParams.get('low') === '1'
+  const pipelineFailed = searchParams.get('pipeline_failed') === '1'
   const search = searchParams.get('q') ?? ''
 
   const [data, setData] = useState<ReviewQueueResponse | null>(null)
@@ -87,6 +88,7 @@ export default function AdminReviewQueuePage() {
       reviewStatus: reviewFilter,
       consentStatus: consentFilter,
       qualityLow,
+      pipelineFailed,
       search: search || undefined,
     })
     if (res.error) {
@@ -95,7 +97,7 @@ export default function AdminReviewQueuePage() {
       setData(res.data ?? null)
     }
     setLoading(false)
-  }, [reviewFilter, consentFilter, qualityLow, search])
+  }, [reviewFilter, consentFilter, qualityLow, pipelineFailed, search])
 
   useEffect(() => {
     load()

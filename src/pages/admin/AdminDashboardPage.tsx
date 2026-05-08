@@ -282,9 +282,9 @@ function AlertsTab({ stats, onNavigate }: { stats: DashboardStats; onNavigate: (
             <Button
               size="sm"
               variant="secondary"
-              onClick={() => onNavigate('/admin/sessions?pipeline=failed')}
+              onClick={() => onNavigate('/admin/review?pipeline_failed=1&review=all&consent=all')}
             >
-              실패 세션 보기
+              실패 통화 검수
             </Button>
           </div>
         </CardBody>
