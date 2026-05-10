@@ -22,6 +22,7 @@ const DEFAULT_FILTERS: DatasetFilterCriteria = {
   transcriptStatus: 'all',
   dateRange: null,
   uploadStatuses: [],
+  consentStatus: 'all',
 }
 
 export default function AdminSkuStudioPage() {

@@ -11,6 +11,7 @@ import {
 } from '../../components/ui'
 import { labels } from '../../lib/labels'
 import { fetchDashboardStats, type DashboardStats, type PipelineDistribution } from '../../lib/api/dashboard'
+import { fetchGpuWorkerStatusApi, type WorkerStatus } from '../../lib/api/gpuWorker'
 
 type TabId = 'consent' | 'pipeline' | 'review' | 'delivery' | 'alerts'
 
@@ -130,10 +131,115 @@ function PipelineTab({ stats, onNavigate }: { stats: DashboardStats; onNavigate:
     { key: 'quality' as const, label: labels.pipeline.quality },
   ]
   return (
-    <div className="space-y-3">
-      {stages.map((s) => (
-        <PipelineRow key={s.key} label={s.label} dist={stats.pipeline[s.key]} onClick={() => onNavigate('/admin/sessions')} />
-      ))}
+    <div className="space-y-4">
+      <WorkerStatusCard />
+      <div className="space-y-3">
+        {stages.map((s) => (
+          <PipelineRow key={s.key} label={s.label} dist={stats.pipeline[s.key]} onClick={() => onNavigate('/admin/sessions')} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── GPU 워커 상태 카드 (BM v10 STAGE 4) ─────────────────────────────────
+function WorkerStatusCard() {
+  const [worker, setWorker] = useState<WorkerStatus | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  const reload = useCallback(async () => {
+    setLoading(true)
+    const res = await fetchGpuWorkerStatusApi()
+    if (res.error) setError(res.error)
+    else {
+      setError(null)
+      setWorker(res.data ?? null)
+    }
+    setLoading(false)
+  }, [])
+
+  useEffect(() => {
+    reload()
+    const id = setInterval(reload, 15_000)
+    return () => clearInterval(id)
+  }, [reload])
+
+  if (loading && !worker) {
+    return (
+      <Card padding="sm">
+        <Skeleton variant="text" width="40%" />
+        <div className="mt-2"><Skeleton width="60%" height={20} /></div>
+      </Card>
+    )
+  }
+  if (error || !worker) {
+    return (
+      <Card padding="sm">
+        <div className="text-sm text-danger">GPU 워커 상태 조회 실패: {error ?? '알 수 없음'}</div>
+      </Card>
+    )
+  }
+
+  const { queue, currentRunning, oldestPending, recentFailures, concurrency } = worker
+  const totalQueue = queue.pending + queue.running + queue.failedRetryEligible
+
+  return (
+    <Card padding="sm">
+      <CardHeader
+        title={`GPU 워커 (동시 ${concurrency}개)`}
+        description={`Voice API · ${worker.voiceApiUrl.replace(/^https?:\/\//, '')} · 폴링 ${Math.round(worker.pollIntervalMs / 1000)}초`}
+      />
+      <CardBody>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+          <WorkerStat label="처리 중" value={queue.running} tone="accent" />
+          <WorkerStat label="대기" value={queue.pending} tone="neutral" />
+          <WorkerStat label="재시도 대기" value={queue.failedRetryEligible} tone="warning" />
+          <WorkerStat label="영구 실패" value={queue.failedExhausted} tone="danger" />
+          <WorkerStat label="완료" value={queue.done} tone="success" />
+        </div>
+
+        {totalQueue > 0 && (
+          <div className="mt-3 text-xs text-txt-sub">
+            큐 합계 <span className="font-mono tabular-nums">{totalQueue.toLocaleString('ko-KR')}</span>건
+            {currentRunning && (
+              <> · 현재 처리: <span className="font-mono">{currentRunning.id.slice(0, 16)}…</span></>
+            )}
+            {oldestPending && (
+              <> · 최오래 대기: <span className="font-mono">{new Date(oldestPending.raw_audio_uploaded_at).toLocaleTimeString('ko-KR')}</span></>
+            )}
+          </div>
+        )}
+
+        {recentFailures.length > 0 && (
+          <details className="mt-3">
+            <summary className="text-xs text-danger cursor-pointer">최근 실패 {recentFailures.length}건</summary>
+            <ul className="mt-2 space-y-1 text-xs text-txt-sub">
+              {recentFailures.slice(0, 5).map(f => (
+                <li key={f.id} className="font-mono truncate">
+                  {f.id.slice(0, 16)}… · 재시도{f.gpu_retry_count} · {f.gpu_last_error?.slice(0, 60) ?? '-'}
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
+      </CardBody>
+    </Card>
+  )
+}
+
+function WorkerStat({ label, value, tone }: { label: string; value: number; tone: 'accent' | 'neutral' | 'warning' | 'danger' | 'success' }) {
+  const toneColor: Record<typeof tone, string> = {
+    accent:  'text-accent',
+    neutral: 'text-txt-sub',
+    warning: 'text-warning',
+    danger:  'text-danger',
+    success: 'text-success',
+  }
+  return (
+    <div className="text-center bg-surface-alt rounded-lg p-2">
+      <div className="text-[10px] text-txt-tertiary">{label}</div>
+      <div className={`text-lg font-bold tabular-nums ${toneColor[tone]}`}>{value.toLocaleString('ko-KR')}</div>
     </div>
   )
 }

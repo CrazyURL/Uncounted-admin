@@ -13,6 +13,7 @@ import { generateUUID } from '../../lib/uuid'
 import {
   fetchAdminSessionsApi,
   fetchAdminUserStatsApi,
+  fetchAdminSessionsAggregateApi,
 } from '../../lib/api/admin'
 import AdminFilterBar from '../../components/domain/AdminFilterBar'
 import AdminSessionRow from '../../components/domain/AdminSessionRow'
@@ -47,6 +48,22 @@ const DEFAULT_FILTERS: DatasetFilterCriteria = {
   transcriptStatus: 'all',
   dateRange: null,
   uploadStatuses: [],
+  consentStatus: 'all',
+}
+
+const CONSENT_FILTER_OPTIONS: { value: DatasetFilterCriteria['consentStatus']; label: string; color: string }[] = [
+  { value: 'all',         label: '전체동의',     color: '#9ca3af' },
+  { value: 'both_agreed', label: '양측동의',     color: '#22c55e' },
+  { value: 'user_only',   label: '본인만동의',   color: '#f59e0b' },
+  { value: 'locked',      label: '잠김',         color: '#ef4444' },
+]
+
+function formatDurationCompact(totalSec: number): string {
+  if (!Number.isFinite(totalSec) || totalSec <= 0) return '0분'
+  const h = Math.floor(totalSec / 3600)
+  const m = Math.floor((totalSec % 3600) / 60)
+  if (h > 0) return `${h}시간 ${m}분`
+  return `${m}분`
 }
 
 const GRADE_COLORS: Record<string, string> = {
@@ -74,6 +91,9 @@ export default function AdminSessionListPage() {
   const [sessionOffset, setSessionOffset] = useState(0)
   const [sessionHasMore, setSessionHasMore] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
+
+  // 합계 (필터 적용된 전체)
+  const [totalDurationSec, setTotalDurationSec] = useState(0)
 
   // byUser 탭 state
   const [userGroups, setUserGroups] = useState<UserGroupSummary[]>([])
@@ -117,6 +137,16 @@ export default function AdminSessionListPage() {
     }).catch(err => {
       console.error('[AdminSessionList] fetchAdminSessionsApi failed:', err)
       setLoading(false)
+    })
+
+    // 동시에 합계 (count + totalDurationSec) 조회 — 카드 표시용
+    fetchAdminSessionsAggregateApi({
+      ...filtersToQuery(filters),
+    }).then(({ data }) => {
+      setTotalDurationSec(data?.totalDurationSec ?? 0)
+    }).catch(err => {
+      console.error('[AdminSessionList] fetchAdminSessionsAggregateApi failed:', err)
+      setTotalDurationSec(0)
     })
   }, [filters, sortKey, sortDir, viewMode, location.pathname])
 
@@ -307,13 +337,38 @@ export default function AdminSessionListPage() {
       {/* 총 건수 요약 */}
       <div className="px-4 py-3 flex items-center gap-3">
         <div className="rounded-lg p-2.5 text-center flex-1" style={{ backgroundColor: 'var(--color-surface)' }}>
-          <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>전체 세션</p>
+          <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>세션</p>
           <p className="text-sm font-bold text-txt mt-0.5">{totalSessions.toLocaleString()}건</p>
         </div>
         <div className="rounded-lg p-2.5 text-center flex-1" style={{ backgroundColor: 'var(--color-surface)' }}>
-          <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>전체 사용자</p>
+          <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>통화 시간</p>
+          <p className="text-sm font-bold text-txt mt-0.5">{formatDurationCompact(totalDurationSec)}</p>
+        </div>
+        <div className="rounded-lg p-2.5 text-center flex-1" style={{ backgroundColor: 'var(--color-surface)' }}>
+          <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>사용자</p>
           <p className="text-sm font-bold text-txt mt-0.5">{totalUsers.toLocaleString()}명</p>
         </div>
+      </div>
+
+      {/* 동의 상태 필터 (BM v10 — 양측동의만 GPU 처리 대상) */}
+      <div className="flex items-center gap-1.5 px-4 pb-1 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+        {CONSENT_FILTER_OPTIONS.map(opt => {
+          const active = filters.consentStatus === opt.value
+          return (
+            <button
+              key={opt.value}
+              onClick={() => updateFilters({ ...filters, consentStatus: opt.value })}
+              className="px-2.5 py-1 rounded-lg text-xs font-medium transition-colors flex-shrink-0"
+              style={{
+                backgroundColor: active ? `${opt.color}25` : 'var(--color-surface-alt)',
+                color: active ? opt.color : 'var(--color-text-tertiary)',
+                fontWeight: active ? 700 : 500,
+              }}
+            >
+              {opt.label}
+            </button>
+          )
+        })}
       </div>
 
       {/* 뷰 토글 */}

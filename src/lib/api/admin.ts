@@ -531,6 +531,7 @@ export type AdminSessionsQuery = {
   uploadStatuses?: string[]
   dateFrom?: string
   dateTo?: string
+  consentStatus?: 'both_agreed' | 'user_only' | 'locked'
   sortBy?: 'date' | 'qaScore' | 'duration'
   sortDir?: 'asc' | 'desc'
 }
@@ -554,6 +555,9 @@ function buildAdminSessionParams(query: AdminSessionsQuery | AdminUsersStatsQuer
   if (query.uploadStatuses?.length) query.uploadStatuses.forEach(s => params.append('uploadStatuses', s))
   if (query.dateFrom) params.set('dateFrom', query.dateFrom)
   if (query.dateTo) params.set('dateTo', query.dateTo)
+  if ('consentStatus' in query && (query as AdminSessionsQuery).consentStatus) {
+    params.set('consentStatus', (query as AdminSessionsQuery).consentStatus!)
+  }
   if (query.sortBy) params.set('sortBy', query.sortBy)
   if (query.sortDir) params.set('sortDir', query.sortDir)
   return params
@@ -569,6 +573,15 @@ export async function fetchAdminSessionsApi(query: AdminSessionsQuery = {}) {
 export async function fetchAdminUserStatsApi(query: AdminUsersStatsQuery = {}) {
   const params = buildAdminSessionParams(query)
   return apiFetch<UserGroupSummary[]>(`/api/admin/users/stats?${params}`)
+}
+
+/** GET /api/admin/sessions/aggregate — 필터링된 합계 (count + 통화시간 sum) */
+export async function fetchAdminSessionsAggregateApi(query: Omit<AdminSessionsQuery, 'limit' | 'offset' | 'sortBy' | 'sortDir'> = {}) {
+  const params = buildAdminSessionParams(query as AdminSessionsQuery)
+  const { data, error } = await apiFetch<{ count: number; totalDurationSec: number }>(
+    `/api/admin/sessions/aggregate?${params}`,
+  )
+  return { data: data ?? null, error }
 }
 
 // ── Bulk Label Update ──────────────────────────────────────────────────
