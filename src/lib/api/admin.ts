@@ -555,9 +555,7 @@ function buildAdminSessionParams(query: AdminSessionsQuery | AdminUsersStatsQuer
   if (query.uploadStatuses?.length) query.uploadStatuses.forEach(s => params.append('uploadStatuses', s))
   if (query.dateFrom) params.set('dateFrom', query.dateFrom)
   if (query.dateTo) params.set('dateTo', query.dateTo)
-  if ('consentStatus' in query && (query as AdminSessionsQuery).consentStatus) {
-    params.set('consentStatus', (query as AdminSessionsQuery).consentStatus!)
-  }
+  if (query.consentStatus) params.set('consentStatus', query.consentStatus)
   if (query.sortBy) params.set('sortBy', query.sortBy)
   if (query.sortDir) params.set('sortDir', query.sortDir)
   return params
