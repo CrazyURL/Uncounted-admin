@@ -3,10 +3,20 @@
 import { apiFetch } from './client'
 
 export type UtteranceReviewStatus = 'pending' | 'excluded'
+export type SessionReviewStatus =
+  | 'pending'
+  | 'in_review'
+  | 'approved'
+  | 'rejected'
+  | 'needs_revision'
 
 export interface AdminUtterance {
   id: string
   session_id: string
+  session_title: string | null
+  session_duration_sec: number | null
+  session_review_status: SessionReviewStatus | string
+  session_consent_status: string | null
   speaker_id: string | null
   start_ms: number
   end_ms: number
@@ -42,7 +52,7 @@ export async function fetchUtterances(opts: {
   search?: string
   page?: number
   limit?: number
-}) {
+}): Promise<{ data?: UtteranceListResponse; error?: string }> {
   const params = new URLSearchParams()
   if (opts.settled) params.set('settled', opts.settled)
   if (opts.review) params.set('review', opts.review)

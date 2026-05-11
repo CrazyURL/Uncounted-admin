@@ -1,13 +1,27 @@
+// ── AdminUtterancesPage — BM v10 발화 단위 검수 + 납품 트리 ──────────────────
+//
+// 구조: 통화(session) → 펼치면 발화(utterance) 목록
+//
+// 동작:
+//   - 통화 row: 제목, 길이, review_status, 발화 N건, 예상 단가 합계
+//   - 펼치기 토글 → 발화 목록 표시 (체크박스 + 검수 토글)
+//   - 헤더 sticky 바: 선택 발화 카운트 + "선택 발화 납품" 버튼
+//   - 다이얼로그: client 선택 + 가격 + 중복 사전 안내
+//
+// 제약:
+//   - 백엔드 utterance limit=200/page → 통화 ~20개 정도 표시. 페이지네이션 utterance 단위.
+//   - 같은 (session, client) 두 번 납품 X (백엔드 UNIQUE 409)
+//   - session.review_status='approved' 필수 (다이얼로그에서 사전 안내)
+
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   Card,
-  DataTable,
   Input,
   Select,
   Badge,
+  Button,
   ErrorBanner,
-  type ColumnDef,
   type SelectOption,
 } from '../../components/ui'
 import { labels } from '../../lib/labels'
@@ -20,6 +34,7 @@ import {
   type UtteranceStatsResponse,
   type UtteranceReviewStatus,
 } from '../../lib/api/utterances'
+import { DeliveryDialog, type SelectedUtterance } from '../../components/domain/DeliveryDialog'
 
 const SETTLED_OPTIONS: SelectOption[] = [
   { value: 'all', label: '전체' },
@@ -33,6 +48,41 @@ const REVIEW_OPTIONS: SelectOption[] = [
   { value: 'excluded', label: '제외' },
 ]
 
+interface SessionGroup {
+  sessionId: string
+  title: string | null
+  durationSec: number | null
+  reviewStatus: string
+  consentStatus: string | null
+  utterances: AdminUtterance[]
+  totalUnitPriceKrw: number
+  excludedCount: number
+}
+
+function groupBySession(rows: AdminUtterance[]): SessionGroup[] {
+  const map = new Map<string, SessionGroup>()
+  for (const u of rows) {
+    let g = map.get(u.session_id)
+    if (!g) {
+      g = {
+        sessionId: u.session_id,
+        title: u.session_title,
+        durationSec: u.session_duration_sec,
+        reviewStatus: u.session_review_status,
+        consentStatus: u.session_consent_status,
+        utterances: [],
+        totalUnitPriceKrw: 0,
+        excludedCount: 0,
+      }
+      map.set(u.session_id, g)
+    }
+    g.utterances.push(u)
+    g.totalUnitPriceKrw += u.unit_price_krw
+    if (u.review_status === 'excluded') g.excludedCount += 1
+  }
+  return Array.from(map.values())
+}
+
 export default function AdminUtterancesPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const settled = (searchParams.get('settled') ?? 'all') as 'all' | 'yes' | 'no'
@@ -44,8 +94,11 @@ export default function AdminUtterancesPage() {
   const [stats, setStats] = useState<UtteranceStatsResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  // 토글 진행 중 utterance id 추적 — 중복 클릭/덮어쓰기 방지
+
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const [selected, setSelected] = useState<Map<string, Set<string>>>(new Map())
   const [updatingId, setUpdatingId] = useState<string | null>(null)
+  const [dialogOpen, setDialogOpen] = useState(false)
 
   const updateParam = useCallback(
     (key: string, value: string | null) => {
@@ -66,6 +119,7 @@ export default function AdminUtterancesPage() {
         review: review === 'all' ? undefined : review,
         sessionId: sessionId || undefined,
         search: search || undefined,
+        limit: 500,
       }),
       fetchUtteranceStats(),
     ])
@@ -75,14 +129,63 @@ export default function AdminUtterancesPage() {
     setLoading(false)
   }, [settled, review, sessionId, search])
 
-  // 토글 — 낙관적 업데이트로 즉시 반영. 실패 시 롤백.
+  useEffect(() => {
+    load()
+  }, [load])
+
+  const groups = useMemo(
+    () => groupBySession(data?.utterances ?? []),
+    [data],
+  )
+
+  // 검색으로 session 진입 시 자동 펼치기
+  useEffect(() => {
+    if (sessionId && groups.length === 1) {
+      setExpanded(new Set([groups[0].sessionId]))
+    }
+  }, [sessionId, groups])
+
+  const toggleExpand = (sid: string) => {
+    setExpanded((cur) => {
+      const next = new Set(cur)
+      if (next.has(sid)) next.delete(sid)
+      else next.add(sid)
+      return next
+    })
+  }
+
+  const toggleUtteranceSelect = (sessionId: string, utteranceId: string) => {
+    setSelected((cur) => {
+      const next = new Map(cur)
+      const set = new Set(next.get(sessionId) ?? [])
+      if (set.has(utteranceId)) set.delete(utteranceId)
+      else set.add(utteranceId)
+      if (set.size === 0) next.delete(sessionId)
+      else next.set(sessionId, set)
+      return next
+    })
+  }
+
+  const toggleAllInSession = (group: SessionGroup) => {
+    setSelected((cur) => {
+      const next = new Map(cur)
+      const existing = next.get(group.sessionId)
+      const includable = group.utterances.filter((u) => u.review_status !== 'excluded')
+      if (existing && existing.size === includable.length) {
+        next.delete(group.sessionId)
+      } else {
+        next.set(group.sessionId, new Set(includable.map((u) => u.id)))
+      }
+      return next
+    })
+  }
+
   const handleToggleReview = useCallback(
     async (utterance: AdminUtterance) => {
       if (updatingId) return
-      const nextIncluded = utterance.review_status !== 'pending' // excluded → include
+      const nextIncluded = utterance.review_status !== 'pending'
       setUpdatingId(utterance.id)
       const prev = data
-      // 낙관적 업데이트
       setData((cur) =>
         cur
           ? {
@@ -102,117 +205,41 @@ export default function AdminUtterancesPage() {
       const res = await updateUtteranceReviewStatus(utterance.id, nextIncluded)
       if (res.error) {
         setError(res.error)
-        setData(prev) // 롤백
+        setData(prev)
       }
       setUpdatingId(null)
     },
     [data, updatingId],
   )
 
-  useEffect(() => {
-    load()
-  }, [load])
+  // DeliveryDialog 에 넘길 선택 목록 평탄화
+  const selectedList: SelectedUtterance[] = useMemo(() => {
+    const list: SelectedUtterance[] = []
+    for (const g of groups) {
+      const set = selected.get(g.sessionId)
+      if (!set) continue
+      for (const u of g.utterances) {
+        if (set.has(u.id)) {
+          list.push({
+            sessionId: g.sessionId,
+            sessionTitle: g.title,
+            reviewStatusOfSession: g.reviewStatus,
+            utteranceId: u.id,
+          })
+        }
+      }
+    }
+    return list
+  }, [groups, selected])
 
-  const columns: ColumnDef<AdminUtterance>[] = useMemo(
-    () => [
-      {
-        key: 'session',
-        header: '세션',
-        render: (u) => (
-          <span className="font-mono text-xs text-txt-sub">{u.session_id.slice(0, 8)}…</span>
-        ),
-        width: '110px',
-      },
-      {
-        key: 'speaker',
-        header: '발화자',
-        render: (u) => (u.speaker_id ? `S${u.speaker_id.slice(-2)}` : '-'),
-        width: '90px',
-      },
-      {
-        key: 'time',
-        header: '시각',
-        render: (u) => (
-          <span className="tabular-nums text-xs text-txt-sub">
-            {formatMs(u.start_ms)} – {formatMs(u.end_ms)}
-          </span>
-        ),
-        width: '170px',
-      },
-      {
-        key: 'duration',
-        header: '길이',
-        align: 'right',
-        render: (u) => (
-          <span className="tabular-nums">{u.duration_seconds.toFixed(1)}초</span>
-        ),
-        width: '90px',
-      },
-      {
-        key: 'text',
-        header: '발화',
-        render: (u) => <span className="text-sm text-txt">{u.text || '(공백)'}</span>,
-      },
-      {
-        key: 'price',
-        header: '단가',
-        align: 'right',
-        render: (u) => (
-          <span className="tabular-nums text-sm">
-            ₩{u.unit_price_krw.toLocaleString('ko-KR')}
-          </span>
-        ),
-        width: '110px',
-      },
-      {
-        key: 'review',
-        header: '검수',
-        render: (u) => {
-          const included = u.review_status === 'pending'
-          const busy = updatingId === u.id
-          return (
-            <div className="flex items-center gap-2">
-              {included ? (
-                <Badge tone="success" size="sm">포함</Badge>
-              ) : (
-                <Badge tone="danger" size="sm">제외</Badge>
-              )}
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => handleToggleReview(u)}
-                className="text-xs px-2 py-1 rounded border border-border-soft hover:bg-bg-hover disabled:opacity-50"
-                title={included ? '제외로 변경' : '포함으로 변경'}
-              >
-                {busy ? '...' : included ? '제외' : '포함'}
-              </button>
-            </div>
-          )
-        },
-        width: '160px',
-      },
-      {
-        key: 'settled',
-        header: '정산',
-        render: (u) =>
-          u.settled_at ? (
-            <Badge tone="success" size="sm">정산 완료</Badge>
-          ) : (
-            <Badge tone="neutral" size="sm">미정산</Badge>
-          ),
-        width: '110px',
-      },
-    ],
-    [updatingId, handleToggleReview],
-  )
+  const selectedCount = selectedList.length
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24">
       <header>
-        <h1 className="text-2xl font-bold text-txt">{labels.noun.utterance} 단위 정산</h1>
+        <h1 className="text-2xl font-bold text-txt">{labels.noun.utterance} 검수 + 납품</h1>
         <p className="mt-1 text-sm text-txt-sub">
-          BM v10 — 청구 단위(BU) 폐기. 발화(utterance)가 단일 정산 기준입니다.
-          단가 = 길이(초) × 시간당 단가 / 3600.
+          통화별로 펼쳐서 발화 단위 검수 + 다중 선택 납품. 단가 = 길이(초) × 시간당 단가 / 3600.
         </p>
       </header>
 
@@ -276,22 +303,228 @@ export default function AdminUtterancesPage() {
 
       {error && <ErrorBanner message={error} onRetry={load} />}
 
-      <DataTable<AdminUtterance>
-        data={data?.utterances ?? null}
-        columns={columns}
-        rowKey={(u) => u.id}
-        loading={loading}
-        emptyTitle="발화가 없습니다"
-        emptyHint="GPU 처리(STT + 화자 분리) 완료 후 발화가 생성됩니다"
+      {/* 트리 */}
+      {loading ? (
+        <Card padding="md">
+          <div className="text-center text-txt-sub text-sm py-10">불러오는 중...</div>
+        </Card>
+      ) : groups.length === 0 ? (
+        <Card padding="md">
+          <div className="text-center text-txt-sub text-sm py-10">
+            발화가 없습니다. GPU 처리(STT + 화자 분리) 완료 후 생성됩니다.
+          </div>
+        </Card>
+      ) : (
+        <div className="space-y-2">
+          {groups.map((g) => (
+            <SessionRow
+              key={g.sessionId}
+              group={g}
+              expanded={expanded.has(g.sessionId)}
+              selectedSet={selected.get(g.sessionId) ?? new Set()}
+              updatingId={updatingId}
+              onToggleExpand={() => toggleExpand(g.sessionId)}
+              onToggleUtterance={(uid) => toggleUtteranceSelect(g.sessionId, uid)}
+              onSelectAll={() => toggleAllInSession(g)}
+              onToggleReview={handleToggleReview}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* sticky 납품 바 */}
+      {selectedCount > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 bg-surface border-t border-border-light shadow-lg z-30">
+          <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
+            <div className="text-sm text-txt">
+              <span className="font-semibold">{selectedCount}</span>건 선택됨 ·{' '}
+              통화 <span className="font-semibold">{selected.size}</span>개
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setSelected(new Map())}>
+                선택 해제
+              </Button>
+              <Button variant="primary" onClick={() => setDialogOpen(true)}>
+                선택 발화 납품
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <DeliveryDialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        selected={selectedList}
+        onSuccess={() => {
+          setSelected(new Map())
+          load()
+        }}
       />
     </div>
   )
 }
 
+// ── SessionRow — 통화 단위 row + 펼침 ─────────────────────────────────────
+interface SessionRowProps {
+  group: SessionGroup
+  expanded: boolean
+  selectedSet: Set<string>
+  updatingId: string | null
+  onToggleExpand: () => void
+  onToggleUtterance: (utteranceId: string) => void
+  onSelectAll: () => void
+  onToggleReview: (u: AdminUtterance) => void
+}
+
+function SessionRow({
+  group, expanded, selectedSet, updatingId,
+  onToggleExpand, onToggleUtterance, onSelectAll, onToggleReview,
+}: SessionRowProps) {
+  const includable = group.utterances.filter((u) => u.review_status !== 'excluded')
+  const allSelected = includable.length > 0 && selectedSet.size === includable.length
+
+  return (
+    <Card padding="none" className="overflow-hidden">
+      {/* Header */}
+      <button
+        type="button"
+        onClick={onToggleExpand}
+        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-bg-hover transition-colors text-left"
+      >
+        <span className="material-symbols-outlined text-txt-sub text-base">
+          {expanded ? 'expand_more' : 'chevron_right'}
+        </span>
+        <div className="flex-1 min-w-0">
+          <div className="font-medium text-txt truncate">
+            {group.title || '(제목 없음)'}
+          </div>
+          <div className="text-xs text-txt-sub mt-0.5 flex items-center gap-2">
+            <span className="font-mono">{group.sessionId.slice(0, 8)}…</span>
+            <span>·</span>
+            <span>{formatDurationCompact(group.durationSec)}</span>
+            <span>·</span>
+            <span>발화 {group.utterances.length}건</span>
+            {group.excludedCount > 0 && (
+              <>
+                <span>·</span>
+                <span className="text-warning">제외 {group.excludedCount}</span>
+              </>
+            )}
+          </div>
+        </div>
+        <Badge tone={reviewTone(group.reviewStatus)} size="sm">
+          {reviewLabel(group.reviewStatus)}
+        </Badge>
+        <span className="tabular-nums text-sm font-semibold text-txt">
+          ₩{group.totalUnitPriceKrw.toLocaleString('ko-KR')}
+        </span>
+      </button>
+
+      {/* Expanded body */}
+      {expanded && (
+        <div className="border-t border-border-light bg-surface-alt">
+          <div className="px-4 py-2 flex items-center gap-3 border-b border-border-light text-xs">
+            <label className="inline-flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={allSelected}
+                onChange={onSelectAll}
+                className="rounded border-border text-accent focus:ring-accent"
+              />
+              <span className="text-txt-sub">
+                전체 선택 (제외 제외 {includable.length}건)
+              </span>
+            </label>
+            {group.reviewStatus !== 'approved' && (
+              <span className="text-warning text-xs">
+                ⚠ 통화 검수 미승인 — 납품 차단됩니다
+              </span>
+            )}
+          </div>
+
+          <div className="divide-y divide-border-light">
+            {group.utterances.map((u) => {
+              const included = u.review_status === 'pending'
+              const checked = selectedSet.has(u.id)
+              const busy = updatingId === u.id
+              return (
+                <div
+                  key={u.id}
+                  className="px-4 py-2 flex items-center gap-3 text-sm"
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    disabled={!included}
+                    onChange={() => onToggleUtterance(u.id)}
+                    className="rounded border-border text-accent focus:ring-accent disabled:opacity-30"
+                  />
+                  <span className="text-xs text-txt-sub font-mono w-16 tabular-nums">
+                    {formatMs(u.start_ms)}
+                  </span>
+                  <span className="text-xs text-txt-sub w-12 tabular-nums text-right">
+                    {u.duration_seconds.toFixed(1)}초
+                  </span>
+                  <span className="text-xs text-txt-sub w-10">
+                    {u.speaker_id ? `S${u.speaker_id.slice(-2)}` : '-'}
+                  </span>
+                  <span className="flex-1 truncate text-txt">{u.text || '(공백)'}</span>
+                  <span className="tabular-nums text-xs text-txt">
+                    ₩{u.unit_price_krw.toLocaleString('ko-KR')}
+                  </span>
+                  {included ? (
+                    <Badge tone="success" size="sm">포함</Badge>
+                  ) : (
+                    <Badge tone="danger" size="sm">제외</Badge>
+                  )}
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => onToggleReview(u)}
+                    className="text-xs px-2 py-0.5 rounded border border-border-soft hover:bg-bg-hover disabled:opacity-50"
+                  >
+                    {busy ? '...' : included ? '제외' : '포함'}
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </Card>
+  )
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────────
 function formatMs(ms: number): string {
   if (!Number.isFinite(ms) || ms < 0) return '-'
   const totalSec = Math.floor(ms / 1000)
   const m = Math.floor(totalSec / 60)
   const s = totalSec % 60
   return `${m}:${String(s).padStart(2, '0')}`
+}
+
+function formatDurationCompact(sec: number | null | undefined): string {
+  if (!sec || sec <= 0) return '-'
+  const h = Math.floor(sec / 3600)
+  const m = Math.floor((sec % 3600) / 60)
+  const s = Math.floor(sec % 60)
+  if (h > 0) return `${h}h${m}m`
+  if (m > 0) return `${m}m${s}s`
+  return `${s}s`
+}
+
+function reviewTone(status: string): 'neutral' | 'warning' | 'success' | 'danger' {
+  switch (status) {
+    case 'approved': return 'success'
+    case 'rejected': return 'danger'
+    case 'needs_revision': return 'warning'
+    case 'in_review': return 'warning'
+    default: return 'neutral'
+  }
+}
+
+function reviewLabel(status: string): string {
+  return (labels.review as Record<string, string>)[status] ?? status
 }
