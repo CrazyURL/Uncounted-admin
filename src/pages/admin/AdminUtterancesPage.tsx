@@ -99,6 +99,8 @@ export default function AdminUtterancesPage() {
   const [selected, setSelected] = useState<Map<string, Set<string>>>(new Map())
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [pageSize, setPageSize] = useState<number>(20)
+  const [page, setPage] = useState<number>(1)
 
   const updateParam = useCallback(
     (key: string, value: string | null) => {
@@ -136,6 +138,19 @@ export default function AdminUtterancesPage() {
   const groups = useMemo(
     () => groupBySession(data?.utterances ?? []),
     [data],
+  )
+
+  // 필터 변경 시 페이지 리셋
+  useEffect(() => {
+    setPage(1)
+  }, [settled, review, sessionId, search, pageSize])
+
+  // 페이지 단위 slice (클라이언트 사이드)
+  const totalPages = Math.max(1, Math.ceil(groups.length / pageSize))
+  const safePage = Math.min(page, totalPages)
+  const pagedGroups = useMemo(
+    () => groups.slice((safePage - 1) * pageSize, safePage * pageSize),
+    [groups, safePage, pageSize],
   )
 
   // 검색으로 session 진입 시 자동 펼치기
@@ -236,19 +251,25 @@ export default function AdminUtterancesPage() {
 
   return (
     <div className="space-y-6 pb-24">
-      <header>
-        <h1 className="text-2xl font-bold text-txt">{labels.noun.utterance} 검수 + 납품</h1>
-        <p className="mt-1 text-sm text-txt-sub">
-          통화별로 펼쳐서 발화 단위 검수 + 다중 선택 납품. 단가 = 길이(초) × 시간당 단가 / 3600.
-        </p>
-        {!loading && groups.length > 0 && (
-          <p className="mt-2 text-xs text-txt-sub">
-            통화 <span className="font-semibold text-txt">{groups.length}</span>개 ·{' '}
-            발화 <span className="font-semibold text-txt">{data?.utterances.length ?? 0}</span>건 표시 중
-            {data && data.total > (data.utterances.length ?? 0) && (
-              <> (전체 {data.total.toLocaleString('ko-KR')}건 중)</>
-            )}
+      <header className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-txt">{labels.noun.utterance} 검수 + 납품</h1>
+          <p className="mt-1 text-sm text-txt-sub">
+            통화별로 펼쳐서 발화 단위 검수 + 다중 선택 납품. 단가 = 길이(초) × 시간당 단가 / 3600.
           </p>
+        </div>
+        {!loading && (
+          <div className="text-right text-xs text-txt-sub whitespace-nowrap pt-1">
+            <div>
+              통화 <span className="font-semibold text-txt text-sm">{groups.length.toLocaleString('ko-KR')}</span>개
+            </div>
+            <div className="mt-0.5">
+              발화 <span className="font-semibold text-txt text-sm">{(data?.utterances.length ?? 0).toLocaleString('ko-KR')}</span>건
+              {data && data.total > (data.utterances.length ?? 0) && (
+                <> / 전체 {data.total.toLocaleString('ko-KR')}</>
+              )}
+            </div>
+          </div>
         )}
       </header>
 
@@ -312,6 +333,18 @@ export default function AdminUtterancesPage() {
 
       {error && <ErrorBanner message={error} onRetry={load} />}
 
+      {/* 페이지네이션 (필터 ↔ 리스트 사이) */}
+      {!loading && groups.length > 0 && (
+        <PaginationBar
+          page={safePage}
+          totalPages={totalPages}
+          pageSize={pageSize}
+          totalItems={groups.length}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
+      )}
+
       {/* 트리 */}
       {loading ? (
         <Card padding="md">
@@ -325,7 +358,7 @@ export default function AdminUtterancesPage() {
         </Card>
       ) : (
         <div className="space-y-2">
-          {groups.map((g) => (
+          {pagedGroups.map((g) => (
             <SessionRow
               key={g.sessionId}
               group={g}
@@ -536,4 +569,99 @@ function reviewTone(status: string): 'neutral' | 'warning' | 'success' | 'danger
 
 function reviewLabel(status: string): string {
   return (labels.review as Record<string, string>)[status] ?? status
+}
+
+// ── PaginationBar — 통화 단위 페이지네이션 ───────────────────────────────
+interface PaginationBarProps {
+  page: number
+  totalPages: number
+  pageSize: number
+  totalItems: number
+  onPageChange: (p: number) => void
+  onPageSizeChange: (n: number) => void
+}
+
+const PAGE_SIZE_OPTIONS: SelectOption[] = [
+  { value: '10', label: '10개씩' },
+  { value: '20', label: '20개씩' },
+  { value: '30', label: '30개씩' },
+  { value: '50', label: '50개씩' },
+  { value: '100', label: '100개씩' },
+]
+
+function PaginationBar({
+  page,
+  totalPages,
+  pageSize,
+  totalItems,
+  onPageChange,
+  onPageSizeChange,
+}: PaginationBarProps) {
+  const startIdx = (page - 1) * pageSize + 1
+  const endIdx = Math.min(page * pageSize, totalItems)
+  return (
+    <Card padding="sm">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-txt-sub">
+            {totalItems > 0 ? (
+              <>
+                <span className="font-semibold text-txt">{startIdx.toLocaleString('ko-KR')}</span>–
+                <span className="font-semibold text-txt">{endIdx.toLocaleString('ko-KR')}</span> /{' '}
+                {totalItems.toLocaleString('ko-KR')}통화
+              </>
+            ) : (
+              <>0통화</>
+            )}
+          </span>
+          <select
+            value={String(pageSize)}
+            onChange={(e) => onPageSizeChange(parseInt(e.target.value, 10) || 20)}
+            className="ml-2 text-xs px-2 py-1 rounded border border-border-light bg-surface text-txt cursor-pointer hover:bg-bg-hover"
+          >
+            {PAGE_SIZE_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        </div>
+        <div className="flex items-center gap-1">
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={page <= 1}
+            onClick={() => onPageChange(1)}
+          >
+            처음
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={page <= 1}
+            onClick={() => onPageChange(page - 1)}
+          >
+            이전
+          </Button>
+          <span className="px-3 text-xs text-txt tabular-nums">
+            <span className="font-semibold">{page}</span> / {totalPages}
+          </span>
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={page >= totalPages}
+            onClick={() => onPageChange(page + 1)}
+          >
+            다음
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={page >= totalPages}
+            onClick={() => onPageChange(totalPages)}
+          >
+            끝
+          </Button>
+        </div>
+      </div>
+    </Card>
+  )
 }
