@@ -9,7 +9,7 @@
 //   - 다이얼로그: client 선택 + 가격 + 중복 사전 안내
 //
 // 제약:
-//   - 백엔드 utterance limit=200/page → 통화 ~20개 정도 표시. 페이지네이션 utterance 단위.
+//   - 백엔드 utterance limit cap=5000/page → 한 페이지에 모든 통화/발화 표시.
 //   - 같은 (session, client) 두 번 납품 X (백엔드 UNIQUE 409)
 //   - session.review_status='approved' 필수 (다이얼로그에서 사전 안내)
 
@@ -119,7 +119,7 @@ export default function AdminUtterancesPage() {
         review: review === 'all' ? undefined : review,
         sessionId: sessionId || undefined,
         search: search || undefined,
-        limit: 500,
+        limit: 5000,
       }),
       fetchUtteranceStats(),
     ])
@@ -241,6 +241,15 @@ export default function AdminUtterancesPage() {
         <p className="mt-1 text-sm text-txt-sub">
           통화별로 펼쳐서 발화 단위 검수 + 다중 선택 납품. 단가 = 길이(초) × 시간당 단가 / 3600.
         </p>
+        {!loading && groups.length > 0 && (
+          <p className="mt-2 text-xs text-txt-sub">
+            통화 <span className="font-semibold text-txt">{groups.length}</span>개 ·{' '}
+            발화 <span className="font-semibold text-txt">{data?.utterances.length ?? 0}</span>건 표시 중
+            {data && data.total > (data.utterances.length ?? 0) && (
+              <> (전체 {data.total.toLocaleString('ko-KR')}건 중)</>
+            )}
+          </p>
+        )}
       </header>
 
       {/* 요약 */}
