@@ -2,6 +2,8 @@
 
 import { apiFetch } from './client'
 
+export type UtteranceReviewStatus = 'pending' | 'excluded'
+
 export interface AdminUtterance {
   id: string
   session_id: string
@@ -12,6 +14,9 @@ export interface AdminUtterance {
   text: string
   unit_price_krw: number
   settled_at: string | null
+  review_status: UtteranceReviewStatus
+  exclude_reason: string | null
+  reviewed_at: string | null
 }
 
 export interface UtteranceListResponse {
@@ -32,6 +37,7 @@ export interface UtteranceStatsResponse {
 
 export async function fetchUtterances(opts: {
   settled?: 'yes' | 'no'
+  review?: UtteranceReviewStatus
   sessionId?: string
   search?: string
   page?: number
@@ -39,6 +45,7 @@ export async function fetchUtterances(opts: {
 }) {
   const params = new URLSearchParams()
   if (opts.settled) params.set('settled', opts.settled)
+  if (opts.review) params.set('review', opts.review)
   if (opts.sessionId) params.set('session_id', opts.sessionId)
   if (opts.search) params.set('q', opts.search)
   if (opts.page) params.set('page', String(opts.page))
@@ -48,4 +55,22 @@ export async function fetchUtterances(opts: {
 
 export async function fetchUtteranceStats() {
   return apiFetch<UtteranceStatsResponse>('/api/admin/utterances-v2/stats')
+}
+
+/**
+ * 단건 검수 상태 토글 (approve = isIncluded:true → 'pending', reject = isIncluded:false → 'excluded').
+ * 백엔드: admin-utterances.ts 의 PATCH /utterances/:id/review-status.
+ */
+export async function updateUtteranceReviewStatus(
+  utteranceId: string,
+  isIncluded: boolean,
+  excludeReason?: string,
+) {
+  return apiFetch<{ ok: true; isIncluded: boolean }>(
+    `/api/admin/utterances/${utteranceId}/review-status`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ isIncluded, excludeReason }),
+    },
+  )
 }

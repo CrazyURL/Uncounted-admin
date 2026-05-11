@@ -14,9 +14,11 @@ import { labels } from '../../lib/labels'
 import {
   fetchUtterances,
   fetchUtteranceStats,
+  updateUtteranceReviewStatus,
   type AdminUtterance,
   type UtteranceListResponse,
   type UtteranceStatsResponse,
+  type UtteranceReviewStatus,
 } from '../../lib/api/utterances'
 
 const SETTLED_OPTIONS: SelectOption[] = [
@@ -25,9 +27,16 @@ const SETTLED_OPTIONS: SelectOption[] = [
   { value: 'no', label: '미정산' },
 ]
 
+const REVIEW_OPTIONS: SelectOption[] = [
+  { value: 'all', label: '전체' },
+  { value: 'pending', label: '검수 대기' },
+  { value: 'excluded', label: '제외' },
+]
+
 export default function AdminUtterancesPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const settled = (searchParams.get('settled') ?? 'all') as 'all' | 'yes' | 'no'
+  const review = (searchParams.get('review') ?? 'all') as 'all' | UtteranceReviewStatus
   const search = searchParams.get('q') ?? ''
   const sessionId = searchParams.get('session') ?? ''
 
@@ -35,6 +44,8 @@ export default function AdminUtterancesPage() {
   const [stats, setStats] = useState<UtteranceStatsResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // 토글 진행 중 utterance id 추적 — 중복 클릭/덮어쓰기 방지
+  const [updatingId, setUpdatingId] = useState<string | null>(null)
 
   const updateParam = useCallback(
     (key: string, value: string | null) => {
@@ -52,6 +63,7 @@ export default function AdminUtterancesPage() {
     const [list, st] = await Promise.all([
       fetchUtterances({
         settled: settled === 'all' ? undefined : settled,
+        review: review === 'all' ? undefined : review,
         sessionId: sessionId || undefined,
         search: search || undefined,
       }),
@@ -61,7 +73,41 @@ export default function AdminUtterancesPage() {
     else setData(list.data ?? null)
     if (!st.error) setStats(st.data ?? null)
     setLoading(false)
-  }, [settled, sessionId, search])
+  }, [settled, review, sessionId, search])
+
+  // 토글 — 낙관적 업데이트로 즉시 반영. 실패 시 롤백.
+  const handleToggleReview = useCallback(
+    async (utterance: AdminUtterance) => {
+      if (updatingId) return
+      const nextIncluded = utterance.review_status !== 'pending' // excluded → include
+      setUpdatingId(utterance.id)
+      const prev = data
+      // 낙관적 업데이트
+      setData((cur) =>
+        cur
+          ? {
+              ...cur,
+              utterances: cur.utterances.map((u) =>
+                u.id === utterance.id
+                  ? {
+                      ...u,
+                      review_status: nextIncluded ? 'pending' : 'excluded',
+                      exclude_reason: nextIncluded ? null : (u.exclude_reason ?? 'manual'),
+                    }
+                  : u,
+              ),
+            }
+          : cur,
+      )
+      const res = await updateUtteranceReviewStatus(utterance.id, nextIncluded)
+      if (res.error) {
+        setError(res.error)
+        setData(prev) // 롤백
+      }
+      setUpdatingId(null)
+    },
+    [data, updatingId],
+  )
 
   useEffect(() => {
     load()
@@ -119,6 +165,33 @@ export default function AdminUtterancesPage() {
         width: '110px',
       },
       {
+        key: 'review',
+        header: '검수',
+        render: (u) => {
+          const included = u.review_status === 'pending'
+          const busy = updatingId === u.id
+          return (
+            <div className="flex items-center gap-2">
+              {included ? (
+                <Badge tone="success" size="sm">포함</Badge>
+              ) : (
+                <Badge tone="danger" size="sm">제외</Badge>
+              )}
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => handleToggleReview(u)}
+                className="text-xs px-2 py-1 rounded border border-border-soft hover:bg-bg-hover disabled:opacity-50"
+                title={included ? '제외로 변경' : '포함으로 변경'}
+              >
+                {busy ? '...' : included ? '제외' : '포함'}
+              </button>
+            </div>
+          )
+        },
+        width: '160px',
+      },
+      {
         key: 'settled',
         header: '정산',
         render: (u) =>
@@ -130,7 +203,7 @@ export default function AdminUtterancesPage() {
         width: '110px',
       },
     ],
-    [],
+    [updatingId, handleToggleReview],
   )
 
   return (
@@ -173,7 +246,13 @@ export default function AdminUtterancesPage() {
 
       {/* 필터 */}
       <Card padding="sm">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <Select
+            label="검수 상태"
+            value={review}
+            options={REVIEW_OPTIONS}
+            onChange={(e) => updateParam('review', e.target.value)}
+          />
           <Select
             label="정산 상태"
             value={settled}
