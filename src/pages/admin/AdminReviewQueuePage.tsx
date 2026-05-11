@@ -248,7 +248,8 @@ export default function AdminReviewQueuePage() {
         emptyHint={labels.empty.reviewHint}
         onRowClick={(s) => {
           if (isPipelineComplete(s)) {
-            navigate(`/admin/sessions/${s.id}`)
+            // BM v10 — 발화 단위 검수/납품 페이지로 이동 (세션 상세 페이지 미구현 상태)
+            navigate(`/admin/utterances?session=${s.id}`)
           } else {
             const failed = firstFailedStep(s)
             const progress = pipelineProgress(s)
