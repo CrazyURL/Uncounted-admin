@@ -6,7 +6,7 @@
   "scripts": {
     "dev:local": "vite --host 0.0.0.0 --mode localDev --port 15173",
     "build": "tsc -b && vite build",
-    "start": "serve -s dist -l 80",
+    "start": "serve -s dist -l tcp://0.0.0.0:${PORT:-10000}",
     "lint": "eslint .",
     "preview": "vite preview",
     "deploy:dev": "render deploys create srv-d6v4f7ngi27c73epd510",
