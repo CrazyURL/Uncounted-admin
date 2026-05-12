@@ -85,6 +85,8 @@ export default function AdminSessionListPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('flat')
   const [resetting, setResetting] = useState(false)
   const [syncing, setSyncing] = useState(false)
+  // STAGE 6.8 — raw title 매칭 검색 (응답엔 비노출). 개발 중 통화 식별 용도.
+  const [searchQuery, setSearchQuery] = useState<string>('')
   // flat 탭 state
   const [sessions, setSessions] = useState<Session[]>([])
   const [totalSessions, setTotalSessions] = useState(0)
@@ -127,6 +129,7 @@ export default function AdminSessionListPage() {
       ...filtersToQuery(filters),
       sortBy: sortKey,
       sortDir,
+      q: searchQuery.trim() || undefined,
     }).then(({ data, count }) => {
       const items = data ?? []
       setSessions(items)
@@ -142,13 +145,14 @@ export default function AdminSessionListPage() {
     // 동시에 합계 (count + totalDurationSec) 조회 — 카드 표시용
     fetchAdminSessionsAggregateApi({
       ...filtersToQuery(filters),
+      q: searchQuery.trim() || undefined,
     }).then(({ data }) => {
       setTotalDurationSec(data?.totalDurationSec ?? 0)
     }).catch(err => {
       console.error('[AdminSessionList] fetchAdminSessionsAggregateApi failed:', err)
       setTotalDurationSec(0)
     })
-  }, [filters, sortKey, sortDir, viewMode, location.pathname])
+  }, [filters, sortKey, sortDir, viewMode, location.pathname, searchQuery])
 
   // byUser 탭 초기 로드
   useEffect(() => {
@@ -446,6 +450,36 @@ export default function AdminSessionListPage() {
             </button>
           </div>
         )}
+      </div>
+
+      {/* STAGE 6.8 — 통화 제목 검색 (개발용, 원본 파일명 매칭. 결과는 합성 라벨로 표시) */}
+      <div className="px-4 py-2">
+        <div className="relative">
+          <span
+            className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-base"
+            style={{ color: 'var(--color-text-sub)' }}
+          >
+            search
+          </span>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="통화 제목 검색 (개발용 — 원본 파일명 매칭)"
+            className="w-full text-sm pl-8 pr-3 py-1.5 rounded-lg border outline-none bg-transparent text-txt"
+            style={{ borderColor: 'var(--color-border-light)' }}
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-xs"
+              style={{ color: 'var(--color-text-sub)' }}
+            >
+              지우기
+            </button>
+          )}
+        </div>
       </div>
 
       {/* 필터 바 */}

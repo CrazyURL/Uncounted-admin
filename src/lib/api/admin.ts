@@ -534,6 +534,7 @@ export type AdminSessionsQuery = {
   consentStatus?: 'both_agreed' | 'user_only' | 'locked'
   sortBy?: 'date' | 'qaScore' | 'duration'
   sortDir?: 'asc' | 'desc'
+  q?: string  // STAGE 6.8 — raw title 매칭 검색 (응답엔 비노출)
 }
 
 export type AdminUsersStatsQuery = Omit<AdminSessionsQuery, 'sortBy'> & {
@@ -558,6 +559,7 @@ function buildAdminSessionParams(query: AdminSessionsQuery | AdminUsersStatsQuer
   if (query.consentStatus) params.set('consentStatus', query.consentStatus)
   if (query.sortBy) params.set('sortBy', query.sortBy)
   if (query.sortDir) params.set('sortDir', query.sortDir)
+  if ('q' in query && query.q) params.set('q', query.q)
   return params
 }
 
