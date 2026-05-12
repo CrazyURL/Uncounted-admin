@@ -535,6 +535,7 @@ export type AdminSessionsQuery = {
   sortBy?: 'date' | 'qaScore' | 'duration'
   sortDir?: 'asc' | 'desc'
   q?: string  // STAGE 6.8 — raw title 매칭 검색 (응답엔 비노출)
+  userId?: string  // STAGE 7 — 트리 뷰 인라인 확장 (특정 user_id 의 세션만)
 }
 
 export type AdminUsersStatsQuery = Omit<AdminSessionsQuery, 'sortBy'> & {
@@ -560,6 +561,7 @@ function buildAdminSessionParams(query: AdminSessionsQuery | AdminUsersStatsQuer
   if (query.sortBy) params.set('sortBy', query.sortBy)
   if (query.sortDir) params.set('sortDir', query.sortDir)
   if ('q' in query && query.q) params.set('q', query.q)
+  if ('userId' in query && query.userId) params.set('userId', query.userId)
   return params
 }
 

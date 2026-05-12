@@ -112,6 +112,16 @@ export default function AdminSessionListPage() {
   const [userLoadingMore, setUserLoadingMore] = useState(false)
   const [userSortKey, setUserSortKey] = useState<'sessionCount' | 'totalDuration' | 'avgQaScore'>('sessionCount')
 
+  // STAGE 7 — 트리 인라인 확장: 펼친 사용자 ID 집합 + 사용자별 통화 리스트 캐시
+  const [expandedUserIds, setExpandedUserIds] = useState<Set<string>>(new Set())
+  const [userSessionsMap, setUserSessionsMap] = useState<Map<string, {
+    sessions: Session[]
+    total: number
+    offset: number
+    loading: boolean
+    pageSize: number
+  }>>(new Map())
+
   const sessionOffsetRef = useRef(sessionOffset)
   const userOffsetRef = useRef(userOffset)
   sessionOffsetRef.current = sessionOffset
@@ -210,6 +220,70 @@ export default function AdminSessionListPage() {
       console.error('[AdminSessionList] loadMoreSessions failed:', err)
     }
     setLoadingMore(false)
+  }
+
+  // STAGE 7 — 트리 사용자 확장/접기 토글
+  async function toggleExpandUser(encUserId: string | null) {
+    const key = encUserId ?? '__null__'
+    const isExpanded = expandedUserIds.has(key)
+    if (isExpanded) {
+      setExpandedUserIds(prev => {
+        const next = new Set(prev)
+        next.delete(key)
+        return next
+      })
+      return
+    }
+    // 펼침 + 캐시 없으면 첫 페이지 로드
+    setExpandedUserIds(prev => new Set(prev).add(key))
+    if (!userSessionsMap.has(key) && encUserId) {
+      await loadUserSessionsPage(encUserId, 0, 20)
+    }
+  }
+
+  async function loadUserSessionsPage(encUserId: string, offset: number, pageSize: number) {
+    const key = encUserId
+    setUserSessionsMap(prev => {
+      const next = new Map(prev)
+      const existing = next.get(key)
+      next.set(key, {
+        sessions: existing?.sessions ?? [],
+        total: existing?.total ?? 0,
+        offset,
+        loading: true,
+        pageSize,
+      })
+      return next
+    })
+    try {
+      const { data, count } = await fetchAdminSessionsApi({
+        limit: pageSize,
+        offset,
+        ...filtersToQuery(filters),
+        sortBy: sortKey,
+        sortDir,
+        userId: encUserId,
+      })
+      setUserSessionsMap(prev => {
+        const next = new Map(prev)
+        next.set(key, {
+          sessions: data ?? [],
+          total: count ?? 0,
+          offset,
+          loading: false,
+          pageSize,
+        })
+        return next
+      })
+    } catch (err) {
+      console.error('[AdminSessionList] loadUserSessionsPage failed:', err)
+      setUserSessionsMap(prev => {
+        const next = new Map(prev)
+        const existing = next.get(key)
+        if (existing) next.set(key, { ...existing, loading: false })
+        return next
+      })
+    }
   }
 
   // byUser 탭 "더 보기"
@@ -651,13 +725,26 @@ export default function AdminSessionListPage() {
           </div>
 
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="px-4 py-3 space-y-2">
-            {userGroups.map(group => (
-              <UserGroupCard
-                key={group.userId ?? '__null__'}
-                group={group}
-                onClick={() => navigate(`/admin/users/${encodeURIComponent(group.userId ?? '__null__')}`)}
-              />
-            ))}
+            {userGroups.map(group => {
+              const key = group.userId ?? '__null__'
+              const expanded = expandedUserIds.has(key)
+              const userSessionsState = group.userId ? userSessionsMap.get(group.userId) : null
+              return (
+                <UserGroupNode
+                  key={key}
+                  group={group}
+                  expanded={expanded}
+                  onToggleExpand={() => toggleExpandUser(group.userId)}
+                  onOpenDetail={() => navigate(`/admin/users/${encodeURIComponent(group.userId ?? '__null__')}`)}
+                  sessionsState={userSessionsState ?? null}
+                  selectedIds={selectedIds}
+                  onToggleSelect={toggleSelect}
+                  onChangePage={(offset, pageSize) => {
+                    if (group.userId) loadUserSessionsPage(group.userId, offset, pageSize)
+                  }}
+                />
+              )
+            })}
           </motion.div>
 
           {userGroups.length === 0 && (
@@ -765,36 +852,162 @@ function LoadMoreBar({
   )
 }
 
-// ── 사용자 그룹 카드 ──────────────────────────────────────────────────────────
+// ── 사용자 그룹 노드 (STAGE 7 — 인라인 트리 확장) ─────────────────────────────
 
-function UserGroupCard({ group, onClick }: { group: UserGroupSummary; onClick: () => void }) {
+const PAGE_SIZE_OPTIONS = [10, 20, 30, 50, 100] as const
+
+type UserSessionsState = {
+  sessions: Session[]
+  total: number
+  offset: number
+  loading: boolean
+  pageSize: number
+}
+
+function UserGroupNode({
+  group,
+  expanded,
+  onToggleExpand,
+  onOpenDetail,
+  sessionsState,
+  selectedIds,
+  onToggleSelect,
+  onChangePage,
+}: {
+  group: UserGroupSummary
+  expanded: boolean
+  onToggleExpand: () => void
+  onOpenDetail: () => void
+  sessionsState: UserSessionsState | null
+  selectedIds: Set<string>
+  onToggleSelect: (id: string) => void
+  onChangePage: (offset: number, pageSize: number) => void
+}) {
+  const total = sessionsState?.total ?? group.sessionCount
+  const pageSize = sessionsState?.pageSize ?? 20
+  const offset = sessionsState?.offset ?? 0
+  const currentPage = Math.floor(offset / pageSize) + 1
+  const totalPages = Math.max(1, Math.ceil(total / pageSize))
+
   return (
-    <button
-      onClick={onClick}
-      className="w-full rounded-xl p-3.5 text-left transition-colors"
-      style={{ backgroundColor: 'var(--color-surface)' }}
-    >
-      <div className="flex items-center justify-between mb-2.5">
-        <div className="flex items-center gap-2 min-w-0">
+    <div className="rounded-xl overflow-hidden" style={{ backgroundColor: 'var(--color-surface)' }}>
+      {/* 헤더 — 펼침 토글 + 상세 페이지 진입 */}
+      <div className="flex items-center gap-1 p-3.5">
+        <button
+          onClick={onToggleExpand}
+          className="flex items-center gap-2 flex-1 min-w-0 text-left"
+        >
+          <span
+            className="material-symbols-outlined text-lg transition-transform"
+            style={{
+              color: 'var(--color-text-tertiary)',
+              transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)',
+            }}
+          >
+            chevron_right
+          </span>
           <span className="material-symbols-outlined text-lg" style={{ color: 'var(--color-text-tertiary)' }}>person</span>
           <p className="text-sm font-medium text-txt truncate">{group.displayId}</p>
-        </div>
-        <span className="material-symbols-outlined text-base" style={{ color: 'var(--color-text-tertiary)' }}>chevron_right</span>
+        </button>
+        <button
+          onClick={onOpenDetail}
+          className="px-2 py-1 rounded-md text-[11px] font-medium"
+          style={{ backgroundColor: 'var(--color-border-light)', color: 'var(--color-text-sub)' }}
+          title="사용자 상세 페이지"
+        >
+          상세
+        </button>
       </div>
 
-      <div className="grid grid-cols-4 gap-2">
-        {[
-          { label: '세션', value: `${group.sessionCount}건` },
-          { label: '시간', value: `${group.totalDurationHours.toFixed(1)}h` },
-          { label: '품질', value: `${group.avgQaScore}점` },
-          { label: '라벨률', value: `${Math.round(group.labeledRatio * 100)}%` },
-        ].map(item => (
-          <div key={item.label} className="text-center">
-            <p className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>{item.label}</p>
-            <p className="text-xs font-bold text-txt">{item.value}</p>
+      {/* 통계 그리드 */}
+      <button onClick={onToggleExpand} className="w-full px-3.5 pb-3 text-left">
+        <div className="grid grid-cols-4 gap-2">
+          {[
+            { label: '세션', value: `${group.sessionCount}건` },
+            { label: '시간', value: `${group.totalDurationHours.toFixed(1)}h` },
+            { label: '품질', value: `${group.avgQaScore}점` },
+            { label: '라벨률', value: `${Math.round(group.labeledRatio * 100)}%` },
+          ].map(item => (
+            <div key={item.label} className="text-center">
+              <p className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>{item.label}</p>
+              <p className="text-xs font-bold text-txt">{item.value}</p>
+            </div>
+          ))}
+        </div>
+      </button>
+
+      {/* 펼침 — 통화 리스트 + 페이지네이션 */}
+      {expanded && (
+        <div className="border-t" style={{ borderColor: 'var(--color-border-light)' }}>
+          {/* 페이지네이션 바 (필터-리스트 사이) */}
+          <div
+            className="flex items-center justify-between px-3 py-2 border-b"
+            style={{ borderColor: 'var(--color-border-light)', backgroundColor: 'var(--color-surface-alt)' }}
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-[11px]" style={{ color: 'var(--color-text-tertiary)' }}>
+                통화 {total.toLocaleString()}건
+              </span>
+              <select
+                value={pageSize}
+                onChange={e => onChangePage(0, Number(e.target.value))}
+                className="text-[11px] px-1.5 py-0.5 rounded"
+                style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text-sub)', border: '1px solid var(--color-border-light)' }}
+              >
+                {PAGE_SIZE_OPTIONS.map(n => (
+                  <option key={n} value={n}>{n}건/페이지</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                disabled={currentPage <= 1 || sessionsState?.loading}
+                onClick={() => onChangePage(Math.max(0, offset - pageSize), pageSize)}
+                className="w-6 h-6 rounded flex items-center justify-center disabled:opacity-30"
+                style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text-sub)' }}
+              >
+                <span className="material-symbols-outlined text-sm">chevron_left</span>
+              </button>
+              <span className="text-[11px] px-1.5" style={{ color: 'var(--color-text-sub)' }}>
+                {currentPage}/{totalPages}
+              </span>
+              <button
+                disabled={currentPage >= totalPages || sessionsState?.loading}
+                onClick={() => onChangePage(offset + pageSize, pageSize)}
+                className="w-6 h-6 rounded flex items-center justify-center disabled:opacity-30"
+                style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text-sub)' }}
+              >
+                <span className="material-symbols-outlined text-sm">chevron_right</span>
+              </button>
+            </div>
           </div>
-        ))}
-      </div>
-    </button>
+
+          {/* 리스트 */}
+          {!sessionsState || sessionsState.loading ? (
+            <div className="flex items-center justify-center py-8">
+              <div
+                className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin"
+                style={{ borderColor: 'var(--color-accent)', borderTopColor: 'transparent' }}
+              />
+            </div>
+          ) : sessionsState.sessions.length === 0 ? (
+            <div className="px-3 py-6 text-center text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
+              통화 없음
+            </div>
+          ) : (
+            <div>
+              {sessionsState.sessions.map(s => (
+                <AdminSessionRow
+                  key={s.id}
+                  session={s}
+                  selected={selectedIds.has(s.id)}
+                  onToggle={onToggleSelect}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   )
 }
