@@ -86,7 +86,14 @@ export default function AdminSessionListPage() {
   const [resetting, setResetting] = useState(false)
   const [syncing, setSyncing] = useState(false)
   // STAGE 6.8 — raw title 매칭 검색 (응답엔 비노출). 개발 중 통화 식별 용도.
+  // searchQuery: 즉시 입력 반영 (UI). debouncedSearch: 300ms 후 fetch 트리거 (한글 IME 조합 안전).
   const [searchQuery, setSearchQuery] = useState<string>('')
+  const [debouncedSearch, setDebouncedSearch] = useState<string>('')
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300)
+    return () => clearTimeout(timer)
+  }, [searchQuery])
   // flat 탭 state
   const [sessions, setSessions] = useState<Session[]>([])
   const [totalSessions, setTotalSessions] = useState(0)
@@ -129,7 +136,7 @@ export default function AdminSessionListPage() {
       ...filtersToQuery(filters),
       sortBy: sortKey,
       sortDir,
-      q: searchQuery.trim() || undefined,
+      q: debouncedSearch.trim() || undefined,
     }).then(({ data, count }) => {
       const items = data ?? []
       setSessions(items)
@@ -145,14 +152,14 @@ export default function AdminSessionListPage() {
     // 동시에 합계 (count + totalDurationSec) 조회 — 카드 표시용
     fetchAdminSessionsAggregateApi({
       ...filtersToQuery(filters),
-      q: searchQuery.trim() || undefined,
+      q: debouncedSearch.trim() || undefined,
     }).then(({ data }) => {
       setTotalDurationSec(data?.totalDurationSec ?? 0)
     }).catch(err => {
       console.error('[AdminSessionList] fetchAdminSessionsAggregateApi failed:', err)
       setTotalDurationSec(0)
     })
-  }, [filters, sortKey, sortDir, viewMode, location.pathname, searchQuery])
+  }, [filters, sortKey, sortDir, viewMode, location.pathname, debouncedSearch])
 
   // byUser 탭 초기 로드
   useEffect(() => {
