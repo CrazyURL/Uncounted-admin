@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { type Session } from '../../types/session'
-import { qualityGradeFromScore, isSessionPublic, LABEL_FIELDS, countFilledLabelFields, downloadWavFromStorage } from '../../lib/adminHelpers'
+import { qualityGradeFromScore, isSessionPublic, LABEL_FIELDS, countFilledLabelFields, downloadWavFromStorage, downloadSessionPackage } from '../../lib/adminHelpers'
 import { formatDuration } from '../../lib/earnings'
 import { maskSessionTitle } from '../../lib/displayMask'
 
@@ -23,6 +23,7 @@ export default function AdminSessionRow({ session, selected, onToggle, hasTransc
   const filledCount = countFilledLabelFields(session.labels)
   const isPublic = isSessionPublic(session)
   const [downloading, setDownloading] = useState(false)
+  const [packaging, setPackaging] = useState(false)
 
   async function handleWavDownload(e: React.MouseEvent) {
     e.stopPropagation()
@@ -31,6 +32,15 @@ export default function AdminSessionRow({ session, selected, onToggle, hasTransc
     const { error } = await downloadWavFromStorage(session.audioUrl, session.id)
     if (error) alert(`다운로드 실패: ${error}`)
     setDownloading(false)
+  }
+
+  async function handlePackageDownload(e: React.MouseEvent) {
+    e.stopPropagation()
+    if (packaging) return
+    setPackaging(true)
+    const { error } = await downloadSessionPackage(session.id, `${session.title}.zip`)
+    if (error) alert(`풀패키지 다운로드 실패: ${error}`)
+    setPackaging(false)
   }
 
   return (
@@ -115,7 +125,7 @@ export default function AdminSessionRow({ session, selected, onToggle, hasTransc
         {session.audioUrl && (
           <button
             onClick={handleWavDownload}
-            title="WAV 다운로드"
+            title="WAV 다운로드 (raw 오디오)"
             className={`flex items-center justify-center w-6 h-6 rounded ${
               downloading ? 'text-txt-tertiary' : 'text-accent'
             }`}
@@ -125,6 +135,17 @@ export default function AdminSessionRow({ session, selected, onToggle, hasTransc
             </span>
           </button>
         )}
+        <button
+          onClick={handlePackageDownload}
+          title="풀패키지 다운로드 (raw + 발화 WAV + 전사 + 메타 zip)"
+          className={`flex items-center justify-center w-6 h-6 rounded ${
+            packaging ? 'text-txt-tertiary' : 'text-accent'
+          }`}
+        >
+          <span className="material-symbols-outlined text-base">
+            {packaging ? 'hourglass_empty' : 'folder_zip'}
+          </span>
+        </button>
         {session.isPiiCleaned && (
           <span
             className="material-symbols-outlined text-base text-accent"

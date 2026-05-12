@@ -787,6 +787,45 @@ export function downloadBlob(content: string, filename: string, mimeType: string
 
 // ── WAV 다운로드 (API 경유) ─────────────────────────────────────────────
 
+/** STAGE 8 — 세션 풀패키지 zip 다운로드 (raw audio + utterance WAV + transcript + manifest) */
+export async function downloadSessionPackage(
+  sessionId: string,
+  hintFilename?: string,
+): Promise<{ error: string | null }> {
+  const { getAuthToken } = await import('./api/client')
+  const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3001'
+  const token = getAuthToken()
+  try {
+    const res = await fetch(
+      `${API_BASE}/api/admin/sessions/${encodeURIComponent(sessionId)}/download-package`,
+      {
+        method: 'GET',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: 'include',
+      },
+    )
+    if (!res.ok) {
+      const text = await res.text().catch(() => '')
+      return { error: `다운로드 실패 (${res.status}) ${text.slice(0, 200)}` }
+    }
+    const blob = await res.blob()
+    const cd = res.headers.get('Content-Disposition') ?? ''
+    const m = cd.match(/filename="([^"]+)"/)
+    const fname = m?.[1] ?? hintFilename ?? `${sessionId}.zip`
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = fname
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    setTimeout(() => URL.revokeObjectURL(url), 10000)
+    return { error: null }
+  } catch (e) {
+    return { error: String(e) }
+  }
+}
+
 export async function downloadWavFromStorage(
   storagePath: string,
   filename: string,
