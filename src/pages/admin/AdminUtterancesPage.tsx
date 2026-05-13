@@ -35,6 +35,7 @@ import {
   type UtteranceReviewStatus,
 } from '../../lib/api/utterances'
 import { DeliveryDialog, type SelectedUtterance } from '../../components/domain/DeliveryDialog'
+import { analyzeSessionRisk, type SessionRiskResult } from '../../lib/piiRisk'
 
 const SETTLED_OPTIONS: SelectOption[] = [
   { value: 'all', label: '전체' },
@@ -425,6 +426,10 @@ function SessionRow({
 }: SessionRowProps) {
   const includable = group.utterances.filter((u) => u.review_status !== 'excluded')
   const allSelected = includable.length > 0 && selectedSet.size === includable.length
+  const risk: SessionRiskResult = useMemo(
+    () => analyzeSessionRisk(group.utterances),
+    [group.utterances],
+  )
 
   return (
     <Card padding="none" className="overflow-hidden">
@@ -455,6 +460,15 @@ function SessionRow({
             )}
           </div>
         </div>
+        {risk.level === 'high' && (
+          <Badge
+            tone="danger"
+            size="sm"
+            title={risk.reasons.join('\n')}
+          >
+            🚨 PII 의심
+          </Badge>
+        )}
         <Badge tone={reviewTone(group.reviewStatus)} size="sm">
           {reviewLabel(group.reviewStatus)}
         </Badge>
@@ -493,7 +507,14 @@ function SessionRow({
               return (
                 <div
                   key={u.id}
-                  className="px-4 py-2 flex items-center gap-3 text-sm"
+                  className={`px-4 py-2 flex items-center gap-3 text-sm ${
+                    risk.dangerUttIds.has(u.id) ? 'bg-red-50' : ''
+                  }`}
+                  title={
+                    risk.dangerUttIds.has(u.id)
+                      ? '통화 문맥상 PII 의심 발화 — 인증정보 키워드 직후 또는 받아적기 패턴'
+                      : undefined
+                  }
                 >
                   <input
                     type="checkbox"
