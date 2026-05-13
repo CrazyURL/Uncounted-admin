@@ -511,7 +511,12 @@ function SessionRow({
                   <span className="text-xs text-txt-sub w-10">
                     {u.speaker_id ? `S${u.speaker_id.slice(-2)}` : '-'}
                   </span>
-                  <span className="flex-1 truncate text-txt">{u.text || '(공백)'}</span>
+                  <span
+                    className="flex-1 truncate text-txt"
+                    title={u.text || '(공백)'}
+                  >
+                    {renderTextWithPiiHint(u.text)}
+                  </span>
                   <span className="tabular-nums text-xs text-txt">
                     ₩{u.unit_price_krw.toLocaleString('ko-KR')}
                   </span>
@@ -539,6 +544,37 @@ function SessionRow({
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────
+
+// 발화 텍스트에서 7자리+ 연속 숫자(PII 의심)를 빨강 배경으로 강조.
+// 자동 PII 마스킹이 false negative 인 경우 검수자가 1초 만에 식별하도록 안전망.
+// 매칭 예: 전화번호(010-1234-5678 → 마스킹 누락분), 주민번호 뒷자리, 계좌번호,
+// 카드번호. AnyDesk ID(9~10자리) 같은 비-PII 도 강조되지만 검수자가 판단.
+const DIGIT_SUSPECT_RE = /(\d[\d\s.-]{6,}\d)/g
+
+function renderTextWithPiiHint(text: string | null | undefined): React.ReactNode {
+  if (!text) return '(공백)'
+  if (!DIGIT_SUSPECT_RE.test(text)) return text
+  DIGIT_SUSPECT_RE.lastIndex = 0
+  const parts: React.ReactNode[] = []
+  let lastIdx = 0
+  let m: RegExpExecArray | null
+  while ((m = DIGIT_SUSPECT_RE.exec(text)) !== null) {
+    if (m.index > lastIdx) parts.push(text.slice(lastIdx, m.index))
+    parts.push(
+      <span
+        key={`pii-${m.index}`}
+        className="bg-red-100 text-red-700 px-1 rounded font-medium"
+        title="숫자 7자리 이상 — PII 의심. 검수자 확인 필요"
+      >
+        {m[0]}
+      </span>,
+    )
+    lastIdx = m.index + m[0].length
+  }
+  if (lastIdx < text.length) parts.push(text.slice(lastIdx))
+  return parts
+}
+
 function formatMs(ms: number): string {
   if (!Number.isFinite(ms) || ms < 0) return '-'
   const totalSec = Math.floor(ms / 1000)
