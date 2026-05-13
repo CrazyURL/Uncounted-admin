@@ -472,8 +472,11 @@ function SessionRow({
         <Badge tone={reviewTone(group.reviewStatus)} size="sm">
           {reviewLabel(group.reviewStatus)}
         </Badge>
-        <span className="tabular-nums text-sm font-semibold text-txt">
-          ₩{group.totalUnitPriceKrw.toLocaleString('ko-KR')}
+        <span
+          className="tabular-nums text-sm font-semibold text-txt"
+          title="시간당 ₩30,000 기준 · 확정 금액 아님 (검수·납품 후 결정)"
+        >
+          약 ₩{group.totalUnitPriceKrw.toLocaleString('ko-KR')}
         </span>
       </button>
 
@@ -538,7 +541,10 @@ function SessionRow({
                   >
                     {renderTextWithPiiHint(u.text)}
                   </span>
-                  <span className="tabular-nums text-xs text-txt">
+                  <span
+                    className="tabular-nums text-xs text-txt"
+                    title={`시간당 ₩30,000 × ${u.duration_seconds.toFixed(2)}초 / 3600 · 확정 금액 아님`}
+                  >
                     ₩{u.unit_price_krw.toLocaleString('ko-KR')}
                   </span>
                   {included ? (

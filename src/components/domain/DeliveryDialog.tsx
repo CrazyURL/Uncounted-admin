@@ -249,6 +249,33 @@ export function DeliveryDialog({ open, onClose, selected, onSuccess }: Props) {
           disabled={submitting}
         />
 
+        {/* 50:50 분배 프리뷰 (STAGE 13) */}
+        {priceValid && priceNum > 0 && (
+          <div className="rounded-lg p-3 text-sm bg-surface-alt border border-border-light">
+            <div className="text-xs text-txt-sub mb-1">정산 분배 (50:50)</div>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <span className="text-txt-sub text-xs">사용자 수익</span>
+                <div className="font-semibold text-txt">
+                  ₩{(priceNum - Math.floor(priceNum * 0.5)).toLocaleString('ko-KR')}
+                </div>
+              </div>
+              <div>
+                <span className="text-txt-sub text-xs">플랫폼 수익</span>
+                <div className="font-semibold text-txt">
+                  ₩{Math.floor(priceNum * 0.5).toLocaleString('ko-KR')}
+                </div>
+              </div>
+              <div>
+                <span className="text-txt-sub text-xs">총 매출</span>
+                <div className="font-semibold text-txt">
+                  ₩{priceNum.toLocaleString('ko-KR')}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* 메모 */}
         <Input
           label="메모 (선택)"

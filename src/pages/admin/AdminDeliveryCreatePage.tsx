@@ -218,7 +218,7 @@ export default function AdminDeliveryCreatePage() {
       </Card>
 
       <Card>
-        <CardHeader title="3. 매출 금액" description="원 단위로 입력합니다. 50:50 분배는 정산 시 별도 계산됩니다." />
+        <CardHeader title="3. 매출 금액" description="원 단위로 입력하면 사용자 50% / 플랫폼 50% 분배가 즉시 계산됩니다." />
         <CardBody>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <Input
@@ -237,6 +237,33 @@ export default function AdminDeliveryCreatePage() {
               onChange={(e) => setNotes(e.target.value)}
             />
           </div>
+
+          {/* 50:50 분배 프리뷰 (STAGE 13) */}
+          {priceNumber > 0 && (
+            <div className="mt-3 rounded-lg p-3 text-sm bg-surface-alt border border-border-light">
+              <div className="text-xs text-txt-sub mb-2">정산 분배 (50:50)</div>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <span className="text-txt-sub text-xs">사용자 수익</span>
+                  <div className="font-semibold text-txt tabular-nums">
+                    ₩{(priceNumber - Math.floor(priceNumber * 0.5)).toLocaleString('ko-KR')}
+                  </div>
+                </div>
+                <div>
+                  <span className="text-txt-sub text-xs">플랫폼 수익</span>
+                  <div className="font-semibold text-txt tabular-nums">
+                    ₩{Math.floor(priceNumber * 0.5).toLocaleString('ko-KR')}
+                  </div>
+                </div>
+                <div>
+                  <span className="text-txt-sub text-xs">총 매출</span>
+                  <div className="font-semibold text-txt tabular-nums">
+                    ₩{priceNumber.toLocaleString('ko-KR')}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </CardBody>
       </Card>
 
