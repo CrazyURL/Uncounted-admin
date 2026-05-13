@@ -131,7 +131,7 @@ export default function AdminTransactionsPage() {
             매수자별 납품 이력 — {labels.noun.nonexclusive} 라이선스 (같은 통화가 여러 row 가능)
           </p>
         </div>
-        <Button variant="primary" onClick={() => navigate('/admin/delivery/new')}>
+        <Button variant="primary" onClick={() => navigate('/admin/utterances')}>
           {labels.noun.delivery} 등록
         </Button>
       </header>

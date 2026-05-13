@@ -339,7 +339,7 @@ function DeliveryTab({ stats, onNavigate }: { stats: DashboardStats; onNavigate:
         <Card>
           <CardHeader title="신규 납품" description="검수 승인된 통화부터 등록" />
           <CardBody>
-            <Button variant="primary" fullWidth onClick={() => onNavigate('/admin/delivery/new')}>
+            <Button variant="primary" fullWidth onClick={() => onNavigate('/admin/utterances')}>
               납품 등록
             </Button>
           </CardBody>
