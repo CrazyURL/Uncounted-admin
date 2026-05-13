@@ -21,7 +21,9 @@ import { labels } from '../../lib/labels'
 import {
   fetchReviewQueue,
   updateReviewStatus,
+  bulkAutoApprove,
   type ReviewQueueResponse,
+  type BulkAutoApproveResponse,
 } from '../../lib/api/reviews'
 import {
   type AdminSession,
@@ -71,6 +73,11 @@ export default function AdminReviewQueuePage() {
   } | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
 
+  // ── STAGE 12: 조건부 일괄 자동 승인 ──
+  const [bulkDryRun, setBulkDryRun] = useState<BulkAutoApproveResponse | null>(null)
+  const [bulkLoading, setBulkLoading] = useState(false)
+  const [bulkConfirm, setBulkConfirm] = useState(false)
+
   const updateParam = useCallback(
     (key: string, value: string | null) => {
       const next = new URLSearchParams(searchParams)
@@ -102,6 +109,30 @@ export default function AdminReviewQueuePage() {
   useEffect(() => {
     load()
   }, [load])
+
+  // dry-run 자동 호출 — 자동 승인 가능 카운트 사전 표시
+  const reloadBulkDryRun = useCallback(async () => {
+    const res = await bulkAutoApprove({ dryRun: true })
+    if (!res.error && res.data) setBulkDryRun(res.data)
+  }, [])
+  useEffect(() => {
+    reloadBulkDryRun()
+  }, [reloadBulkDryRun, data])
+
+  async function handleBulkApprove() {
+    setBulkLoading(true)
+    const res = await bulkAutoApprove({ dryRun: false })
+    setBulkLoading(false)
+    setBulkConfirm(false)
+    if (res.error) {
+      toast.error(`일괄 승인 실패: ${res.error}`)
+      return
+    }
+    const d = res.data!
+    toast.success(`일괄 승인 완료 — 승인 ${d.approved}건 / 보류 ${d.skipped}건`)
+    await load()
+    await reloadBulkDryRun()
+  }
 
   // backend 가 반환하는 filteredDurationSec — 페이지네이션 무관 전체 합산
   const totalDurationSec = data?.filteredDurationSec ?? 0
@@ -185,6 +216,31 @@ export default function AdminReviewQueuePage() {
         <SummaryCard label={labels.review.rejected} value={data?.rejectedCount ?? 0} />
         <SummaryCard label={labels.review.needs_revision} value={data?.needsRevisionCount ?? 0} />
       </div>
+
+      {/* 조건부 일괄 자동 승인 (STAGE 12) */}
+      {bulkDryRun && bulkDryRun.eligibleCount !== undefined && (
+        <Card padding="sm">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="text-sm">
+              <div className="text-txt">
+                자동 승인 가능 <span className="font-bold text-accent">{bulkDryRun.eligibleCount}</span>건
+                <span className="text-txt-sub"> · 보류 {bulkDryRun.skipped}건</span>
+              </div>
+              <div className="text-xs text-txt-sub mt-0.5">
+                조건: A등급 + 숫자 7자리+ 없음 + ≥1초 + 화자 할당 + PII 위험 없음
+              </div>
+            </div>
+            <Button
+              variant="primary"
+              size="sm"
+              disabled={bulkDryRun.eligibleCount === 0 || bulkLoading}
+              onClick={() => setBulkConfirm(true)}
+            >
+              {bulkLoading ? '처리 중…' : `${bulkDryRun.eligibleCount}건 일괄 승인`}
+            </Button>
+          </div>
+        </Card>
+      )}
 
       {/* 통화시간 합산 */}
       {data && (
@@ -283,6 +339,20 @@ export default function AdminReviewQueuePage() {
           confirmLabel={confirmAction.label}
           variant={confirmAction.status === 'rejected' ? 'danger' : 'primary'}
           loading={actionLoading}
+        />
+      )}
+
+      {/* 일괄 자동 승인 확인 모달 (STAGE 12) */}
+      {bulkConfirm && bulkDryRun && (
+        <ConfirmDialog
+          open
+          onClose={() => setBulkConfirm(false)}
+          onConfirm={handleBulkApprove}
+          title="조건부 일괄 자동 승인"
+          body={`자동 승인 가능 ${bulkDryRun.eligibleCount ?? 0}건을 일괄 approved 로 전환합니다. 보류된 ${bulkDryRun.skipped}건은 수동 검수 필요. label_source='auto:bulk_review' 로 기록됩니다.`}
+          confirmLabel={`${bulkDryRun.eligibleCount ?? 0}건 승인`}
+          variant="primary"
+          loading={bulkLoading}
         />
       )}
     </div>

@@ -49,3 +49,21 @@ export async function updateReviewStatus(sessionId: string, status: ReviewStatus
 export async function fetchSessionDetail(sessionId: string) {
   return apiFetch<AdminSession>(`/api/admin/sessions/${sessionId}`)
 }
+
+// ── 조건부 일괄 자동 승인 (STAGE 12) ────────────────────────────────────
+export interface BulkAutoApproveResponse {
+  approved: number
+  skipped: number
+  eligibleCount?: number
+  details: Array<{ sessionId: string; eligible: boolean; reasons: string[] }>
+}
+
+export async function bulkAutoApprove(opts: { dryRun?: boolean; sessionIds?: string[] } = {}) {
+  return apiFetch<BulkAutoApproveResponse>('/api/admin/reviews/bulk-auto-approve', {
+    method: 'POST',
+    body: JSON.stringify({
+      dryRun: opts.dryRun ?? false,
+      sessionIds: opts.sessionIds,
+    }),
+  })
+}
