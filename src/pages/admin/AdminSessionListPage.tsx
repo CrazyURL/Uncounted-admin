@@ -23,7 +23,8 @@ import { resetAll } from '../../lib/resetAll'
 type SortDir = 'asc' | 'desc'
 type ViewMode = 'flat' | 'byUser'
 
-const PAGE_SIZE = 100
+const PAGE_SIZE = 30
+const PAGE_SIZE_BY_USER = 50
 
 const SORT_OPTIONS: { key: AdminSortKey; label: string }[] = [
   { key: 'date', label: '날짜' },
@@ -181,7 +182,7 @@ export default function AdminSessionListPage() {
     setUserHasMore(false)
 
     fetchAdminUserStatsApi({
-      limit: PAGE_SIZE,
+      limit: PAGE_SIZE_BY_USER,
       offset: 0,
       ...filtersToQuery(filters),
       sortBy: userSortKey,
@@ -291,7 +292,7 @@ export default function AdminSessionListPage() {
     setUserLoadingMore(true)
     try {
       const { data, count } = await fetchAdminUserStatsApi({
-        limit: PAGE_SIZE,
+        limit: PAGE_SIZE_BY_USER,
         offset: userOffsetRef.current,
         ...filtersToQuery(filters),
         sortBy: userSortKey,
