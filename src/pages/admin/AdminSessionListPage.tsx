@@ -128,6 +128,31 @@ export default function AdminSessionListPage() {
   sessionOffsetRef.current = sessionOffset
   userOffsetRef.current = userOffset
 
+  // 무한 스크롤 센티널 (flat 탭)
+  const sentinelRef = useRef<HTMLDivElement | null>(null)
+  const loadingMoreRef = useRef(loadingMore)
+  const sessionHasMoreRef = useRef(sessionHasMore)
+  // 최신 loadMoreSessions 함수를 항상 참조 (스테일 클로저 방지)
+  const loadMoreSessionsFnRef = useRef<() => void>(() => {})
+  loadingMoreRef.current = loadingMore
+  sessionHasMoreRef.current = sessionHasMore
+
+  useEffect(() => {
+    const el = sentinelRef.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0].isIntersecting && sessionHasMoreRef.current && !loadingMoreRef.current) {
+          loadMoreSessionsFnRef.current()
+        }
+      },
+      { threshold: 0.1 }
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewMode])
+
   const isTargetRoute =
     location.pathname === '/admin/calls' ||
     location.pathname === '/admin/sessions'
@@ -222,6 +247,8 @@ export default function AdminSessionListPage() {
     }
     setLoadingMore(false)
   }
+  // 매 렌더마다 최신 버전으로 갱신 (IntersectionObserver 콜백에서 호출)
+  loadMoreSessionsFnRef.current = loadMoreSessions
 
   // STAGE 7 — 트리 사용자 확장/접기 토글
   async function toggleExpandUser(encUserId: string | null) {
@@ -705,14 +732,15 @@ export default function AdminSessionListPage() {
             </div>
           )}
 
-          {/* 더 보기 */}
-          <LoadMoreBar
-            shown={sessions.length}
-            total={totalSessions}
-            hasMore={sessionHasMore}
-            loading={loadingMore}
-            onLoadMore={loadMoreSessions}
-          />
+          {/* 무한 스크롤 센티널 + 상태 표시 */}
+          <div ref={sentinelRef} className="py-3 flex justify-center">
+            {loadingMore && (
+              <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>불러오는 중…</span>
+            )}
+            {!loadingMore && !sessionHasMore && sessions.length > 0 && (
+              <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>총 {totalSessions.toLocaleString()}건 — 모두 표시됨</span>
+            )}
+          </div>
         </>
       )}
 
