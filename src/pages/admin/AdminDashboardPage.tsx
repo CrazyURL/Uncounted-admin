@@ -253,6 +253,7 @@ function PipelineRow({
   dist: PipelineDistribution
   onClick?: () => void
 }) {
+  // total excludes noAudio — those are not in the processable queue
   const total = dist.pending + dist.running + dist.done + dist.failed
   const donePct = total > 0 ? Math.round((dist.done / total) * 100) : 0
   return (
@@ -271,11 +272,16 @@ function PipelineRow({
             {bar(dist.pending, total, 'bg-border')}
             {bar(dist.failed, total, 'bg-danger')}
           </div>
-          <div className="mt-2 flex items-center gap-3 text-xs text-txt-sub">
+          <div className="mt-2 flex items-center flex-wrap gap-2 text-xs text-txt-sub">
             <Badge tone="success" size="sm">{labels.status.done} {dist.done}</Badge>
             <Badge tone="accent" size="sm">{labels.status.running} {dist.running}</Badge>
-            <Badge tone="neutral" size="sm">{labels.status.pending} {dist.pending}</Badge>
+            {dist.pending > 0 && <Badge tone="neutral" size="sm">대기 중 {dist.pending}</Badge>}
             {dist.failed > 0 && <Badge tone="danger" size="sm">{labels.status.failed} {dist.failed}</Badge>}
+            {dist.noAudio > 0 && (
+              <Badge tone="warning" size="sm" title="오디오 미업로드 — GPU 워커가 처리할 수 없음">
+                오디오 없음 {dist.noAudio}
+              </Badge>
+            )}
           </div>
         </div>
         {onClick && (

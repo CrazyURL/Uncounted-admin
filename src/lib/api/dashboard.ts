@@ -7,6 +7,7 @@ export interface PipelineDistribution {
   running: number
   done: number
   failed: number
+  noAudio: number
 }
 
 export interface DashboardStats {
