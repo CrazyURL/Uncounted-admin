@@ -131,10 +131,10 @@ function PipelineTab({ stats, onNavigate }: { stats: DashboardStats; onNavigate:
     { key: 'quality' as const, label: labels.pipeline.quality },
   ]
 
-  // 대기 있는데 처리 없음 = 워커 지연/중단 감지
-  const stallDetected = stages.some(
-    (s) => stats.pipeline[s.key].pending > 0 && stats.pipeline[s.key].running === 0,
-  )
+  // 파이프라인 전체에서 처리 중인 단계가 하나도 없는데 대기가 있으면 지연
+  const anyRunning = stages.some((s) => stats.pipeline[s.key].running > 0)
+  const anyPending = stages.some((s) => stats.pipeline[s.key].pending > 0)
+  const stallDetected = anyPending && !anyRunning
 
   return (
     <div className="space-y-4">
