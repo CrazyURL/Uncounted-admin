@@ -198,20 +198,22 @@ function WorkerStatusCard() {
 
   const { queue, currentRunning, oldestPending, recentFailures, concurrency } = worker
   const totalQueue = queue.pending + queue.running + queue.failedRetryEligible
+  const totalBothAgreed = queue.pending + queue.noAudio + queue.running + queue.failedRetryEligible + queue.failedExhausted + queue.done
 
   return (
     <Card padding="sm">
       <CardHeader
         title={`GPU 워커 (동시 ${concurrency}개)`}
-        description={`Voice API · ${worker.voiceApiUrl.replace(/^https?:\/\//, '')} · 폴링 ${Math.round(worker.pollIntervalMs / 1000)}초`}
+        description={`Voice API · ${worker.voiceApiUrl.replace(/^https?:\/\//, '')} · 폴링 ${Math.round(worker.pollIntervalMs / 1000)}초 · 양측동의 합계 ${totalBothAgreed.toLocaleString('ko-KR')}건`}
       />
       <CardBody>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+        <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
           <WorkerStat label="처리 중" value={queue.running} tone="accent" />
           <WorkerStat label="대기" value={queue.pending} tone="neutral" />
           <WorkerStat label="재시도 대기" value={queue.failedRetryEligible} tone="warning" />
           <WorkerStat label="영구 실패" value={queue.failedExhausted} tone="danger" />
           <WorkerStat label="완료" value={queue.done} tone="success" />
+          <WorkerStat label="오디오 없음" value={queue.noAudio} tone="muted" />
         </div>
 
         {totalQueue > 0 && (
@@ -243,13 +245,14 @@ function WorkerStatusCard() {
   )
 }
 
-function WorkerStat({ label, value, tone }: { label: string; value: number; tone: 'accent' | 'neutral' | 'warning' | 'danger' | 'success' }) {
+function WorkerStat({ label, value, tone }: { label: string; value: number; tone: 'accent' | 'neutral' | 'warning' | 'danger' | 'success' | 'muted' }) {
   const toneColor: Record<typeof tone, string> = {
     accent:  'text-accent',
     neutral: 'text-txt-sub',
     warning: 'text-warning',
     danger:  'text-danger',
     success: 'text-success',
+    muted:   'text-txt-tertiary',
   }
   return (
     <div className="text-center bg-surface-alt rounded-lg p-2">
@@ -268,8 +271,8 @@ function PipelineRow({
   dist: PipelineDistribution
   onClick?: () => void
 }) {
-  // total excludes noAudio — those are not in the processable queue
-  const total = dist.pending + dist.running + dist.done + dist.failed
+  // total includes noAudio so the denominator reflects all both_agreed sessions
+  const total = dist.pending + dist.running + dist.done + dist.failed + (dist.noAudio ?? 0)
   const donePct = total > 0 ? Math.round((dist.done / total) * 100) : 0
   return (
     <Card padding="sm">

@@ -6,6 +6,7 @@ import { apiFetch } from './client'
 
 export interface WorkerQueue {
   pending: number
+  noAudio: number
   running: number
   failed: number
   failedRetryEligible: number
