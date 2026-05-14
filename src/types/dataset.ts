@@ -52,7 +52,6 @@ export type DatasetFilterCriteria = {
   transcriptStatus: 'all' | 'done' | 'none'
   dateRange: { from: string; to: string } | null
   uploadStatuses: UploadStatus[]     // LOCAL/UPLOADED/FAILED
-  consentStatus: 'all' | 'both_agreed' | 'user_only' | 'locked'  // BM v10 운영 검수 필터
 }
 
 export type Dataset = {

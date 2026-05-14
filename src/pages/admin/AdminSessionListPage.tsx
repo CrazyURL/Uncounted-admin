@@ -49,15 +49,7 @@ const DEFAULT_FILTERS: DatasetFilterCriteria = {
   transcriptStatus: 'all',
   dateRange: null,
   uploadStatuses: [],
-  consentStatus: 'all',
 }
-
-const CONSENT_FILTER_OPTIONS: { value: DatasetFilterCriteria['consentStatus']; label: string; color: string }[] = [
-  { value: 'all',         label: '전체동의',     color: '#9ca3af' },
-  { value: 'both_agreed', label: '양측동의',     color: '#22c55e' },
-  { value: 'user_only',   label: '본인만동의',   color: '#f59e0b' },
-  { value: 'locked',      label: '잠김',         color: '#ef4444' },
-]
 
 function formatDurationCompact(totalSec: number): string {
   if (!Number.isFinite(totalSec) || totalSec <= 0) return '0분'
@@ -461,26 +453,6 @@ export default function AdminSessionListPage() {
         </div>
       </div>
 
-      {/* 동의 상태 필터 (BM v10 — 양측동의만 GPU 처리 대상) */}
-      <div className="flex items-center gap-1.5 px-4 pb-1 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
-        {CONSENT_FILTER_OPTIONS.map(opt => {
-          const active = filters.consentStatus === opt.value
-          return (
-            <button
-              key={opt.value}
-              onClick={() => updateFilters({ ...filters, consentStatus: opt.value })}
-              className="px-2.5 py-1 rounded-lg text-xs font-medium transition-colors flex-shrink-0"
-              style={{
-                backgroundColor: active ? `${opt.color}25` : 'var(--color-surface-alt)',
-                color: active ? opt.color : 'var(--color-text-tertiary)',
-                fontWeight: active ? 700 : 500,
-              }}
-            >
-              {opt.label}
-            </button>
-          )
-        })}
-      </div>
 
       {/* 뷰 토글 */}
       <div className="flex items-center gap-1 px-4 py-2">

@@ -28,7 +28,6 @@ export function filtersToQuery(f: DatasetFilterCriteria): Partial<AdminSessionsQ
     uploadStatuses: f.uploadStatuses.length ? f.uploadStatuses : undefined,
     dateFrom: f.dateRange?.from,
     dateTo: f.dateRange?.to,
-    consentStatus: f.consentStatus !== 'all' ? f.consentStatus : undefined,
   }
 }
 
