@@ -26,6 +26,7 @@ import AdminReviewQueuePage from '../pages/admin/AdminReviewQueuePage'
 import AdminBalancesPage from '../pages/admin/AdminBalancesPage'
 import AdminTransactionsPage from '../pages/admin/AdminTransactionsPage'
 import AdminUtterancesPage from '../pages/admin/AdminUtterancesPage'
+import AdminTrainingPage from '../pages/admin/AdminTrainingPage'
 
 const routes: RouteObject[] = [
   {
@@ -63,6 +64,7 @@ const routes: RouteObject[] = [
       { path: '/admin/settlement', element: <AdminSettlementPage /> },
       { path: '/admin/datasets', element: <AdminDatasetListPage /> },
       { path: '/admin/datasets/:datasetId', element: <AdminDatasetDetailPage /> },
+      { path: '/admin/training', element: <AdminTrainingPage /> },
       // BM v10 신규 — 검수 + 납품 흐름 + 정산
       { path: '/admin/review', element: <AdminReviewQueuePage /> },
       // /admin/delivery/new 폐기 (STAGE 13, 2026-05-14) — /admin/utterances 의 DeliveryDialog 로 단일화

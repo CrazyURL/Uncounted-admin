@@ -24,6 +24,7 @@ import {
   ErrorBanner,
   type SelectOption,
 } from '../../components/ui'
+// Badge is used in SessionRow; renderTextWithPiiHint/formatMs delegated to UtteranceReviewRow
 import { labels } from '../../lib/labels'
 import {
   fetchUtterances,
@@ -33,8 +34,10 @@ import {
   type UtteranceListResponse,
   type UtteranceStatsResponse,
   type UtteranceReviewStatus,
+  type LabelSource,
 } from '../../lib/api/utterances'
 import { DeliveryDialog, type SelectedUtterance } from '../../components/domain/DeliveryDialog'
+import { UtteranceReviewRow } from '../../components/domain/UtteranceReviewRow'
 import { analyzeSessionRisk, type SessionRiskResult } from '../../lib/piiRisk'
 
 const SETTLED_OPTIONS: SelectOption[] = [
@@ -47,6 +50,14 @@ const REVIEW_OPTIONS: SelectOption[] = [
   { value: 'all', label: '전체' },
   { value: 'pending', label: '검수 대기' },
   { value: 'excluded', label: '제외' },
+]
+
+const LABEL_SOURCE_OPTIONS: SelectOption[] = [
+  { value: 'all', label: '전체' },
+  { value: 'needs_review', label: '확인 필요' },
+  { value: 'auto_review', label: '검토 권장' },
+  { value: 'auto_confirmed', label: '자동 확인' },
+  { value: 'admin_confirmed', label: '어드민 확인' },
 ]
 
 interface SessionGroup {
@@ -88,6 +99,7 @@ export default function AdminUtterancesPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const settled = (searchParams.get('settled') ?? 'all') as 'all' | 'yes' | 'no'
   const review = (searchParams.get('review') ?? 'all') as 'all' | UtteranceReviewStatus
+  const labelSource = (searchParams.get('label_source') ?? 'all') as 'all' | LabelSource
   const search = searchParams.get('q') ?? ''
   const sessionId = searchParams.get('session') ?? ''
 
@@ -136,15 +148,43 @@ export default function AdminUtterancesPage() {
     load()
   }, [load])
 
-  const groups = useMemo(
+  const allGroups = useMemo(
     () => groupBySession(data?.utterances ?? []),
     [data],
+  )
+
+  // label_source 클라이언트 필터 (needs_review / auto_review 우선)
+  const groups = useMemo(() => {
+    if (labelSource === 'all') return allGroups
+    return allGroups
+      .map((g) => ({
+        ...g,
+        utterances: g.utterances.filter((u) => u.label_source === labelSource),
+      }))
+      .filter((g) => g.utterances.length > 0)
+  }, [allGroups, labelSource])
+
+  // 라벨 저장 낙관 업데이트
+  const handleLabelSaved = useCallback(
+    (id: string, updatedFields: Partial<AdminUtterance>) => {
+      setData((cur) =>
+        cur
+          ? {
+              ...cur,
+              utterances: cur.utterances.map((u) =>
+                u.id === id ? { ...u, ...updatedFields } : u,
+              ),
+            }
+          : cur,
+      )
+    },
+    [],
   )
 
   // 필터 변경 시 페이지 리셋
   useEffect(() => {
     setPage(1)
-  }, [settled, review, sessionId, search, pageSize])
+  }, [settled, review, labelSource, sessionId, search, pageSize])
 
   // 페이지 단위 slice (클라이언트 사이드)
   const totalPages = Math.max(1, Math.ceil(groups.length / pageSize))
@@ -304,7 +344,7 @@ export default function AdminUtterancesPage() {
 
       {/* 필터 */}
       <Card padding="sm">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
           <Select
             label="검수 상태"
             value={review}
@@ -316,6 +356,12 @@ export default function AdminUtterancesPage() {
             value={settled}
             options={SETTLED_OPTIONS}
             onChange={(e) => updateParam('settled', e.target.value)}
+          />
+          <Select
+            label="자동라벨 상태"
+            value={labelSource}
+            options={LABEL_SOURCE_OPTIONS}
+            onChange={(e) => updateParam('label_source', e.target.value)}
           />
           <Input
             label="세션 ID"
@@ -330,6 +376,23 @@ export default function AdminUtterancesPage() {
             onChange={(e) => updateParam('q', e.target.value)}
           />
         </div>
+        {labelSource !== 'all' && (
+          <div className="mt-2 flex items-center gap-2">
+            <span className="text-xs text-txt-sub">
+              자동라벨 필터:
+            </span>
+            <span className="text-xs font-medium text-accent">
+              {LABEL_SOURCE_OPTIONS.find((o) => o.value === labelSource)?.label}
+            </span>
+            <button
+              type="button"
+              onClick={() => updateParam('label_source', null)}
+              className="text-xs text-txt-sub hover:text-txt underline"
+            >
+              필터 해제
+            </button>
+          </div>
+        )}
       </Card>
 
       {error && <ErrorBanner message={error} onRetry={load} />}
@@ -370,6 +433,7 @@ export default function AdminUtterancesPage() {
               onToggleUtterance={(uid) => toggleUtteranceSelect(g.sessionId, uid)}
               onSelectAll={() => toggleAllInSession(g)}
               onToggleReview={handleToggleReview}
+              onLabelSaved={handleLabelSaved}
             />
           ))}
         </div>
@@ -418,11 +482,12 @@ interface SessionRowProps {
   onToggleUtterance: (utteranceId: string) => void
   onSelectAll: () => void
   onToggleReview: (u: AdminUtterance) => void
+  onLabelSaved: (id: string, updatedFields: Partial<AdminUtterance>) => void
 }
 
 function SessionRow({
   group, expanded, selectedSet, updatingId,
-  onToggleExpand, onToggleUtterance, onSelectAll, onToggleReview,
+  onToggleExpand, onToggleUtterance, onSelectAll, onToggleReview, onLabelSaved,
 }: SessionRowProps) {
   const includable = group.utterances.filter((u) => u.review_status !== 'excluded')
   const allSelected = includable.length > 0 && selectedSet.size === includable.length
@@ -503,66 +568,19 @@ function SessionRow({
           </div>
 
           <div className="divide-y divide-border-light">
-            {group.utterances.map((u) => {
-              const included = u.review_status === 'pending'
-              const checked = selectedSet.has(u.id)
-              const busy = updatingId === u.id
-              return (
-                <div
-                  key={u.id}
-                  className={`px-4 py-2 flex items-center gap-3 text-sm ${
-                    risk.dangerUttIds.has(u.id) ? 'bg-red-50' : ''
-                  }`}
-                  title={
-                    risk.dangerUttIds.has(u.id)
-                      ? '통화 문맥상 PII 의심 발화 — 인증정보 키워드 직후 또는 받아적기 패턴'
-                      : undefined
-                  }
-                >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    disabled={!included}
-                    onChange={() => onToggleUtterance(u.id)}
-                    className="rounded border-border text-accent focus:ring-accent disabled:opacity-30"
-                  />
-                  <span className="text-xs text-txt-sub font-mono w-16 tabular-nums">
-                    {formatMs(u.start_ms)}
-                  </span>
-                  <span className="text-xs text-txt-sub w-12 tabular-nums text-right">
-                    {u.duration_seconds.toFixed(1)}초
-                  </span>
-                  <span className="text-xs text-txt-sub w-10">
-                    {u.speaker_id ? `S${u.speaker_id.slice(-2)}` : '-'}
-                  </span>
-                  <span
-                    className="flex-1 truncate text-txt"
-                    title={u.text || '(공백)'}
-                  >
-                    {renderTextWithPiiHint(u.text)}
-                  </span>
-                  <span
-                    className="tabular-nums text-xs text-txt"
-                    title={`시간당 ₩30,000 × ${u.duration_seconds.toFixed(2)}초 / 3600 · 확정 금액 아님`}
-                  >
-                    ₩{u.unit_price_krw.toLocaleString('ko-KR')}
-                  </span>
-                  {included ? (
-                    <Badge tone="success" size="sm">포함</Badge>
-                  ) : (
-                    <Badge tone="danger" size="sm">제외</Badge>
-                  )}
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => onToggleReview(u)}
-                    className="text-xs px-2 py-0.5 rounded border border-border-soft hover:bg-bg-hover disabled:opacity-50"
-                  >
-                    {busy ? '...' : included ? '제외' : '포함'}
-                  </button>
-                </div>
-              )
-            })}
+            {group.utterances.map((u) => (
+              <UtteranceReviewRow
+                key={u.id}
+                utterance={u}
+                checked={selectedSet.has(u.id)}
+                included={u.review_status === 'pending'}
+                busy={updatingId === u.id}
+                isDanger={risk.dangerUttIds.has(u.id)}
+                onToggleSelect={() => onToggleUtterance(u.id)}
+                onToggleReview={() => onToggleReview(u)}
+                onLabelSaved={onLabelSaved}
+              />
+            ))}
           </div>
         </div>
       )}

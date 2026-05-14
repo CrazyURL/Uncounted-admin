@@ -10,6 +10,15 @@ export type SessionReviewStatus =
   | 'rejected'
   | 'needs_revision'
 
+export type LabelSource =
+  | 'auto_confirmed'
+  | 'auto_review'
+  | 'needs_review'
+  | 'admin_confirmed'
+  | 'user_confirmed'
+  | 'auto'
+  | string
+
 export interface AdminUtterance {
   id: string
   session_id: string
@@ -27,6 +36,13 @@ export interface AdminUtterance {
   review_status: UtteranceReviewStatus
   exclude_reason: string | null
   reviewed_at: string | null
+  // STAGE 14: auto-label fields
+  emotion: string | null
+  emotion_confidence: number | null
+  dialog_act: string | null
+  dialog_act_confidence: number | null
+  label_source: LabelSource | null
+  auto_label_model_version: string | null
 }
 
 export interface UtteranceListResponse {
@@ -65,6 +81,28 @@ export async function fetchUtterances(opts: {
 
 export async function fetchUtteranceStats() {
   return apiFetch<UtteranceStatsResponse>('/api/admin/utterances-v2/stats')
+}
+
+export interface PatchUtteranceBody {
+  emotion?: string
+  dialog_act?: string
+  label_source?: LabelSource
+}
+
+export async function patchUtterance(
+  id: string,
+  body: PatchUtteranceBody,
+): Promise<{ data?: Pick<AdminUtterance, 'id' | 'emotion' | 'dialog_act' | 'label_source'>; error?: string }> {
+  return apiFetch(`/api/admin/utterances-v2/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function fetchUtteranceAudio(
+  id: string,
+): Promise<{ data?: { url: string }; error?: string }> {
+  return apiFetch(`/api/admin/utterances-v2/${id}/audio`)
 }
 
 /**

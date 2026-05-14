@@ -42,6 +42,7 @@ const ADMIN_MENU: MenuGroup[] = [
     id: 'build', labelKo: '빌드', icon: 'build', items: [
       { path: '/admin/build', labelKo: '위자드', icon: 'play_circle' },
       { path: '/admin/jobs', labelKo: '작업', icon: 'work' },
+      { path: '/admin/training', labelKo: '모델 학습', icon: 'model_training' },
       { path: '/admin/settlement', labelKo: '정산(레거시)', icon: 'payments' },
       { path: '/admin/datasets', labelKo: '레거시', icon: 'inventory_2' },
     ],
