@@ -68,6 +68,7 @@ export async function fetchUtterances(opts: {
   search?: string
   page?: number
   limit?: number
+  orderBy?: string
 }): Promise<{ data?: UtteranceListResponse; error?: string }> {
   const params = new URLSearchParams()
   if (opts.settled) params.set('settled', opts.settled)
@@ -76,6 +77,7 @@ export async function fetchUtterances(opts: {
   if (opts.search) params.set('q', opts.search)
   if (opts.page) params.set('page', String(opts.page))
   if (opts.limit) params.set('limit', String(opts.limit))
+  if (opts.orderBy) params.set('order_by', opts.orderBy)
   return apiFetch<UtteranceListResponse>(`/api/admin/utterances-v2?${params.toString()}`)
 }
 

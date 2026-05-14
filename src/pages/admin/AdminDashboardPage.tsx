@@ -104,7 +104,7 @@ function ConsentTab({ stats, onNavigate }: { stats: DashboardStats; onNavigate: 
         title="양측 동의 통화"
         value={stats.consent.bothAgreedCount.toLocaleString('ko-KR')}
         sub={`최근 24시간 +${stats.consent.bothAgreed24h.toLocaleString('ko-KR')}건`}
-        onClick={() => onNavigate('/admin/consents')}
+        onClick={() => onNavigate('/admin/sessions')}
       />
       <BigStat
         title="누적 통화시간"

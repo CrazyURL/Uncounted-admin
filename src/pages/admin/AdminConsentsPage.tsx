@@ -12,7 +12,7 @@ export default function AdminConsentsPage() {
     if (hasLoadedRef.current) return
     hasLoadedRef.current = true
 
-    loadBillableUnits().then(u => { setUnits(u); setLoading(false) })
+    loadBillableUnits({ consentStatus: 'PUBLIC_CONSENTED' }).then(u => { setUnits(u); setLoading(false) })
   }, [])
 
   const summary = useMemo(() => summarizeUnits(units), [units])

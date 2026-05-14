@@ -135,6 +135,7 @@ export default function AdminUtterancesPage() {
         sessionId: sessionId || undefined,
         search: search || undefined,
         limit: 5000,
+        orderBy: 'created_at_desc',
       }),
       fetchUtteranceStats(),
     ])
