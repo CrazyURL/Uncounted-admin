@@ -130,8 +130,23 @@ function PipelineTab({ stats, onNavigate }: { stats: DashboardStats; onNavigate:
     { key: 'pii' as const, label: labels.pipeline.pii },
     { key: 'quality' as const, label: labels.pipeline.quality },
   ]
+
+  // 대기 있는데 처리 없음 = 워커 지연/중단 감지
+  const stallDetected = stages.some(
+    (s) => stats.pipeline[s.key].pending > 0 && stats.pipeline[s.key].running === 0,
+  )
+
   return (
     <div className="space-y-4">
+      {stallDetected && (
+        <div className="flex items-start gap-2 rounded-lg border border-danger bg-danger-dim px-4 py-3 text-sm text-danger">
+          <span className="material-icons text-base leading-5">warning</span>
+          <span>
+            <strong>워커 지연 감지</strong> — 대기 중인 세션이 있지만 처리 중인 세션이 없습니다.
+            GPU 워커가 중단되었거나 Voice API에 연결하지 못하고 있을 수 있습니다.
+          </span>
+        </div>
+      )}
       <WorkerStatusCard />
       <div className="space-y-3">
         {stages.map((s) => (
