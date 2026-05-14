@@ -186,11 +186,12 @@ export default function AdminSessionListPage() {
       setTotalDurationSec(0)
     })
 
-    // 사용자 수 카드 — 전체 탭에서도 표시
+    // 사용자 수 카드 — 전체 탭에서도 표시 (count 만 사용, sortBy 는 호환 키)
     fetchAdminUserStatsApi({
       limit: 1,
       offset: 0,
       ...filtersToQuery(filters),
+      sortBy: 'sessionCount',
     }).then(({ count }) => {
       setTotalUsers(count ?? 0)
     }).catch(() => {

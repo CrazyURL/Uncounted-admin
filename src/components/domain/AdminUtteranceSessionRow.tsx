@@ -57,7 +57,9 @@ export function AdminUtteranceSessionRow({
   const sessionReview = group.session.review_status ?? 'pending'
   const hasUtterances = group.utterances.length > 0
   const pipelineComplete = isPipelineComplete(group.session)
-  const canExpand = hasUtterances && pipelineComplete
+  // 발화가 있으면 펼치기 허용. 파이프라인 미완 상태(예: 품질검증 진행 중)에도
+  // 이미 생성된 발화의 검수/수정은 가능해야 함.
+  const canExpand = hasUtterances
 
   return (
     <Card padding="none" className="overflow-hidden">

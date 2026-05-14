@@ -56,10 +56,6 @@ export default function AdminUserDetailPage() {
 
   // 정산 관련 계산
   const publicSessions = useMemo(() => userSessions.filter(isSessionPublic), [userSessions])
-  const publicHours = useMemo(
-    () => publicSessions.reduce((sum, s) => sum + s.duration, 0) / 3600,
-    [publicSessions],
-  )
 
   // BU 산정
   const buResult = useMemo(
@@ -69,18 +65,6 @@ export default function AdminUserDetailPage() {
   const buSummary = useMemo(
     () => summarizeUnits(buResult.units),
     [buResult.units],
-  )
-
-  // 판매 적격: 공개 + 라벨 완료 + 품질 B 이상
-  const eligibleSessions = useMemo(
-    () => publicSessions.filter(s =>
-      s.labels !== null && (s.qaScore ?? 0) >= 60,
-    ),
-    [publicSessions],
-  )
-  const eligibleHours = useMemo(
-    () => eligibleSessions.reduce((sum, s) => sum + s.duration, 0) / 3600,
-    [eligibleSessions],
   )
 
   // valueEngine으로 정산 예상 범위 (BU 기반)

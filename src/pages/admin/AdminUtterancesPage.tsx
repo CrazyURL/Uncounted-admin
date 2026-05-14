@@ -26,10 +26,8 @@ import {
   Card,
   Input,
   Select,
-  Badge,
   Button,
   ErrorBanner,
-  StatusBadge,
   ConfirmDialog,
   useToast,
   type SelectOption,
@@ -55,7 +53,6 @@ import {
 import {
   type AdminSession,
   type ReviewStatus,
-  isPipelineComplete,
 } from '../../types/adminSession'
 import { DeliveryDialog, type SelectedUtterance } from '../../components/domain/DeliveryDialog'
 import {
@@ -429,7 +426,7 @@ export default function AdminUtterancesPage() {
         if (set.has(u.id)) {
           list.push({
             sessionId: g.sessionId,
-            sessionTitle: g.session.title,
+            sessionTitle: g.session.title ?? null,
             reviewStatusOfSession: g.session.review_status ?? 'pending',
             utteranceId: u.id,
           })
