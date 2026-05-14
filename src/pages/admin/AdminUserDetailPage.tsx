@@ -301,104 +301,6 @@ export default function AdminUserDetailPage() {
           )}
         </div>
 
-        {/* ── 기여 요약 (정산 핵심) ── */}
-        <div className="grid grid-cols-2 gap-2">
-          {[
-            {
-              label: '총 기여',
-              main: `${summary.totalDurationHours.toFixed(1)}h`,
-              sub: `${summary.sessionCount}건`,
-              icon: 'schedule',
-            },
-            {
-              label: '공개 동의',
-              main: `${publicSessions.length}건`,
-              sub: `${publicHours.toFixed(1)}h`,
-              icon: 'visibility',
-              color: publicSessions.length > 0 ? '#22c55e' : undefined,
-            },
-            {
-              label: '판매 적격',
-              main: `${eligibleSessions.length}건`,
-              sub: `${eligibleHours.toFixed(1)}h`,
-              icon: 'verified',
-              color: eligibleSessions.length > 0 ? 'var(--color-accent)' : undefined,
-            },
-            {
-              label: '라벨 완성',
-              main: `${Math.round(summary.labeledRatio * 100)}%`,
-              sub: `${summary.labeledCount}/${summary.sessionCount}`,
-              icon: 'label',
-            },
-          ].map(item => (
-            <div
-              key={item.label}
-              className="rounded-xl p-3"
-              style={{ backgroundColor: 'var(--color-surface)' }}
-            >
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <span
-                  className="material-symbols-outlined text-sm"
-                  style={{ color: item.color ?? 'var(--color-text-tertiary)' }}
-                >
-                  {item.icon}
-                </span>
-                <p className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>{item.label}</p>
-              </div>
-              <p className="text-base font-bold text-txt">{item.main}</p>
-              <p className="text-[10px] mt-0.5" style={{ color: 'var(--color-text-tertiary)' }}>{item.sub}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* ── 정산 조건 체크리스트 ── */}
-        <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--color-surface)' }}>
-          <p className="text-xs font-medium mb-3" style={{ color: 'var(--color-text-sub)' }}>정산 조건 충족 현황</p>
-          <div className="space-y-2">
-            {[
-              {
-                label: '공개 동의 완료',
-                ok: publicSessions.length > 0,
-                detail: publicSessions.length > 0
-                  ? `${publicSessions.length}건 공개`
-                  : '공개 동의 세션 없음',
-              },
-              {
-                label: '라벨링 완료 (50% 이상)',
-                ok: summary.labeledRatio >= 0.5,
-                detail: `${Math.round(summary.labeledRatio * 100)}% 완료`,
-              },
-              {
-                label: '품질 등급 B 이상',
-                ok: (summary.avgQaScore ?? 0) >= 60,
-                detail: `평균 ${summary.avgQaScore}점 (${valuation.qualityGrade}등급)`,
-              },
-              {
-                label: 'PII 비식별 처리',
-                ok: userSessions.some(s => s.isPiiCleaned),
-                detail: `${userSessions.filter(s => s.isPiiCleaned).length}건 처리됨`,
-              },
-              {
-                label: '오디오 파일 업로드',
-                ok: userSessions.some(s => s.uploadStatus === 'UPLOADED'),
-                detail: `${userSessions.filter(s => s.uploadStatus === 'UPLOADED').length}건 업로드`,
-              },
-            ].map(item => (
-              <div key={item.label} className="flex items-center gap-2.5">
-                <span
-                  className="material-symbols-outlined text-base"
-                  style={{ color: item.ok ? '#22c55e' : 'var(--color-border-light)' }}
-                >
-                  {item.ok ? 'check_circle' : 'radio_button_unchecked'}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-txt">{item.label}</p>
-                  <p className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>{item.detail}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
 
         {/* ── SKU 기여 현황 ── */}
         {skuBreakdown.length > 0 && (
@@ -434,31 +336,18 @@ export default function AdminUserDetailPage() {
         )}
 
         {/* ── 품질 분포 ── */}
-        <div className="flex gap-2">
-          <div className="flex-1 rounded-xl p-3" style={{ backgroundColor: 'var(--color-surface)' }}>
-            <p className="text-xs font-medium mb-2" style={{ color: 'var(--color-text-sub)' }}>품질 분포</p>
-            <div className="flex gap-3">
-              {(['A', 'B', 'C'] as const).map(g => {
-                const count = summary.qualityDistribution[g] ?? 0
-                return (
-                  <div key={g} className="flex items-center gap-1.5">
-                    <span className="text-xs font-bold" style={{ color: GRADE_COLORS[g] }}>{g}</span>
-                    <span className="text-sm text-txt font-medium">{count}</span>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-          <div className="flex-1 rounded-xl p-3" style={{ backgroundColor: 'var(--color-surface)' }}>
-            <p className="text-xs font-medium mb-2" style={{ color: 'var(--color-text-sub)' }}>동의 비율</p>
-            <div className="flex items-end gap-1">
-              <span className="text-lg font-bold text-txt">
-                {userSessions.length > 0 ? Math.round(publicSessions.length / userSessions.length * 100) : 0}%
-              </span>
-              <span className="text-xs mb-0.5" style={{ color: 'var(--color-text-tertiary)' }}>
-                공개 {publicSessions.length}/{userSessions.length}
-              </span>
-            </div>
+        <div className="rounded-xl p-3" style={{ backgroundColor: 'var(--color-surface)' }}>
+          <p className="text-xs font-medium mb-2" style={{ color: 'var(--color-text-sub)' }}>품질 분포</p>
+          <div className="flex gap-3">
+            {(['A', 'B', 'C'] as const).map(g => {
+              const count = summary.qualityDistribution[g] ?? 0
+              return (
+                <div key={g} className="flex items-center gap-1.5">
+                  <span className="text-xs font-bold" style={{ color: GRADE_COLORS[g] }}>{g}</span>
+                  <span className="text-sm text-txt font-medium">{count}</span>
+                </div>
+              )
+            })}
           </div>
         </div>
 

@@ -32,8 +32,7 @@ const ADMIN_MENU: MenuGroup[] = [
   },
   {
     id: 'review', labelKo: '검수', icon: 'fact_check', items: [
-      { path: '/admin/review', labelKo: '대기열', icon: 'fact_check' },
-      { path: '/admin/utterances', labelKo: '발화 + 납품', icon: 'local_shipping' },
+      { path: '/admin/utterances', labelKo: '검수 + 납품', icon: 'fact_check' },
       { path: '/admin/transactions', labelKo: '거래', icon: 'receipt_long' },
       { path: '/admin/balances', labelKo: '잔액', icon: 'account_balance_wallet' },
     ],

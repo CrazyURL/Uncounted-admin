@@ -33,7 +33,7 @@ const SORT_OPTIONS: { key: AdminSortKey; label: string }[] = [
 ]
 
 const USER_SORT_OPTIONS: { key: 'sessionCount' | 'totalDuration' | 'avgQaScore'; label: string }[] = [
-  { key: 'sessionCount', label: '세션수' },
+  { key: 'sessionCount', label: '통화수' },
   { key: 'totalDuration', label: '총시간' },
   { key: 'avgQaScore', label: '평균품질' },
 ]
@@ -184,6 +184,17 @@ export default function AdminSessionListPage() {
     }).catch(err => {
       console.error('[AdminSessionList] fetchAdminSessionsAggregateApi failed:', err)
       setTotalDurationSec(0)
+    })
+
+    // 사용자 수 카드 — 전체 탭에서도 표시
+    fetchAdminUserStatsApi({
+      limit: 1,
+      offset: 0,
+      ...filtersToQuery(filters),
+    }).then(({ count }) => {
+      setTotalUsers(count ?? 0)
+    }).catch(() => {
+      setTotalUsers(0)
     })
   }, [filters, sortKey, sortDir, viewMode, location.pathname, debouncedSearch])
 
@@ -440,7 +451,7 @@ export default function AdminSessionListPage() {
       {/* 총 건수 요약 */}
       <div className="px-4 py-3 flex items-center gap-3">
         <div className="rounded-lg p-2.5 text-center flex-1" style={{ backgroundColor: 'var(--color-surface)' }}>
-          <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>세션</p>
+          <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>통화건수</p>
           <p className="text-sm font-bold text-txt mt-0.5">{totalSessions.toLocaleString()}건</p>
         </div>
         <div className="rounded-lg p-2.5 text-center flex-1" style={{ backgroundColor: 'var(--color-surface)' }}>
@@ -679,7 +690,7 @@ export default function AdminSessionListPage() {
               전체 선택
             </button>
             <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
-              {sessions.length.toLocaleString()}건 표시 중
+              {sessions.length.toLocaleString()}건 표시 중 / 총 {totalSessions.toLocaleString()}건
             </span>
           </div>
 
@@ -698,7 +709,7 @@ export default function AdminSessionListPage() {
           {sessions.length === 0 && (
             <div className="flex flex-col items-center py-12">
               <span className="material-symbols-outlined text-3xl mb-2" style={{ color: 'var(--color-border-light)' }}>search_off</span>
-              <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>필터 조건에 맞는 세션이 없습니다</p>
+              <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>필터 조건에 맞는 통화가 없습니다</p>
             </div>
           )}
 
@@ -735,7 +746,6 @@ export default function AdminSessionListPage() {
                   group={group}
                   expanded={expanded}
                   onToggleExpand={() => toggleExpandUser(group.userId)}
-                  onOpenDetail={() => navigate(`/admin/users/${encodeURIComponent(group.userId ?? '__null__')}`)}
                   sessionsState={userSessionsState ?? null}
                   selectedIds={selectedIds}
                   onToggleSelect={toggleSelect}
@@ -868,7 +878,6 @@ function UserGroupNode({
   group,
   expanded,
   onToggleExpand,
-  onOpenDetail,
   sessionsState,
   selectedIds,
   onToggleSelect,
@@ -877,7 +886,6 @@ function UserGroupNode({
   group: UserGroupSummary
   expanded: boolean
   onToggleExpand: () => void
-  onOpenDetail: () => void
   sessionsState: UserSessionsState | null
   selectedIds: Set<string>
   onToggleSelect: (id: string) => void
@@ -909,21 +917,13 @@ function UserGroupNode({
           <span className="material-symbols-outlined text-lg" style={{ color: 'var(--color-text-tertiary)' }}>person</span>
           <p className="text-sm font-medium text-txt truncate">{group.displayId}</p>
         </button>
-        <button
-          onClick={onOpenDetail}
-          className="px-2 py-1 rounded-md text-[11px] font-medium"
-          style={{ backgroundColor: 'var(--color-border-light)', color: 'var(--color-text-sub)' }}
-          title="사용자 상세 페이지"
-        >
-          상세
-        </button>
       </div>
 
       {/* 통계 그리드 */}
       <button onClick={onToggleExpand} className="w-full px-3.5 pb-3 text-left">
         <div className="grid grid-cols-4 gap-2">
           {[
-            { label: '세션', value: `${group.sessionCount}건` },
+            { label: '통화', value: `${group.sessionCount}건` },
             { label: '시간', value: `${group.totalDurationHours.toFixed(1)}h` },
             { label: '품질', value: `${group.avgQaScore}점` },
             { label: '라벨률', value: `${Math.round(group.labeledRatio * 100)}%` },

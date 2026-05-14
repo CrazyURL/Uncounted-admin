@@ -1,17 +1,24 @@
-// ── AdminUtterancesPage — BM v10 발화 단위 검수 + 납품 트리 ──────────────────
+// ── AdminUtterancesPage — BM v10 통합 검수 + 납품 페이지 ────────────────
 //
-// 구조: 통화(session) → 펼치면 발화(utterance) 목록
+// /admin/review 통합 후의 단일 검수 페이지.
 //
-// 동작:
-//   - 통화 row: 제목, 길이, review_status, 발화 N건, 예상 단가 합계
-//   - 펼치기 토글 → 발화 목록 표시 (체크박스 + 검수 토글)
-//   - 헤더 sticky 바: 선택 발화 카운트 + "선택 발화 납품" 버튼
-//   - 다이얼로그: client 선택 + 가격 + 중복 사전 안내
+// 구조:
+//   - 헤더: 통화/발화 카운트
+//   - 검수 카운트 카드 5종 (대기/검토중/승인/거절/재수정필요)
+//   - 일괄 자동 승인 카드 (전역, 제외 제외)
+//   - 필터 (통화 검수, 동의, 저품질, 발화 검수, 정산, 자동라벨, 검색)
+//   - 통화 트리: 헤더(파이프라인 5점 + 검수 액션) → 펼침 = 발화 목록
+//   - sticky: "선택 발화 납품" / "승인된 발화 일괄 납품"
+//
+// 데이터:
+//   - 1차: fetchReviewQueue → AdminSession[] (파이프라인 진행 중 통화 포함)
+//   - 2차: fetchUtterances → AdminUtterance[] (펼침 시 사용)
+//   - 클라이언트 조인: session_id 기준
 //
 // 제약:
-//   - 백엔드 utterance limit cap=5000/page → 한 페이지에 모든 통화/발화 표시.
 //   - 같은 (session, client) 두 번 납품 X (백엔드 UNIQUE 409)
-//   - session.review_status='approved' 필수 (다이얼로그에서 사전 안내)
+//   - session.review_status='approved' 필수 (DeliveryDialog 사전 안내)
+//   - 일괄 자동 승인: A등급 + PII 위험 없음 + ≥1초 + 화자 할당 등
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
@@ -22,9 +29,11 @@ import {
   Badge,
   Button,
   ErrorBanner,
+  StatusBadge,
+  ConfirmDialog,
+  useToast,
   type SelectOption,
 } from '../../components/ui'
-// Badge is used in SessionRow; renderTextWithPiiHint/formatMs delegated to UtteranceReviewRow
 import { labels } from '../../lib/labels'
 import {
   fetchUtterances,
@@ -36,9 +45,27 @@ import {
   type UtteranceReviewStatus,
   type LabelSource,
 } from '../../lib/api/utterances'
+import {
+  fetchReviewQueue,
+  updateReviewStatus,
+  bulkAutoApprove,
+  type ReviewQueueResponse,
+  type BulkAutoApproveResponse,
+} from '../../lib/api/reviews'
+import {
+  type AdminSession,
+  type ReviewStatus,
+  isPipelineComplete,
+} from '../../types/adminSession'
 import { DeliveryDialog, type SelectedUtterance } from '../../components/domain/DeliveryDialog'
-import { UtteranceReviewRow } from '../../components/domain/UtteranceReviewRow'
-import { analyzeSessionRisk, type SessionRiskResult } from '../../lib/piiRisk'
+import {
+  AdminUtteranceSessionRow,
+  type SessionGroup,
+} from '../../components/domain/AdminUtteranceSessionRow'
+import { SessionPaginationBar } from '../../components/domain/SessionPaginationBar'
+import { type SessionReviewActionRequest } from '../../components/domain/SessionReviewActions'
+
+// ── Filter options ──────────────────────────────────────────────────────
 
 const SETTLED_OPTIONS: SelectOption[] = [
   { value: 'all', label: '전체' },
@@ -60,60 +87,92 @@ const LABEL_SOURCE_OPTIONS: SelectOption[] = [
   { value: 'admin_confirmed', label: '어드민 확인' },
 ]
 
-interface SessionGroup {
-  sessionId: string
-  title: string | null
-  durationSec: number | null
-  reviewStatus: string
-  consentStatus: string | null
-  utterances: AdminUtterance[]
-  totalUnitPriceKrw: number
-  excludedCount: number
+const SESSION_REVIEW_OPTIONS: SelectOption[] = [
+  { value: 'all', label: '전체' },
+  { value: 'pending', label: labels.review.pending },
+  { value: 'in_review', label: labels.review.in_review },
+  { value: 'approved', label: labels.review.approved },
+  { value: 'rejected', label: labels.review.rejected },
+  { value: 'needs_revision', label: labels.review.needs_revision },
+]
+
+const CONSENT_OPTIONS: SelectOption[] = [
+  { value: 'all', label: '전체' },
+  { value: 'both_agreed', label: labels.consent.both_agreed },
+  { value: 'user_only', label: labels.consent.user_only },
+]
+
+// ── buildGroups ─────────────────────────────────────────────────────────
+
+function buildGroups(
+  sessions: AdminSession[],
+  utterances: AdminUtterance[],
+): SessionGroup[] {
+  const uttBySession = new Map<string, AdminUtterance[]>()
+  for (const u of utterances) {
+    const arr = uttBySession.get(u.session_id) ?? []
+    arr.push(u)
+    uttBySession.set(u.session_id, arr)
+  }
+  return sessions.map((s) => {
+    const list = uttBySession.get(s.id) ?? []
+    return {
+      sessionId: s.id,
+      session: s,
+      utterances: list,
+      totalUnitPriceKrw: list.reduce((sum, u) => sum + u.unit_price_krw, 0),
+      excludedCount: list.filter((u) => u.review_status === 'excluded').length,
+    }
+  })
 }
 
-function groupBySession(rows: AdminUtterance[]): SessionGroup[] {
-  const map = new Map<string, SessionGroup>()
-  for (const u of rows) {
-    let g = map.get(u.session_id)
-    if (!g) {
-      g = {
-        sessionId: u.session_id,
-        title: u.session_title,
-        durationSec: u.session_duration_sec,
-        reviewStatus: u.session_review_status,
-        consentStatus: u.session_consent_status,
-        utterances: [],
-        totalUnitPriceKrw: 0,
-        excludedCount: 0,
-      }
-      map.set(u.session_id, g)
-    }
-    g.utterances.push(u)
-    g.totalUnitPriceKrw += u.unit_price_krw
-    if (u.review_status === 'excluded') g.excludedCount += 1
-  }
-  return Array.from(map.values())
-}
+// ── Main page ───────────────────────────────────────────────────────────
 
 export default function AdminUtterancesPage() {
   const [searchParams, setSearchParams] = useSearchParams()
+  const toast = useToast()
+
+  // URL params
   const settled = (searchParams.get('settled') ?? 'all') as 'all' | 'yes' | 'no'
   const review = (searchParams.get('review') ?? 'all') as 'all' | UtteranceReviewStatus
   const labelSource = (searchParams.get('label_source') ?? 'all') as 'all' | LabelSource
   const search = searchParams.get('q') ?? ''
   const sessionId = searchParams.get('session') ?? ''
+  const sessionReview = (searchParams.get('session_review') ?? 'all') as 'all' | ReviewStatus
+  const consent = (searchParams.get('consent') ?? 'all') as 'all' | 'both_agreed' | 'user_only'
+  const qualityLow = searchParams.get('low') === '1'
 
+  // Data state
   const [data, setData] = useState<UtteranceListResponse | null>(null)
+  const [reviewData, setReviewData] = useState<ReviewQueueResponse | null>(null)
   const [stats, setStats] = useState<UtteranceStatsResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // UI state
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [selected, setSelected] = useState<Map<string, Set<string>>>(new Map())
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [pageSize, setPageSize] = useState<number>(20)
   const [page, setPage] = useState<number>(1)
+
+  // Review action state
+  const [confirmAction, setConfirmAction] = useState<
+    | {
+        sessionId: string
+        status: ReviewStatus
+        label: string
+        body: string
+      }
+    | null
+  >(null)
+  const [actionLoading, setActionLoading] = useState(false)
+
+  // Bulk auto-approve state
+  const [bulkDryRun, setBulkDryRun] = useState<BulkAutoApproveResponse | null>(null)
+  const [bulkLoading, setBulkLoading] = useState(false)
+  const [bulkConfirm, setBulkConfirm] = useState(false)
 
   const updateParam = useCallback(
     (key: string, value: string | null) => {
@@ -128,7 +187,7 @@ export default function AdminUtterancesPage() {
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
-    const [list, st] = await Promise.all([
+    const [list, st, rq] = await Promise.all([
       fetchUtterances({
         settled: settled === 'all' ? undefined : settled,
         review: review === 'all' ? undefined : review,
@@ -138,31 +197,48 @@ export default function AdminUtterancesPage() {
         orderBy: 'created_at_desc',
       }),
       fetchUtteranceStats(),
+      fetchReviewQueue({
+        reviewStatus: sessionReview,
+        consentStatus: consent,
+        qualityLow,
+        search: search || undefined,
+        limit: 5000,
+      }),
     ])
     if (list.error) setError(list.error)
     else setData(list.data ?? null)
     if (!st.error) setStats(st.data ?? null)
+    if (rq.error && !list.error) setError(rq.error)
+    else if (!rq.error) setReviewData(rq.data ?? null)
     setLoading(false)
-  }, [settled, review, sessionId, search])
+  }, [settled, review, sessionId, search, sessionReview, consent, qualityLow])
 
   useEffect(() => {
     load()
   }, [load])
 
+  // dry-run 자동 호출 — 자동 승인 가능 카운트 사전 표시
+  const reloadBulkDryRun = useCallback(async () => {
+    const res = await bulkAutoApprove({ dryRun: true })
+    if (!res.error && res.data) setBulkDryRun(res.data)
+  }, [])
+  useEffect(() => {
+    reloadBulkDryRun()
+  }, [reloadBulkDryRun, reviewData])
+
+  // Build groups: AdminSession 기준, utterances 조인
   const allGroups = useMemo(
-    () => groupBySession(data?.utterances ?? []),
-    [data],
+    () => buildGroups(reviewData?.sessions ?? [], data?.utterances ?? []),
+    [reviewData, data],
   )
 
-  // label_source 클라이언트 필터 (needs_review / auto_review 우선)
+  // label_source 클라이언트 필터 — utterance 단위만, session header 는 유지
   const groups = useMemo(() => {
     if (labelSource === 'all') return allGroups
-    return allGroups
-      .map((g) => ({
-        ...g,
-        utterances: g.utterances.filter((u) => u.label_source === labelSource),
-      }))
-      .filter((g) => g.utterances.length > 0)
+    return allGroups.map((g) => ({
+      ...g,
+      utterances: g.utterances.filter((u) => u.label_source === labelSource),
+    }))
   }, [allGroups, labelSource])
 
   // 라벨 저장 낙관 업데이트
@@ -185,9 +261,18 @@ export default function AdminUtterancesPage() {
   // 필터 변경 시 페이지 리셋
   useEffect(() => {
     setPage(1)
-  }, [settled, review, labelSource, sessionId, search, pageSize])
+  }, [
+    settled,
+    review,
+    labelSource,
+    sessionId,
+    search,
+    sessionReview,
+    consent,
+    qualityLow,
+    pageSize,
+  ])
 
-  // 페이지 단위 slice (클라이언트 사이드)
   const totalPages = Math.max(1, Math.ceil(groups.length / pageSize))
   const safePage = Math.min(page, totalPages)
   const pagedGroups = useMemo(
@@ -195,7 +280,7 @@ export default function AdminUtterancesPage() {
     [groups, safePage, pageSize],
   )
 
-  // 검색으로 session 진입 시 자동 펼치기
+  // 검색으로 단일 session 진입 시 자동 펼치기
   useEffect(() => {
     if (sessionId && groups.length === 1) {
       setExpanded(new Set([groups[0].sessionId]))
@@ -211,14 +296,14 @@ export default function AdminUtterancesPage() {
     })
   }
 
-  const toggleUtteranceSelect = (sessionId: string, utteranceId: string) => {
+  const toggleUtteranceSelect = (sid: string, uid: string) => {
     setSelected((cur) => {
       const next = new Map(cur)
-      const set = new Set(next.get(sessionId) ?? [])
-      if (set.has(utteranceId)) set.delete(utteranceId)
-      else set.add(utteranceId)
-      if (set.size === 0) next.delete(sessionId)
-      else next.set(sessionId, set)
+      const set = new Set(next.get(sid) ?? [])
+      if (set.has(uid)) set.delete(uid)
+      else set.add(uid)
+      if (set.size === 0) next.delete(sid)
+      else next.set(sid, set)
       return next
     })
   }
@@ -237,6 +322,32 @@ export default function AdminUtterancesPage() {
     })
   }
 
+  // "전체 승인된 발화 일괄 납품" — 승인된 통화의 비-제외 발화 전부 선택 후 다이얼로그
+  const approvedGroups = useMemo(
+    () => groups.filter((g) => (g.session.review_status ?? 'pending') === 'approved'),
+    [groups],
+  )
+
+  const approvedNonExcludedCount = useMemo(
+    () =>
+      approvedGroups.reduce(
+        (sum, g) => sum + g.utterances.filter((u) => u.review_status !== 'excluded').length,
+        0,
+      ),
+    [approvedGroups],
+  )
+
+  const selectAllApproved = () => {
+    const next = new Map<string, Set<string>>()
+    for (const g of approvedGroups) {
+      const includable = g.utterances.filter((u) => u.review_status !== 'excluded')
+      if (includable.length === 0) continue
+      next.set(g.sessionId, new Set(includable.map((u) => u.id)))
+    }
+    setSelected(next)
+    setDialogOpen(true)
+  }
+
   const handleToggleReview = useCallback(
     async (utterance: AdminUtterance) => {
       if (updatingId) return
@@ -252,7 +363,7 @@ export default function AdminUtterancesPage() {
                   ? {
                       ...u,
                       review_status: nextIncluded ? 'pending' : 'excluded',
-                      exclude_reason: nextIncluded ? null : (u.exclude_reason ?? 'manual'),
+                      exclude_reason: nextIncluded ? null : u.exclude_reason ?? 'manual',
                     }
                   : u,
               ),
@@ -269,6 +380,45 @@ export default function AdminUtterancesPage() {
     [data, updatingId],
   )
 
+  // 통화 검수 액션 (승인/거절/재수정)
+  const handleReviewAction = (sessionId: string, req: SessionReviewActionRequest) => {
+    setConfirmAction({
+      sessionId,
+      status: req.status,
+      label: req.label,
+      body: req.body,
+    })
+  }
+
+  const executeReviewAction = async () => {
+    if (!confirmAction) return
+    setActionLoading(true)
+    const res = await updateReviewStatus(confirmAction.sessionId, confirmAction.status)
+    setActionLoading(false)
+    if (res.error) {
+      toast.error(res.error)
+      return
+    }
+    toast.success(getToastForStatus(confirmAction.status))
+    setConfirmAction(null)
+    await load()
+  }
+
+  const handleBulkApprove = async () => {
+    setBulkLoading(true)
+    const res = await bulkAutoApprove({ dryRun: false })
+    setBulkLoading(false)
+    setBulkConfirm(false)
+    if (res.error) {
+      toast.error(`일괄 승인 실패: ${res.error}`)
+      return
+    }
+    const d = res.data!
+    toast.success(`일괄 승인 완료 — 승인 ${d.approved}건 / 보류 ${d.skipped}건`)
+    await load()
+    await reloadBulkDryRun()
+  }
+
   // DeliveryDialog 에 넘길 선택 목록 평탄화
   const selectedList: SelectedUtterance[] = useMemo(() => {
     const list: SelectedUtterance[] = []
@@ -279,8 +429,8 @@ export default function AdminUtterancesPage() {
         if (set.has(u.id)) {
           list.push({
             sessionId: g.sessionId,
-            sessionTitle: g.title,
-            reviewStatusOfSession: g.reviewStatus,
+            sessionTitle: g.session.title,
+            reviewStatusOfSession: g.session.review_status ?? 'pending',
             utteranceId: u.id,
           })
         }
@@ -290,20 +440,23 @@ export default function AdminUtterancesPage() {
   }, [groups, selected])
 
   const selectedCount = selectedList.length
+  const totalDurationSec = reviewData?.filteredDurationSec ?? 0
 
   return (
     <div className="space-y-6 pb-24">
       <header className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-txt">{labels.noun.utterance} 검수 + 납품</h1>
+          <h1 className="text-2xl font-bold text-txt">통화 + 발화 검수 · 납품</h1>
           <p className="mt-1 text-sm text-txt-sub">
-            통화별로 펼쳐서 발화 단위 검수 + 다중 선택 납품. 단가 = 길이(초) × 시간당 단가 / 3600.
+            통화 단위 검수 (승인/거절) 와 발화 단위 검수 + 납품을 한 페이지에서 처리합니다.
           </p>
         </div>
         {!loading && (
           <div className="text-right text-xs text-txt-sub whitespace-nowrap pt-1">
             <div>
               통화 <span className="font-semibold text-txt text-sm">{groups.length.toLocaleString('ko-KR')}</span>개
+              {' · '}
+              총 <span className="font-semibold text-txt text-sm">{formatDurationCompact(totalDurationSec)}</span>
             </div>
             <div className="mt-0.5">
               발화 <span className="font-semibold text-txt text-sm">{(data?.utterances.length ?? 0).toLocaleString('ko-KR')}</span>건
@@ -315,7 +468,16 @@ export default function AdminUtterancesPage() {
         )}
       </header>
 
-      {/* 요약 */}
+      {/* 검수 상태 카운트 5종 */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <SummaryCard label={labels.review.pending} value={reviewData?.pendingCount ?? 0} />
+        <SummaryCard label={labels.review.in_review} value={reviewData?.inReviewCount ?? 0} />
+        <SummaryCard label={labels.review.approved} value={reviewData?.approvedCount ?? 0} />
+        <SummaryCard label={labels.review.rejected} value={reviewData?.rejectedCount ?? 0} />
+        <SummaryCard label={labels.review.needs_revision} value={reviewData?.needsRevisionCount ?? 0} />
+      </div>
+
+      {/* 발화 통계 */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card padding="sm">
           <div className="text-xs text-txt-sub">총 발화</div>
@@ -343,11 +505,49 @@ export default function AdminUtterancesPage() {
         </Card>
       </div>
 
+      {/* 조건부 일괄 자동 승인 (전역) */}
+      {bulkDryRun && bulkDryRun.eligibleCount !== undefined && (
+        <Card padding="sm">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="text-sm">
+              <div className="text-txt">
+                전역 자동 승인 가능 <span className="font-bold text-accent">{bulkDryRun.eligibleCount}</span>건
+                <span className="text-txt-sub"> · 보류 {bulkDryRun.skipped}건</span>
+              </div>
+              <div className="text-xs text-txt-sub mt-0.5">
+                조건: A등급 + 숫자 7자리+ 없음 + ≥1초 + 화자 할당 + PII 위험 없음
+                <span className="ml-1">· 현재 필터와 무관, 제외(rejected) 통화 자동 미포함</span>
+              </div>
+            </div>
+            <Button
+              variant="primary"
+              size="sm"
+              disabled={bulkDryRun.eligibleCount === 0 || bulkLoading}
+              onClick={() => setBulkConfirm(true)}
+            >
+              {bulkLoading ? '처리 중…' : `${bulkDryRun.eligibleCount}건 일괄 승인`}
+            </Button>
+          </div>
+        </Card>
+      )}
+
       {/* 필터 */}
       <Card padding="sm">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
           <Select
-            label="검수 상태"
+            label="통화 검수"
+            value={sessionReview}
+            options={SESSION_REVIEW_OPTIONS}
+            onChange={(e) => updateParam('session_review', e.target.value)}
+          />
+          <Select
+            label="동의"
+            value={consent}
+            options={CONSENT_OPTIONS}
+            onChange={(e) => updateParam('consent', e.target.value)}
+          />
+          <Select
+            label="발화 검수"
             value={review}
             options={REVIEW_OPTIONS}
             onChange={(e) => updateParam('review', e.target.value)}
@@ -359,7 +559,7 @@ export default function AdminUtterancesPage() {
             onChange={(e) => updateParam('settled', e.target.value)}
           />
           <Select
-            label="자동라벨 상태"
+            label="자동라벨"
             value={labelSource}
             options={LABEL_SOURCE_OPTIONS}
             onChange={(e) => updateParam('label_source', e.target.value)}
@@ -371,36 +571,31 @@ export default function AdminUtterancesPage() {
             onChange={(e) => updateParam('session', e.target.value)}
           />
           <Input
-            label="발화 검색"
-            placeholder="텍스트 검색"
+            label="검색"
+            placeholder="제목 / 발화 텍스트"
             value={search}
             onChange={(e) => updateParam('q', e.target.value)}
           />
-        </div>
-        {labelSource !== 'all' && (
-          <div className="mt-2 flex items-center gap-2">
-            <span className="text-xs text-txt-sub">
-              자동라벨 필터:
-            </span>
-            <span className="text-xs font-medium text-accent">
-              {LABEL_SOURCE_OPTIONS.find((o) => o.value === labelSource)?.label}
-            </span>
-            <button
-              type="button"
-              onClick={() => updateParam('label_source', null)}
-              className="text-xs text-txt-sub hover:text-txt underline"
-            >
-              필터 해제
-            </button>
+          <div className="flex flex-col">
+            <label className="block text-sm font-medium text-txt mb-1.5">우선 정렬</label>
+            <label className="inline-flex items-center gap-2 mt-2">
+              <input
+                type="checkbox"
+                checked={qualityLow}
+                onChange={(e) => updateParam('low', e.target.checked ? '1' : null)}
+                className="rounded border-border text-accent focus:ring-accent"
+              />
+              <span className="text-sm text-txt">저품질 우선</span>
+            </label>
           </div>
-        )}
+        </div>
       </Card>
 
       {error && <ErrorBanner message={error} onRetry={load} />}
 
-      {/* 페이지네이션 (필터 ↔ 리스트 사이) */}
+      {/* 페이지네이션 */}
       {!loading && groups.length > 0 && (
-        <PaginationBar
+        <SessionPaginationBar
           page={safePage}
           totalPages={totalPages}
           pageSize={pageSize}
@@ -410,7 +605,7 @@ export default function AdminUtterancesPage() {
         />
       )}
 
-      {/* 트리 */}
+      {/* 통화 트리 */}
       {loading ? (
         <Card padding="md">
           <div className="text-center text-txt-sub text-sm py-10">불러오는 중...</div>
@@ -418,13 +613,13 @@ export default function AdminUtterancesPage() {
       ) : groups.length === 0 ? (
         <Card padding="md">
           <div className="text-center text-txt-sub text-sm py-10">
-            발화가 없습니다. GPU 처리(STT + 화자 분리) 완료 후 생성됩니다.
+            조건에 맞는 통화가 없습니다.
           </div>
         </Card>
       ) : (
         <div className="space-y-2">
           {pagedGroups.map((g) => (
-            <SessionRow
+            <AdminUtteranceSessionRow
               key={g.sessionId}
               group={g}
               expanded={expanded.has(g.sessionId)}
@@ -435,26 +630,45 @@ export default function AdminUtterancesPage() {
               onSelectAll={() => toggleAllInSession(g)}
               onToggleReview={handleToggleReview}
               onLabelSaved={handleLabelSaved}
+              onReviewAction={(req) => handleReviewAction(g.sessionId, req)}
             />
           ))}
         </div>
       )}
 
       {/* sticky 납품 바 */}
-      {selectedCount > 0 && (
+      {(selectedCount > 0 || approvedNonExcludedCount > 0) && (
         <div className="fixed bottom-0 left-0 right-0 bg-surface border-t border-border-light shadow-lg z-30">
-          <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
+          <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between gap-3 flex-wrap">
             <div className="text-sm text-txt">
-              <span className="font-semibold">{selectedCount}</span>건 선택됨 ·{' '}
-              통화 <span className="font-semibold">{selected.size}</span>개
+              {selectedCount > 0 ? (
+                <>
+                  <span className="font-semibold">{selectedCount}</span>건 선택됨 ·{' '}
+                  통화 <span className="font-semibold">{selected.size}</span>개
+                </>
+              ) : (
+                <>
+                  승인된 통화 <span className="font-semibold">{approvedGroups.length}</span>개 ·{' '}
+                  납품 가능 발화 <span className="font-semibold">{approvedNonExcludedCount}</span>건
+                </>
+              )}
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={() => setSelected(new Map())}>
-                선택 해제
-              </Button>
-              <Button variant="primary" onClick={() => setDialogOpen(true)}>
-                선택 발화 납품
-              </Button>
+              {selectedCount > 0 && (
+                <Button variant="ghost" size="sm" onClick={() => setSelected(new Map())}>
+                  선택 해제
+                </Button>
+              )}
+              {approvedNonExcludedCount > 0 && selectedCount === 0 && (
+                <Button variant="secondary" onClick={selectAllApproved}>
+                  승인된 발화 일괄 납품 ({approvedNonExcludedCount}건)
+                </Button>
+              )}
+              {selectedCount > 0 && (
+                <Button variant="primary" onClick={() => setDialogOpen(true)}>
+                  선택 발화 납품
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -469,128 +683,48 @@ export default function AdminUtterancesPage() {
           load()
         }}
       />
-    </div>
-  )
-}
 
-// ── SessionRow — 통화 단위 row + 펼침 ─────────────────────────────────────
-interface SessionRowProps {
-  group: SessionGroup
-  expanded: boolean
-  selectedSet: Set<string>
-  updatingId: string | null
-  onToggleExpand: () => void
-  onToggleUtterance: (utteranceId: string) => void
-  onSelectAll: () => void
-  onToggleReview: (u: AdminUtterance) => void
-  onLabelSaved: (id: string, updatedFields: Partial<AdminUtterance>) => void
-}
-
-function SessionRow({
-  group, expanded, selectedSet, updatingId,
-  onToggleExpand, onToggleUtterance, onSelectAll, onToggleReview, onLabelSaved,
-}: SessionRowProps) {
-  const includable = group.utterances.filter((u) => u.review_status !== 'excluded')
-  const allSelected = includable.length > 0 && selectedSet.size === includable.length
-  const risk: SessionRiskResult = useMemo(
-    () => analyzeSessionRisk(group.utterances),
-    [group.utterances],
-  )
-
-  return (
-    <Card padding="none" className="overflow-hidden">
-      {/* Header */}
-      <button
-        type="button"
-        onClick={onToggleExpand}
-        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-bg-hover transition-colors text-left"
-      >
-        <span className="material-symbols-outlined text-txt-sub text-base">
-          {expanded ? 'expand_more' : 'chevron_right'}
-        </span>
-        <div className="flex-1 min-w-0">
-          <div className="font-medium text-txt truncate">
-            {group.title || '(제목 없음)'}
-          </div>
-          <div className="text-xs text-txt-sub mt-0.5 flex items-center gap-2">
-            <span className="font-mono">{group.sessionId.slice(0, 8)}…</span>
-            <span>·</span>
-            <span>{formatDurationCompact(group.durationSec)}</span>
-            <span>·</span>
-            <span>발화 {group.utterances.length}건</span>
-            {group.excludedCount > 0 && (
-              <>
-                <span>·</span>
-                <span className="text-warning">제외 {group.excludedCount}</span>
-              </>
-            )}
-          </div>
-        </div>
-        {risk.level === 'high' && (
-          <Badge
-            tone="danger"
-            size="sm"
-            title={risk.reasons.join('\n')}
-          >
-            🚨 PII 의심
-          </Badge>
-        )}
-        <Badge tone={reviewTone(group.reviewStatus)} size="sm">
-          {reviewLabel(group.reviewStatus)}
-        </Badge>
-        <span
-          className="tabular-nums text-sm font-semibold text-txt"
-          title="시간당 ₩30,000 기준 · 확정 금액 아님 (검수·납품 후 결정)"
-        >
-          약 ₩{group.totalUnitPriceKrw.toLocaleString('ko-KR')}
-        </span>
-      </button>
-
-      {/* Expanded body */}
-      {expanded && (
-        <div className="border-t border-border-light bg-surface-alt">
-          <div className="px-4 py-2 flex items-center gap-3 border-b border-border-light text-xs">
-            <label className="inline-flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={allSelected}
-                onChange={onSelectAll}
-                className="rounded border-border text-accent focus:ring-accent"
-              />
-              <span className="text-txt-sub">
-                전체 선택 (제외 제외 {includable.length}건)
-              </span>
-            </label>
-            {group.reviewStatus !== 'approved' && (
-              <span className="text-warning text-xs">
-                ⚠ 통화 검수 미승인 — 납품 차단됩니다
-              </span>
-            )}
-          </div>
-
-          <div className="divide-y divide-border-light">
-            {group.utterances.map((u) => (
-              <UtteranceReviewRow
-                key={u.id}
-                utterance={u}
-                checked={selectedSet.has(u.id)}
-                included={u.review_status === 'pending'}
-                busy={updatingId === u.id}
-                isDanger={risk.dangerUttIds.has(u.id)}
-                onToggleSelect={() => onToggleUtterance(u.id)}
-                onToggleReview={() => onToggleReview(u)}
-                onLabelSaved={onLabelSaved}
-              />
-            ))}
-          </div>
-        </div>
+      {/* 통화 검수 확인 모달 */}
+      {confirmAction && (
+        <ConfirmDialog
+          open
+          onClose={() => setConfirmAction(null)}
+          onConfirm={executeReviewAction}
+          title={confirmAction.label}
+          body={confirmAction.body}
+          confirmLabel={confirmAction.label}
+          variant={confirmAction.status === 'rejected' ? 'danger' : 'primary'}
+          loading={actionLoading}
+        />
       )}
-    </Card>
+
+      {/* 일괄 자동 승인 확인 모달 */}
+      {bulkConfirm && bulkDryRun && (
+        <ConfirmDialog
+          open
+          onClose={() => setBulkConfirm(false)}
+          onConfirm={handleBulkApprove}
+          title="조건부 일괄 자동 승인"
+          body={`자동 승인 가능 ${bulkDryRun.eligibleCount ?? 0}건을 일괄 approved 로 전환합니다. 보류된 ${bulkDryRun.skipped}건은 수동 검수 필요. label_source='auto:bulk_review' 로 기록됩니다.`}
+          confirmLabel={`${bulkDryRun.eligibleCount ?? 0}건 승인`}
+          variant="primary"
+          loading={bulkLoading}
+        />
+      )}
+    </div>
   )
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
+function SummaryCard({ label, value }: { label: string; value: number }) {
+  return (
+    <Card padding="sm">
+      <div className="text-xs text-txt-sub">{label}</div>
+      <div className="mt-1 text-2xl font-bold text-txt">{value.toLocaleString('ko-KR')}</div>
+    </Card>
+  )
+}
 
 function formatDurationCompact(sec: number | null | undefined): string {
   if (!sec || sec <= 0) return '-'
@@ -602,111 +736,16 @@ function formatDurationCompact(sec: number | null | undefined): string {
   return `${s}s`
 }
 
-function reviewTone(status: string): 'neutral' | 'warning' | 'success' | 'danger' {
+function getToastForStatus(status: ReviewStatus): string {
   switch (status) {
-    case 'approved': return 'success'
-    case 'rejected': return 'danger'
-    case 'needs_revision': return 'warning'
-    case 'in_review': return 'warning'
-    default: return 'neutral'
+    case 'approved':
+      return labels.toast.approved
+    case 'rejected':
+      return labels.toast.rejected
+    case 'needs_revision':
+      return labels.toast.needsRevision
+    default:
+      return labels.toast.saved
   }
 }
 
-function reviewLabel(status: string): string {
-  return (labels.review as Record<string, string>)[status] ?? status
-}
-
-// ── PaginationBar — 통화 단위 페이지네이션 ───────────────────────────────
-interface PaginationBarProps {
-  page: number
-  totalPages: number
-  pageSize: number
-  totalItems: number
-  onPageChange: (p: number) => void
-  onPageSizeChange: (n: number) => void
-}
-
-const PAGE_SIZE_OPTIONS: SelectOption[] = [
-  { value: '10', label: '10개씩' },
-  { value: '20', label: '20개씩' },
-  { value: '30', label: '30개씩' },
-  { value: '50', label: '50개씩' },
-  { value: '100', label: '100개씩' },
-]
-
-function PaginationBar({
-  page,
-  totalPages,
-  pageSize,
-  totalItems,
-  onPageChange,
-  onPageSizeChange,
-}: PaginationBarProps) {
-  const startIdx = (page - 1) * pageSize + 1
-  const endIdx = Math.min(page * pageSize, totalItems)
-  return (
-    <Card padding="sm">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-txt-sub">
-            {totalItems > 0 ? (
-              <>
-                <span className="font-semibold text-txt">{startIdx.toLocaleString('ko-KR')}</span>–
-                <span className="font-semibold text-txt">{endIdx.toLocaleString('ko-KR')}</span> /{' '}
-                {totalItems.toLocaleString('ko-KR')}통화
-              </>
-            ) : (
-              <>0통화</>
-            )}
-          </span>
-          <select
-            value={String(pageSize)}
-            onChange={(e) => onPageSizeChange(parseInt(e.target.value, 10) || 20)}
-            className="ml-2 text-xs px-2 py-1 rounded border border-border-light bg-surface text-txt cursor-pointer hover:bg-bg-hover"
-          >
-            {PAGE_SIZE_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-        </div>
-        <div className="flex items-center gap-1">
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={page <= 1}
-            onClick={() => onPageChange(1)}
-          >
-            처음
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={page <= 1}
-            onClick={() => onPageChange(page - 1)}
-          >
-            이전
-          </Button>
-          <span className="px-3 text-xs text-txt tabular-nums">
-            <span className="font-semibold">{page}</span> / {totalPages}
-          </span>
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={page >= totalPages}
-            onClick={() => onPageChange(page + 1)}
-          >
-            다음
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={page >= totalPages}
-            onClick={() => onPageChange(totalPages)}
-          >
-            끝
-          </Button>
-        </div>
-      </div>
-    </Card>
-  )
-}

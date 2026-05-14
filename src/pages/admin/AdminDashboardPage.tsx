@@ -1,17 +1,41 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Card,
   CardHeader,
   CardBody,
+  ConfirmDialog,
+  DataTable,
+  EmptyState,
+  EmptyIcon,
   ErrorBanner,
+  Input,
+  Select,
   Skeleton,
   Badge,
   Button,
+  StatusBadge,
+  useToast,
+  type ColumnDef,
+  type SelectOption,
 } from '../../components/ui'
 import { labels } from '../../lib/labels'
 import { fetchDashboardStats, type DashboardStats, type PipelineDistribution } from '../../lib/api/dashboard'
 import { fetchGpuWorkerStatusApi, type WorkerStatus } from '../../lib/api/gpuWorker'
+import {
+  fetchReviewQueue,
+  updateReviewStatus,
+  bulkAutoApprove,
+  type ReviewQueueResponse,
+  type BulkAutoApproveResponse,
+} from '../../lib/api/reviews'
+import {
+  type AdminSession,
+  type ReviewStatus,
+  pipelineProgress,
+  firstFailedStep,
+  isPipelineComplete,
+} from '../../types/adminSession'
 
 type TabId = 'consent' | 'pipeline' | 'review' | 'delivery' | 'alerts'
 
@@ -99,24 +123,26 @@ export default function AdminDashboardPage() {
 // ── Tab: Consent ────────────────────────────────────────────────────────
 function ConsentTab({ stats, onNavigate }: { stats: DashboardStats; onNavigate: (p: string) => void }) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <BigStat
-        title="양측 동의 통화"
-        value={stats.consent.bothAgreedCount.toLocaleString('ko-KR')}
-        sub={`최근 24시간 +${stats.consent.bothAgreed24h.toLocaleString('ko-KR')}건`}
-        onClick={() => onNavigate('/admin/sessions')}
-      />
-      <BigStat
-        title="누적 통화시간"
-        value={formatHours(stats.consent.totalDurationSec)}
-        sub="양측 동의 합산"
-      />
-      <BigStat
-        title="검수 대기"
-        value={stats.review.pending.toLocaleString('ko-KR')}
-        sub="처리 흐름 완료 후 검수 시작"
-        onClick={() => onNavigate('/admin/review')}
-      />
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <BigStat
+          title="양측 동의 통화"
+          value={stats.consent.bothAgreedCount.toLocaleString('ko-KR')}
+          sub={`최근 24시간 +${stats.consent.bothAgreed24h.toLocaleString('ko-KR')}건`}
+        />
+        <BigStat
+          title="누적 통화시간"
+          value={formatHours(stats.consent.totalDurationSec)}
+          sub="양측 동의 합산"
+        />
+        <BigStat
+          title="검수 대기"
+          value={stats.review.pending.toLocaleString('ko-KR')}
+          sub="처리 흐름 완료 후 검수 시작"
+          onClick={() => onNavigate('/admin/utterances?session_review=pending')}
+        />
+      </div>
+      <InlineCallList />
     </div>
   )
 }
@@ -319,7 +345,7 @@ function bar(value: number, total: number, cls: string) {
 }
 
 // ── Tab: Review ─────────────────────────────────────────────────────────
-function ReviewTab({ stats, onNavigate }: { stats: DashboardStats; onNavigate: (p: string) => void }) {
+function ReviewTab({ stats }: { stats: DashboardStats; onNavigate: (p: string) => void }) {
   const items = [
     { key: 'pending', label: labels.review.pending, count: stats.review.pending, tone: 'neutral' as const },
     { key: 'in_review', label: labels.review.in_review, count: stats.review.in_review, tone: 'accent' as const },
@@ -328,7 +354,7 @@ function ReviewTab({ stats, onNavigate }: { stats: DashboardStats; onNavigate: (
     { key: 'needs_revision', label: labels.review.needs_revision, count: stats.review.needs_revision, tone: 'warning' as const },
   ]
   return (
-    <div>
+    <div className="space-y-6">
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {items.map((it) => (
           <Card key={it.key} padding="sm">
@@ -337,11 +363,7 @@ function ReviewTab({ stats, onNavigate }: { stats: DashboardStats; onNavigate: (
           </Card>
         ))}
       </div>
-      <div className="mt-4">
-        <Button variant="primary" onClick={() => onNavigate('/admin/review')}>
-          검수 대기열 열기
-        </Button>
-      </div>
+      <InlineReviewQueue />
     </div>
   )
 }
@@ -350,7 +372,7 @@ function ReviewTab({ stats, onNavigate }: { stats: DashboardStats; onNavigate: (
 function DeliveryTab({ stats, onNavigate }: { stats: DashboardStats; onNavigate: (p: string) => void }) {
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <BigStat
           title="총 납품 건수"
           value={stats.delivery.total.toLocaleString('ko-KR')}
@@ -360,14 +382,6 @@ function DeliveryTab({ stats, onNavigate }: { stats: DashboardStats; onNavigate:
           title="최근 30일 매출"
           value={`₩${stats.delivery.recentRevenue.toLocaleString('ko-KR')}`}
         />
-        <Card>
-          <CardHeader title="신규 납품" description="검수 승인된 통화부터 등록" />
-          <CardBody>
-            <Button variant="primary" fullWidth onClick={() => onNavigate('/admin/utterances')}>
-              납품 등록
-            </Button>
-          </CardBody>
-        </Card>
       </div>
       <Card>
         <CardHeader title="최근 납품 10건" />
@@ -391,6 +405,7 @@ function DeliveryTab({ stats, onNavigate }: { stats: DashboardStats; onNavigate:
           )}
         </CardBody>
       </Card>
+      <InlineDeliverableSessions onNavigate={onNavigate} />
     </div>
   )
 }
@@ -412,7 +427,7 @@ function AlertsTab({ stats, onNavigate }: { stats: DashboardStats; onNavigate: (
             <Button
               size="sm"
               variant="secondary"
-              onClick={() => onNavigate('/admin/review?pipeline_failed=1&review=all&consent=all')}
+              onClick={() => onNavigate('/admin/utterances?session_review=all&consent=all')}
             >
               실패 통화 검수
             </Button>
@@ -429,12 +444,461 @@ function AlertsTab({ stats, onNavigate }: { stats: DashboardStats; onNavigate: (
             {stats.alerts.rejectedCount.toLocaleString('ko-KR')}
           </div>
           <div className="mt-3">
-            <Button size="sm" variant="secondary" onClick={() => onNavigate('/admin/review?review=rejected')}>
+            <Button size="sm" variant="secondary" onClick={() => onNavigate('/admin/utterances?session_review=rejected')}>
               거절 목록 보기
             </Button>
           </div>
         </CardBody>
       </Card>
+    </div>
+  )
+}
+
+// ── InlineCallList ──────────────────────────────────────────────────────
+function InlineCallList() {
+  const [data, setData] = useState<ReviewQueueResponse | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    const res = await fetchReviewQueue({ consentStatus: 'both_agreed', reviewStatus: 'all' })
+    if (res.error) setError(res.error)
+    else setData(res.data ?? null)
+    setLoading(false)
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  const columns: ColumnDef<AdminSession>[] = useMemo(() => [
+    {
+      key: 'title',
+      header: '통화',
+      render: (s) => (
+        <div>
+          <div className="font-medium text-txt">{s.title || '(제목 없음)'}</div>
+          <div className="text-xs text-txt-tertiary">{s.id.slice(0, 8)}…</div>
+        </div>
+      ),
+    },
+    {
+      key: 'duration',
+      header: '길이',
+      render: (s) => inlineFmtDuration(s.duration_seconds),
+      width: '90px',
+    },
+    {
+      key: 'date',
+      header: '날짜',
+      render: (s) => new Date(s.date).toLocaleDateString('ko-KR'),
+      width: '100px',
+    },
+    {
+      key: 'pipeline',
+      header: '처리 흐름',
+      render: (s) => <InlinePipelineCells session={s} />,
+    },
+    {
+      key: 'review',
+      header: '검수',
+      render: (s) => <StatusBadge kind="review" value={s.review_status ?? 'pending'} />,
+      width: '110px',
+    },
+  ], [])
+
+  if (error) return <ErrorBanner message={error} onRetry={load} />
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium text-txt">양측 동의 통화 목록</span>
+        {data && <span className="text-xs text-txt-sub">{data.total.toLocaleString('ko-KR')}건</span>}
+      </div>
+      <DataTable<AdminSession>
+        data={data?.sessions ?? null}
+        columns={columns}
+        rowKey={(s) => s.id}
+        loading={loading}
+        error={null}
+        emptyTitle="양측 동의 통화 없음"
+        emptyHint="양측 동의가 완료된 통화가 없습니다."
+      />
+    </div>
+  )
+}
+
+// ── InlineReviewQueue ───────────────────────────────────────────────────
+const INLINE_REVIEW_FILTER_OPTIONS: SelectOption[] = [
+  { value: 'all', label: '전체' },
+  { value: 'pending', label: labels.review.pending },
+  { value: 'in_review', label: labels.review.in_review },
+  { value: 'approved', label: labels.review.approved },
+  { value: 'rejected', label: labels.review.rejected },
+  { value: 'needs_revision', label: labels.review.needs_revision },
+]
+
+const INLINE_CONSENT_FILTER_OPTIONS: SelectOption[] = [
+  { value: 'all', label: '전체' },
+  { value: 'both_agreed', label: labels.consent.both_agreed },
+  { value: 'user_only', label: labels.consent.user_only },
+]
+
+function InlineReviewQueue() {
+  const navigate = useNavigate()
+  const toast = useToast()
+
+  const [reviewFilter, setReviewFilter] = useState<ReviewStatus | 'all'>('pending')
+  const [consentFilter, setConsentFilter] = useState<'both_agreed' | 'user_only' | 'all'>('both_agreed')
+  const [qualityLow, setQualityLow] = useState(false)
+  const [search, setSearch] = useState('')
+
+  const [data, setData] = useState<ReviewQueueResponse | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [confirmAction, setConfirmAction] = useState<{
+    sessionId: string; status: ReviewStatus; label: string; body: string
+  } | null>(null)
+  const [actionLoading, setActionLoading] = useState(false)
+
+  const [bulkDryRun, setBulkDryRun] = useState<BulkAutoApproveResponse | null>(null)
+  const [bulkLoading, setBulkLoading] = useState(false)
+  const [bulkConfirm, setBulkConfirm] = useState(false)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    const res = await fetchReviewQueue({
+      reviewStatus: reviewFilter,
+      consentStatus: consentFilter,
+      qualityLow,
+      pipelineFailed: false,
+      search: search || undefined,
+    })
+    if (res.error) setError(res.error)
+    else setData(res.data ?? null)
+    setLoading(false)
+  }, [reviewFilter, consentFilter, qualityLow, search])
+
+  useEffect(() => { load() }, [load])
+
+  const reloadBulkDryRun = useCallback(async () => {
+    const res = await bulkAutoApprove({ dryRun: true })
+    if (!res.error && res.data) setBulkDryRun(res.data)
+  }, [])
+  useEffect(() => { reloadBulkDryRun() }, [reloadBulkDryRun, data])
+
+  async function handleBulkApprove() {
+    setBulkLoading(true)
+    const res = await bulkAutoApprove({ dryRun: false })
+    setBulkLoading(false)
+    setBulkConfirm(false)
+    if (res.error) { toast.error(`일괄 승인 실패: ${res.error}`); return }
+    const d = res.data!
+    toast.success(`일괄 승인 완료 — 승인 ${d.approved}건 / 보류 ${d.skipped}건`)
+    await load()
+    await reloadBulkDryRun()
+  }
+
+  const handleAction = async () => {
+    if (!confirmAction) return
+    setActionLoading(true)
+    const res = await updateReviewStatus(confirmAction.sessionId, confirmAction.status)
+    setActionLoading(false)
+    if (res.error) { toast.error(res.error); return }
+    toast.success(inlineGetToastForStatus(confirmAction.status))
+    setConfirmAction(null)
+    await load()
+  }
+
+  const totalDurationSec = data?.filteredDurationSec ?? 0
+
+  const columns: ColumnDef<AdminSession>[] = useMemo(() => [
+    {
+      key: 'title',
+      header: '통화',
+      render: (s) => (
+        <div>
+          <div className="font-medium text-txt">{s.title || '(제목 없음)'}</div>
+          <div className="text-xs text-txt-tertiary">{s.id.slice(0, 8)}…</div>
+        </div>
+      ),
+    },
+    {
+      key: 'duration',
+      header: '길이',
+      render: (s) => inlineFmtDuration(s.duration_seconds),
+      width: '90px',
+    },
+    {
+      key: 'consent',
+      header: '동의',
+      render: (s) => <StatusBadge kind="consent" value={s.consent_status} />,
+      width: '120px',
+    },
+    {
+      key: 'pipeline',
+      header: '처리 흐름',
+      render: (s) => <InlinePipelineCells session={s} />,
+    },
+    {
+      key: 'review',
+      header: '검수',
+      render: (s) => <StatusBadge kind="review" value={s.review_status ?? 'pending'} />,
+      width: '110px',
+    },
+    {
+      key: 'actions',
+      header: '액션',
+      align: 'right',
+      render: (s) => (
+        <InlineRowActions
+          session={s}
+          onAction={(status, label, body) =>
+            setConfirmAction({ sessionId: s.id, status, label, body })
+          }
+        />
+      ),
+      width: '280px',
+    },
+  ], [])
+
+  return (
+    <div className="space-y-4">
+      {/* 자동 승인 */}
+      {bulkDryRun && bulkDryRun.eligibleCount !== undefined && (
+        <Card padding="sm">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="text-sm">
+              <div className="text-txt">
+                자동 승인 가능 <span className="font-bold text-accent">{bulkDryRun.eligibleCount}</span>건
+                <span className="text-txt-sub"> · 보류 {bulkDryRun.skipped}건</span>
+              </div>
+              <div className="text-xs text-txt-sub mt-0.5">
+                조건: A등급 + 숫자 7자리+ 없음 + ≥1초 + 화자 할당 + PII 위험 없음
+              </div>
+            </div>
+            <Button
+              variant="primary"
+              size="sm"
+              disabled={bulkDryRun.eligibleCount === 0 || bulkLoading}
+              onClick={() => setBulkConfirm(true)}
+            >
+              {bulkLoading ? '처리 중…' : `${bulkDryRun.eligibleCount}건 일괄 승인`}
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      {/* 통화시간 합산 */}
+      {data && (
+        <Card padding="sm">
+          <div className="text-sm text-txt-sub">
+            현재 필터 결과: <span className="font-semibold text-txt">{data.total}</span>건 (총{' '}
+            <span className="font-semibold text-txt">{inlineFmtDuration(totalDurationSec)}</span>)
+          </div>
+        </Card>
+      )}
+
+      {/* 필터 */}
+      <Card>
+        <CardHeader title="필터" description="검수 상태 · 동의 상태 · 저품질 우선" />
+        <CardBody>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <Select
+              label="검수 상태"
+              value={reviewFilter}
+              options={INLINE_REVIEW_FILTER_OPTIONS}
+              onChange={(e) => setReviewFilter(e.target.value as ReviewStatus | 'all')}
+            />
+            <Select
+              label="동의 상태"
+              value={consentFilter}
+              options={INLINE_CONSENT_FILTER_OPTIONS}
+              onChange={(e) => setConsentFilter(e.target.value as 'both_agreed' | 'user_only' | 'all')}
+            />
+            <div className="flex flex-col">
+              <label className="block text-sm font-medium text-txt mb-1.5">우선 정렬</label>
+              <label className="inline-flex items-center gap-2 mt-2">
+                <input
+                  type="checkbox"
+                  checked={qualityLow}
+                  onChange={(e) => setQualityLow(e.target.checked)}
+                  className="rounded border-border text-accent focus:ring-accent"
+                />
+                <span className="text-sm text-txt">저품질 우선</span>
+              </label>
+            </div>
+            <Input
+              label="검색"
+              placeholder="제목 / 세션 ID"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+        </CardBody>
+      </Card>
+
+      {error && <ErrorBanner message={error} onRetry={load} />}
+
+      <DataTable<AdminSession>
+        data={data?.sessions ?? null}
+        columns={columns}
+        rowKey={(s) => s.id}
+        loading={loading}
+        error={null}
+        emptyTitle={labels.empty.review}
+        emptyHint={labels.empty.reviewHint}
+        onRowClick={(s) => {
+          if (isPipelineComplete(s)) {
+            navigate(`/admin/utterances?session=${s.id}`)
+          } else {
+            const failed = firstFailedStep(s)
+            const progress = pipelineProgress(s)
+            toast.show(
+              failed
+                ? `처리 흐름 ${labels.pipeline[failed]} 단계 실패 — 재시도 필요 (${Math.round(progress * 5)}/5 완료)`
+                : `처리 흐름 진행 중 (${Math.round(progress * 5)}/5 완료) — 모든 단계 완료 후 발화 검수 가능`,
+              'info',
+            )
+          }
+        }}
+      />
+
+      {!loading && !error && (data?.sessions.length ?? 0) === 0 && (
+        <EmptyState
+          icon={<EmptyIcon />}
+          title={labels.empty.review}
+          description={labels.empty.reviewHint}
+        />
+      )}
+
+      {confirmAction && (
+        <ConfirmDialog
+          open
+          onClose={() => setConfirmAction(null)}
+          onConfirm={handleAction}
+          title={confirmAction.label}
+          body={confirmAction.body}
+          confirmLabel={confirmAction.label}
+          variant={confirmAction.status === 'rejected' ? 'danger' : 'primary'}
+          loading={actionLoading}
+        />
+      )}
+
+      {bulkConfirm && bulkDryRun && (
+        <ConfirmDialog
+          open
+          onClose={() => setBulkConfirm(false)}
+          onConfirm={handleBulkApprove}
+          title="조건부 일괄 자동 승인"
+          body={`자동 승인 가능 ${bulkDryRun.eligibleCount ?? 0}건을 일괄 approved 로 전환합니다. 보류된 ${bulkDryRun.skipped}건은 수동 검수 필요. label_source='auto:bulk_review' 로 기록됩니다.`}
+          confirmLabel={`${bulkDryRun.eligibleCount ?? 0}건 승인`}
+          variant="primary"
+          loading={bulkLoading}
+        />
+      )}
+    </div>
+  )
+}
+
+// ── Inline helpers (shared by InlineCallList & InlineReviewQueue) ────────
+
+function inlineFmtDuration(sec: number | null | undefined): string {
+  if (!sec || sec <= 0) return '-'
+  const h = Math.floor(sec / 3600)
+  const m = Math.floor((sec % 3600) / 60)
+  const s = Math.floor(sec % 60)
+  if (h > 0) return `${h}시간 ${m}분`
+  if (m > 0) return `${m}분 ${s}초`
+  return `${s}초`
+}
+
+function inlineGetToastForStatus(status: ReviewStatus): string {
+  switch (status) {
+    case 'approved': return labels.toast.approved
+    case 'rejected': return labels.toast.rejected
+    case 'needs_revision': return labels.toast.needsRevision
+    default: return labels.toast.saved
+  }
+}
+
+function InlinePipelineCells({ session }: { session: AdminSession }) {
+  const steps: Array<{ key: keyof typeof labels.pipeline; status?: string }> = [
+    { key: 'upload', status: session.upload_status },
+    { key: 'stt', status: session.stt_status },
+    { key: 'diarize', status: session.diarize_status },
+    { key: 'pii', status: session.pii_status },
+    { key: 'quality', status: session.quality_status },
+  ]
+  const failed = firstFailedStep(session)
+  const progressPct = Math.round(pipelineProgress(session) * 100)
+
+  return (
+    <div className="flex items-center gap-1.5">
+      {steps.map((step) => (
+        <div
+          key={step.key}
+          title={`${labels.pipeline[step.key]} — ${step.status ? (labels.status as Record<string, string>)[step.status] ?? step.status : labels.status.pending}`}
+          className={`w-2.5 h-2.5 rounded-full ${inlineDotClass(step.status)}`}
+          aria-label={`${labels.pipeline[step.key]} ${step.status ?? 'pending'}`}
+        />
+      ))}
+      <span className="ml-2 text-xs text-txt-sub tabular-nums">{progressPct}%</span>
+      {failed && <span className="ml-1 text-xs text-danger" title={`실패 단계: ${failed}`}>⚠</span>}
+    </div>
+  )
+}
+
+function inlineDotClass(status: string | undefined): string {
+  switch (status) {
+    case 'done': return 'bg-success'
+    case 'running': return 'bg-accent animate-pulse'
+    case 'failed': return 'bg-danger'
+    default: return 'bg-muted border border-border'
+  }
+}
+
+function InlineRowActions({
+  session,
+  onAction,
+}: {
+  session: AdminSession
+  onAction: (status: ReviewStatus, label: string, body: string) => void
+}) {
+  const complete = isPipelineComplete(session)
+  const review = session.review_status ?? 'pending'
+
+  if (!complete && review === 'pending') {
+    return <span className="text-xs text-txt-tertiary">처리 흐름 진행 중</span>
+  }
+  if (review === 'approved' || review === 'rejected') {
+    return <span className="text-xs text-txt-tertiary">완료된 결정</span>
+  }
+
+  return (
+    <div className="flex items-center justify-end gap-1.5">
+      <Button
+        size="sm"
+        variant="primary"
+        onClick={() => onAction('approved', labels.action.approve, '승인 후에는 납품 가능 상태로 전환됩니다.')}
+      >
+        {labels.action.approve}
+      </Button>
+      <Button
+        size="sm"
+        variant="secondary"
+        onClick={() => onAction('needs_revision', labels.action.needRevision, 'PII 보정 또는 라벨 수정이 필요한 경우 사용합니다.')}
+      >
+        {labels.action.needRevision}
+      </Button>
+      <Button
+        size="sm"
+        variant="danger"
+        onClick={() => onAction('rejected', labels.action.reject, labels.confirm.rejectBody)}
+      >
+        {labels.action.reject}
+      </Button>
     </div>
   )
 }
@@ -491,4 +955,100 @@ function formatHours(sec: number): string {
   const h = sec / 3600
   if (h >= 100) return `${Math.round(h).toLocaleString('ko-KR')}시간`
   return `${h.toFixed(1)}시간`
+}
+
+// ── InlineDeliverableSessions — 검수 승인 통화 인라인 목록 (납품 탭 하위) ──
+//
+// 사용자가 별도 페이지로 전환하지 않고도 납품 가능한 통화를 확인할 수 있도록
+// /admin/utterances 페이지의 핵심 데이터(승인된 통화) 를 inline 으로 표시.
+// 행 클릭 → /admin/utterances?session={id} 로 이동하여 발화 선택 + 납품.
+function InlineDeliverableSessions({ onNavigate }: { onNavigate: (p: string) => void }) {
+  const [data, setData] = useState<ReviewQueueResponse | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    const res = await fetchReviewQueue({ reviewStatus: 'approved', consentStatus: 'both_agreed' })
+    if (res.error) setError(res.error)
+    else setData(res.data ?? null)
+    setLoading(false)
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  const columns: ColumnDef<AdminSession>[] = useMemo(() => [
+    {
+      key: 'title',
+      header: '통화',
+      render: (s) => (
+        <div>
+          <div className="font-medium text-txt">{s.title || '(제목 없음)'}</div>
+          <div className="text-xs text-txt-tertiary">{s.id.slice(0, 8)}…</div>
+        </div>
+      ),
+    },
+    {
+      key: 'duration',
+      header: '길이',
+      render: (s) => inlineFmtDuration(s.duration_seconds),
+      width: '90px',
+    },
+    {
+      key: 'review',
+      header: '검수',
+      render: (s) => <StatusBadge kind="review" value={s.review_status ?? 'pending'} />,
+      width: '110px',
+    },
+    {
+      key: 'go',
+      header: '',
+      align: 'right',
+      width: '120px',
+      render: (s) => (
+        <Button
+          size="sm"
+          variant="primary"
+          onClick={(e) => {
+            e.stopPropagation()
+            onNavigate(`/admin/utterances?session=${s.id}`)
+          }}
+        >
+          납품
+        </Button>
+      ),
+    },
+  ], [onNavigate])
+
+  if (error) return <ErrorBanner message={error} onRetry={load} />
+
+  return (
+    <Card>
+      <CardHeader
+        title="납품 가능 통화"
+        description="검수 승인 + 양측 동의 — 클릭하면 발화 선택 + 납품 등록 페이지로 이동"
+      />
+      <CardBody>
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs text-txt-sub">
+            {data ? `${data.total.toLocaleString('ko-KR')}건` : ''}
+          </span>
+          <Button size="sm" variant="ghost" onClick={() => onNavigate('/admin/utterances?session_review=approved')}>
+            전체 보기 →
+          </Button>
+        </div>
+        <DataTable<AdminSession>
+          data={data?.sessions ?? null}
+          columns={columns}
+          rowKey={(s) => s.id}
+          loading={loading}
+          error={null}
+          emptyTitle="납품 가능 통화 없음"
+          emptyHint="검수 승인된 양측 동의 통화가 없습니다."
+          onRowClick={(s) => onNavigate(`/admin/utterances?session=${s.id}`)}
+        />
+      </CardBody>
+    </Card>
+  )
 }
