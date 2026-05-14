@@ -153,9 +153,7 @@ export default function AdminSessionListPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewMode])
 
-  const isTargetRoute =
-    location.pathname === '/admin/calls' ||
-    location.pathname === '/admin/sessions'
+  const isTargetRoute = location.pathname === '/admin/calls'
 
   // flat 탭 초기 로드 (필터/정렬/탭 변경 시 목록 초기화)
   useEffect(() => {
@@ -732,14 +730,15 @@ export default function AdminSessionListPage() {
             </div>
           )}
 
-          {/* 무한 스크롤 센티널 + 상태 표시 */}
-          <div ref={sentinelRef} className="py-3 flex justify-center">
-            {loadingMore && (
-              <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>불러오는 중…</span>
-            )}
-            {!loadingMore && !sessionHasMore && sessions.length > 0 && (
-              <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>총 {totalSessions.toLocaleString()}건 — 모두 표시됨</span>
-            )}
+          {/* 더 보기 바 (IntersectionObserver 보조 + 수동 버튼) */}
+          <div ref={sentinelRef}>
+            <LoadMoreBar
+              shown={sessions.length}
+              total={totalSessions}
+              hasMore={sessionHasMore}
+              loading={loadingMore}
+              onLoadMore={loadMoreSessions}
+            />
           </div>
         </>
       )}

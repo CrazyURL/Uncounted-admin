@@ -8,7 +8,6 @@ import AdminDatasetDetailPage from '../pages/admin/AdminDatasetDetailPage'
 import AdminUserDetailPage from '../pages/admin/AdminUserDetailPage'
 import AdminLabelCatalogPage from '../pages/admin/AdminLabelCatalogPage'
 import AdminSkuStudioPage from '../pages/admin/AdminSkuStudioPage'
-import AdminCallsPage from '../pages/admin/AdminCallsPage'
 import AdminBillableUnitsPage from '../pages/admin/AdminBillableUnitsPage'
 import AdminConsentsPage from '../pages/admin/AdminConsentsPage'
 import AdminSkuCatalogPage from '../pages/admin/AdminSkuCatalogPage'
@@ -41,10 +40,10 @@ const routes: RouteObject[] = [
     element: <AdminShell />,
     children: [
       { path: '/admin', element: <AdminDashboardPage /> },
-      { path: '/admin/sessions', element: <AdminSessionListPage /> },
+      { path: '/admin/sessions', element: <Navigate to="/admin/calls" replace /> },
       { path: '/admin/studio', element: <AdminSkuStudioPage /> },
       // inventory
-      { path: '/admin/calls', element: <AdminCallsPage /> },
+      { path: '/admin/calls', element: <AdminSessionListPage /> },
       { path: '/admin/units', element: <AdminBillableUnitsPage /> },
       { path: '/admin/labels', element: <AdminLabelCatalogPage /> },
       { path: '/admin/consents', element: <AdminConsentsPage /> },
