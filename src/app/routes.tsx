@@ -21,7 +21,7 @@ import AdminSettlementPage from '../pages/admin/AdminSettlementPage'
 import AdminMetaStoragePage from '../pages/admin/AdminMetaStoragePage'
 import AdminBalancesPage from '../pages/admin/AdminBalancesPage'
 import AdminTransactionsPage from '../pages/admin/AdminTransactionsPage'
-import AdminUtterancesPage from '../pages/admin/AdminUtterancesPage'
+import AdminInventoryPage from '../pages/admin/AdminInventoryPage'
 import AdminTrainingPage from '../pages/admin/AdminTrainingPage'
 
 const routes: RouteObject[] = [
@@ -40,7 +40,7 @@ const routes: RouteObject[] = [
       { path: '/admin/sessions', element: <Navigate to="/admin/calls" replace /> },
       { path: '/admin/studio', element: <AdminSkuStudioPage /> },
       // inventory
-      { path: '/admin/calls', element: <AdminUtterancesPage /> },
+      { path: '/admin/calls', element: <AdminInventoryPage /> },
       { path: '/admin/units', element: <AdminBillableUnitsPage /> },
       { path: '/admin/labels', element: <AdminLabelCatalogPage /> },
       { path: '/admin/consents', element: <AdminConsentsPage /> },
