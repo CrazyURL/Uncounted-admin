@@ -23,7 +23,6 @@ import AdminBalancesPage from '../pages/admin/AdminBalancesPage'
 import AdminTransactionsPage from '../pages/admin/AdminTransactionsPage'
 import AdminUtterancesPage from '../pages/admin/AdminUtterancesPage'
 import AdminTrainingPage from '../pages/admin/AdminTrainingPage'
-import AdminInventoryPage from '../pages/admin/AdminInventoryPage'
 
 const routes: RouteObject[] = [
   {
@@ -41,7 +40,7 @@ const routes: RouteObject[] = [
       { path: '/admin/sessions', element: <Navigate to="/admin/calls" replace /> },
       { path: '/admin/studio', element: <AdminSkuStudioPage /> },
       // inventory
-      { path: '/admin/calls', element: <AdminInventoryPage /> },
+      { path: '/admin/calls', element: <AdminUtterancesPage /> },
       { path: '/admin/units', element: <AdminBillableUnitsPage /> },
       { path: '/admin/labels', element: <AdminLabelCatalogPage /> },
       { path: '/admin/consents', element: <AdminConsentsPage /> },
@@ -69,7 +68,7 @@ const routes: RouteObject[] = [
       { path: '/admin/delivery/new', element: <Navigate to="/admin/utterances" replace /> },
       { path: '/admin/transactions', element: <AdminTransactionsPage /> },
       { path: '/admin/balances', element: <AdminBalancesPage /> },
-      { path: '/admin/utterances', element: <AdminUtterancesPage /> },
+      { path: '/admin/utterances', element: <Navigate to="/admin/calls" replace /> },
       // detail
       { path: '/admin/users/:userId', element: <AdminUserDetailPage /> },
     ],
