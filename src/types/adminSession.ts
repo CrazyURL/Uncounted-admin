@@ -32,6 +32,19 @@ export interface SessionPipeline {
   review_status?: ReviewStatus
 }
 
+export interface SessionSpeaker {
+  speaker_label: string
+  speaker_role: string | null
+  speaker_gender: string | null
+  speaker_voice_age_range: string | null
+  speaker_relation: string | null
+}
+
+export interface PiiIntervalSample {
+  startSec: number
+  endSec: number
+}
+
 export interface AdminSession extends SessionPipeline {
   id: string
   user_id: string
@@ -44,6 +57,11 @@ export interface AdminSession extends SessionPipeline {
   pii_flag?: boolean
   pii_count?: number
   quality_grade_min?: 'A' | 'B' | 'C' | null
+  quality_score_avg?: number | null
+  snr_db_avg?: number | null
+  speech_ratio_avg?: number | null
+  pii_interval_samples?: PiiIntervalSample[]
+  speakers?: SessionSpeaker[]
 }
 
 // 처리 흐름 모든 단계 완료 여부

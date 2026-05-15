@@ -3,6 +3,7 @@ import { type AdminSession } from '../../types/adminSession'
 import { type AdminUtterance } from '../../lib/api/utterances'
 import { analyzeSessionRisk } from '../../lib/piiRisk'
 import { UtteranceReviewRow } from './UtteranceReviewRow'
+import { SessionReviewPanel } from './SessionReviewPanel'
 
 interface UtteranceExpansionProps {
   session: AdminSession
@@ -31,6 +32,7 @@ export function UtteranceExpansion({
 
   return (
     <div className="border-t border-border-light bg-surface-alt">
+      <SessionReviewPanel session={session} />
       <div className="px-4 py-2 flex items-center gap-3 border-b border-border-light text-xs">
         <label className="inline-flex items-center gap-2 cursor-pointer">
           <input
