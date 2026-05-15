@@ -1,8 +1,6 @@
 import { Navigate, type RouteObject } from 'react-router-dom'
 import AdminShell from '../components/layout/AdminShell'
 import AuthPage from '../pages/AuthPage'
-import AdminDashboardPage from '../pages/admin/AdminDashboardPage'
-import AdminSessionListPage from '../pages/admin/AdminSessionListPage'
 import AdminDatasetListPage from '../pages/admin/AdminDatasetListPage'
 import AdminDatasetDetailPage from '../pages/admin/AdminDatasetDetailPage'
 import AdminUserDetailPage from '../pages/admin/AdminUserDetailPage'
@@ -25,6 +23,7 @@ import AdminBalancesPage from '../pages/admin/AdminBalancesPage'
 import AdminTransactionsPage from '../pages/admin/AdminTransactionsPage'
 import AdminUtterancesPage from '../pages/admin/AdminUtterancesPage'
 import AdminTrainingPage from '../pages/admin/AdminTrainingPage'
+import AdminInventoryPage from '../pages/admin/AdminInventoryPage'
 
 const routes: RouteObject[] = [
   {
@@ -38,11 +37,11 @@ const routes: RouteObject[] = [
   {
     element: <AdminShell />,
     children: [
-      { path: '/admin', element: <AdminDashboardPage /> },
+      { path: '/admin', element: <Navigate to="/admin/calls" replace /> },
       { path: '/admin/sessions', element: <Navigate to="/admin/calls" replace /> },
       { path: '/admin/studio', element: <AdminSkuStudioPage /> },
       // inventory
-      { path: '/admin/calls', element: <AdminSessionListPage /> },
+      { path: '/admin/calls', element: <AdminInventoryPage /> },
       { path: '/admin/units', element: <AdminBillableUnitsPage /> },
       { path: '/admin/labels', element: <AdminLabelCatalogPage /> },
       { path: '/admin/consents', element: <AdminConsentsPage /> },

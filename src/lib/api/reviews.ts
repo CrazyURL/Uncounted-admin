@@ -11,6 +11,7 @@ export interface ReviewQueueFilters {
   consentStatus?: 'both_agreed' | 'user_only' | 'all'
   qualityLow?: boolean  // 저품질 우선 정렬 (quality_status='failed' 만)
   pipelineFailed?: boolean  // 처리 흐름 5단계 중 어느 하나라도 failed
+  hold?: boolean  // 보류 — consent_status != 'both_agreed'
   search?: string
   page?: number
   limit?: number
@@ -33,6 +34,7 @@ export async function fetchReviewQueue(filters: ReviewQueueFilters = {}) {
   if (filters.consentStatus && filters.consentStatus !== 'all') params.set('consent_status', filters.consentStatus)
   if (filters.qualityLow) params.set('quality_low', '1')
   if (filters.pipelineFailed) params.set('pipeline_failed', '1')
+  if (filters.hold) params.set('hold', 'true')
   if (filters.search) params.set('q', filters.search)
   if (filters.page) params.set('page', String(filters.page))
   if (filters.limit) params.set('limit', String(filters.limit))
