@@ -8,7 +8,6 @@ import { fetchDashboardStats, type DashboardStats } from '../../lib/api/dashboar
 import {
   fetchReviewQueue,
   updateReviewStatus,
-  bulkAutoApprove,
   type ReviewQueueFilters,
 } from '../../lib/api/reviews'
 import {
@@ -20,7 +19,17 @@ import { labels } from '../../lib/labels'
 
 // ── 타입 & 상수 ─────────────────────────────────────────────────────────────
 
-type FilterId = 'all' | 'pending' | 'approved' | 'needs_revision' | 'rejected' | 'failed'
+type FilterId =
+  | 'all'
+  | 'pending'
+  | 'in_review'
+  | 'approved'
+  | 'needs_revision'
+  | 'rejected'
+  | 'failed'
+  | 'pii_flag'
+  | 'quality_c'
+
 type PipelineState = 'failed' | 'running' | 'complete'
 
 const SESSIONS_PER_PAGE = 20
@@ -28,17 +37,16 @@ const SESSIONS_PER_PAGE = 20
 // ── 순수 헬퍼 함수 ───────────────────────────────────────────────────────────
 
 function buildFilters(filterId: FilterId, page: number): ReviewQueueFilters {
-  const base: ReviewQueueFilters = {
-    consentStatus: 'both_agreed',
-    page,
-    limit: SESSIONS_PER_PAGE,
-  }
+  const base: ReviewQueueFilters = { page, limit: SESSIONS_PER_PAGE }
   switch (filterId) {
     case 'pending':        return { ...base, reviewStatus: 'pending' }
+    case 'in_review':      return { ...base, reviewStatus: 'in_review' }
     case 'approved':       return { ...base, reviewStatus: 'approved' }
     case 'needs_revision': return { ...base, reviewStatus: 'needs_revision' }
     case 'rejected':       return { ...base, reviewStatus: 'rejected' }
     case 'failed':         return { ...base, pipelineFailed: true }
+    case 'pii_flag':       return { ...base, piiFlag: true }
+    case 'quality_c':      return { ...base, qualityGradeMin: 'C' }
     default:               return base
   }
 }
@@ -53,12 +61,15 @@ function buildChips(stats: DashboardStats | null): FilterChip[] {
     (r?.rejected ?? 0) +
     (r?.needs_revision ?? 0)
   return [
-    { id: 'all',            label: '전체',    count: total },
-    { id: 'pending',        label: '검수대기', count: (r?.pending ?? 0) + (r?.in_review ?? 0) },
-    { id: 'approved',       label: '승인됨',   count: r?.approved ?? 0 },
-    { id: 'needs_revision', label: '수정 필요', count: r?.needs_revision ?? 0 },
-    { id: 'rejected',       label: '거절됨',   count: r?.rejected ?? 0 },
-    { id: 'failed',         label: '처리 오류', count: failedCount, warn: failedCount > 0 },
+    { id: 'all',            label: '전체',      count: total },
+    { id: 'pending',        label: '검수 대기',  count: r?.pending ?? 0 },
+    { id: 'in_review',      label: '검수 중',    count: r?.in_review ?? 0 },
+    { id: 'approved',       label: '승인됨',     count: r?.approved ?? 0 },
+    { id: 'needs_revision', label: '수정 필요',  count: r?.needs_revision ?? 0 },
+    { id: 'rejected',       label: '거절됨',     count: r?.rejected ?? 0 },
+    { id: 'failed',         label: '처리 오류',  count: failedCount, warn: failedCount > 0 },
+    { id: 'pii_flag',       label: '⚠ PII 의심', warn: true },
+    { id: 'quality_c',      label: '저품질(C)',  warn: true },
   ]
 }
 
@@ -72,6 +83,21 @@ function formatDuration(secs: number): string {
   const m = Math.floor(secs / 60)
   const s = secs % 60
   return m > 0 ? `${m}분 ${s}초` : `${s}초`
+}
+
+function QualityBadge({ grade }: { grade: 'A' | 'B' | 'C' | null | undefined }) {
+  if (!grade) return <span className="text-xs text-txt-tertiary">-</span>
+  const cls =
+    grade === 'A'
+      ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+      : grade === 'B'
+      ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
+      : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+  return (
+    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${cls}`}>
+      {grade}
+    </span>
+  )
 }
 
 // ── 메인 페이지 ─────────────────────────────────────────────────────────────
@@ -95,6 +121,8 @@ export default function AdminInventoryPage() {
   const [deliveryTarget, setDeliveryTarget] = useState<{ id: string; title: string | null } | null>(null)
   const [rejectTarget, setRejectTarget] = useState<string | null>(null)
   const [bulkApproving, setBulkApproving] = useState(false)
+  const [bulkStartingReview, setBulkStartingReview] = useState(false)
+  const [bulkRejecting, setBulkRejecting] = useState(false)
 
   const loadStats = useCallback(async () => {
     setStatsLoading(true)
@@ -162,18 +190,38 @@ export default function AdminInventoryPage() {
     })
   }
 
-  function updateSessionStatus(sessionId: string, reviewStatus: AdminSession['review_status']) {
-    setSessions((prev) =>
-      prev.map((s) => (s.id === sessionId ? { ...s, review_status: reviewStatus } : s))
-    )
+  async function handleStartReview(sessionId: string) {
+    addActionLoading(sessionId)
+    const res = await updateReviewStatus(sessionId, 'in_review')
+    if (res.data) {
+      toast.success(labels.toast.startedReview)
+      loadSessions()
+      loadStats()
+    } else {
+      toast.error(res.error ?? labels.error.saveFailed)
+    }
+    removeActionLoading(sessionId)
   }
 
   async function handleApprove(sessionId: string) {
     addActionLoading(sessionId)
     const res = await updateReviewStatus(sessionId, 'approved')
     if (res.data) {
-      updateSessionStatus(sessionId, 'approved')
       toast.success(labels.toast.approved)
+      loadSessions()
+      loadStats()
+    } else {
+      toast.error(res.error ?? labels.error.saveFailed)
+    }
+    removeActionLoading(sessionId)
+  }
+
+  async function handleNeedsRevision(sessionId: string) {
+    addActionLoading(sessionId)
+    const res = await updateReviewStatus(sessionId, 'needs_revision')
+    if (res.data) {
+      toast.success(labels.toast.needsRevision)
+      loadSessions()
       loadStats()
     } else {
       toast.error(res.error ?? labels.error.saveFailed)
@@ -186,8 +234,8 @@ export default function AdminInventoryPage() {
     addActionLoading(sessionId)
     const res = await updateReviewStatus(sessionId, 'rejected')
     if (res.data) {
-      updateSessionStatus(sessionId, 'rejected')
       toast.success(labels.toast.rejected)
+      loadSessions()
       loadStats()
     } else {
       toast.error(res.error ?? labels.error.saveFailed)
@@ -195,25 +243,88 @@ export default function AdminInventoryPage() {
     removeActionLoading(sessionId)
   }
 
+  async function handleBulkStartReview() {
+    if (selectedIds.size === 0) return
+    const eligible = sessions.filter((s) => {
+      if (!selectedIds.has(s.id)) return false
+      if (s.review_status === 'needs_revision') return true
+      return s.review_status === 'pending' && isPipelineComplete(s)
+    })
+    const skipped = selectedIds.size - eligible.length
+    if (eligible.length === 0) {
+      toast.error(`선택한 ${selectedIds.size}건 중 검수 시작 가능한 항목이 없습니다${skipped > 0 ? ` (${skipped}건 건너뜀)` : ''}`)
+      return
+    }
+    setBulkStartingReview(true)
+    const results = await Promise.allSettled(
+      eligible.map((s) => updateReviewStatus(s.id, 'in_review'))
+    )
+    const succeeded = results.filter((r) => r.status === 'fulfilled').length
+    const failed = results.filter((r) => r.status === 'rejected').length
+    toast.success(
+      `선택 ${selectedIds.size}건 중 ${eligible.length}건만 검수 시작 가능 — ${succeeded}건 성공${failed > 0 ? `, ${failed}건 실패` : ''}${skipped > 0 ? ` (${skipped}건 건너뜀)` : ''}`
+    )
+    setSelectedIds(new Set())
+    loadSessions()
+    loadStats()
+    setBulkStartingReview(false)
+  }
+
   async function handleBulkApprove() {
     if (selectedIds.size === 0) return
-    setBulkApproving(true)
-    const res = await bulkAutoApprove({ sessionIds: Array.from(selectedIds) })
-    if (res.data) {
-      toast.success(`${res.data.approved}건 승인 완료 (${res.data.skipped}건 건너뜀)`)
-      setSelectedIds(new Set())
-      loadSessions()
-      loadStats()
-    } else {
-      toast.error(res.error ?? labels.error.saveFailed)
+    const eligible = sessions.filter(
+      (s) => selectedIds.has(s.id) && s.review_status === 'in_review'
+    )
+    const skipped = selectedIds.size - eligible.length
+    if (eligible.length === 0) {
+      toast.error(`선택한 ${selectedIds.size}건 중 승인 가능한 항목이 없습니다${skipped > 0 ? ` (${skipped}건 건너뜀)` : ''}`)
+      return
     }
+    setBulkApproving(true)
+    const results = await Promise.allSettled(
+      eligible.map((s) => updateReviewStatus(s.id, 'approved'))
+    )
+    const succeeded = results.filter((r) => r.status === 'fulfilled').length
+    const failed = results.filter((r) => r.status === 'rejected').length
+    toast.success(
+      `선택 ${selectedIds.size}건 중 ${eligible.length}건만 승인 가능 — ${succeeded}건 성공${failed > 0 ? `, ${failed}건 실패` : ''}${skipped > 0 ? ` (${skipped}건 건너뜀)` : ''}`
+    )
+    setSelectedIds(new Set())
+    loadSessions()
+    loadStats()
     setBulkApproving(false)
+  }
+
+  async function handleBulkReject() {
+    if (selectedIds.size === 0) return
+    const eligible = sessions.filter(
+      (s) => selectedIds.has(s.id) && s.review_status === 'in_review'
+    )
+    const skipped = selectedIds.size - eligible.length
+    if (eligible.length === 0) {
+      toast.error(`선택한 ${selectedIds.size}건 중 거절 가능한 항목이 없습니다${skipped > 0 ? ` (${skipped}건 건너뜀)` : ''}`)
+      return
+    }
+    setBulkRejecting(true)
+    const results = await Promise.allSettled(
+      eligible.map((s) => updateReviewStatus(s.id, 'rejected'))
+    )
+    const succeeded = results.filter((r) => r.status === 'fulfilled').length
+    const failed = results.filter((r) => r.status === 'rejected').length
+    toast.success(
+      `선택 ${selectedIds.size}건 중 ${eligible.length}건만 거절 가능 — ${succeeded}건 성공${failed > 0 ? `, ${failed}건 실패` : ''}${skipped > 0 ? ` (${skipped}건 건너뜀)` : ''}`
+    )
+    setSelectedIds(new Set())
+    loadSessions()
+    loadStats()
+    setBulkRejecting(false)
   }
 
   const chips = buildChips(stats)
   const totalPages = Math.ceil(total / SESSIONS_PER_PAGE)
   const r = stats?.review
   const failedCount = stats?.alerts.pipelineFailedCount ?? 0
+  const bulkBusy = bulkApproving || bulkStartingReview || bulkRejecting
 
   return (
     <div className="space-y-6 p-6">
@@ -227,22 +338,26 @@ export default function AdminInventoryPage() {
           sub={stats ? formatDuration(stats.consent.totalDurationSec) : undefined}
         />
         <BigStat
-          title="검수대기"
+          title="검수 대기"
           value={statsLoading ? '…' : ((r?.pending ?? 0) + (r?.in_review ?? 0)).toLocaleString()}
+          sub={(r?.in_review ?? 0) > 0 ? `검수 중 ${r!.in_review}건 포함` : undefined}
           onClick={() => setFilter('pending')}
         />
         <BigStat
           title="승인됨"
           value={statsLoading ? '…' : (r?.approved ?? 0).toLocaleString()}
+          sub={(r?.approved ?? 0) > 0 ? '납품 대기 중' : undefined}
           onClick={() => setFilter('approved')}
         />
         <BigStat
           title="납품 완료"
           value={statsLoading ? '…' : (stats?.delivery.total ?? 0).toLocaleString()}
+          sub={stats?.delivery.recentRevenue ? `최근 ₩${stats.delivery.recentRevenue.toLocaleString()}` : undefined}
         />
         <BigStat
           title="처리 오류"
           value={statsLoading ? '…' : failedCount.toLocaleString()}
+          sub={failedCount > 0 ? '즉시 확인 필요' : undefined}
           tone={failedCount > 0 ? 'danger' : undefined}
           onClick={failedCount > 0 ? () => setFilter('failed') : undefined}
         />
@@ -255,8 +370,14 @@ export default function AdminInventoryPage() {
       {selectedIds.size > 0 && (
         <div className="flex items-center gap-3 px-4 py-2.5 bg-accent/10 border border-accent/30 rounded-lg">
           <span className="text-sm text-txt font-medium">{selectedIds.size}건 선택됨</span>
-          <Button variant="primary" size="sm" onClick={handleBulkApprove} disabled={bulkApproving}>
+          <Button variant="secondary" size="sm" onClick={handleBulkStartReview} disabled={bulkBusy}>
+            {bulkStartingReview ? '처리 중…' : '일괄 검수시작'}
+          </Button>
+          <Button variant="primary" size="sm" onClick={handleBulkApprove} disabled={bulkBusy}>
             {bulkApproving ? '처리 중…' : '일괄 승인'}
+          </Button>
+          <Button variant="danger" size="sm" onClick={handleBulkReject} disabled={bulkBusy}>
+            {bulkRejecting ? '처리 중…' : '일괄 거절'}
           </Button>
           <button
             className="ml-auto text-sm text-txt-sub hover:text-txt focus:outline-none"
@@ -285,7 +406,7 @@ export default function AdminInventoryPage() {
                 <th className="px-3 py-3 w-8">
                   <input
                     type="checkbox"
-                    checked={selectedIds.size === sessions.length}
+                    checked={selectedIds.size === sessions.length && sessions.length > 0}
                     onChange={toggleSelectAll}
                     className="accent-accent"
                     aria-label="전체 선택"
@@ -294,8 +415,9 @@ export default function AdminInventoryPage() {
                 <th className="px-4 py-3 font-medium">통화명</th>
                 <th className="px-4 py-3 font-medium w-24">길이</th>
                 <th className="px-4 py-3 font-medium w-44">처리 흐름</th>
-                <th className="px-4 py-3 font-medium w-28">상태</th>
-                <th className="px-4 py-3 font-medium w-48 text-right">액션</th>
+                <th className="px-4 py-3 font-medium w-16">품질</th>
+                <th className="px-4 py-3 font-medium w-36">상태</th>
+                <th className="px-4 py-3 font-medium w-56 text-right">액션</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -306,7 +428,9 @@ export default function AdminInventoryPage() {
                   selected={selectedIds.has(session.id)}
                   actionLoading={actionLoading.has(session.id)}
                   onToggle={() => toggleSelect(session.id)}
+                  onStartReview={() => handleStartReview(session.id)}
                   onApprove={() => handleApprove(session.id)}
+                  onNeedsRevision={() => handleNeedsRevision(session.id)}
                   onReject={() => setRejectTarget(session.id)}
                   onDeliver={() =>
                     setDeliveryTarget({ id: session.id, title: session.title ?? null })
@@ -392,7 +516,9 @@ interface SessionRowProps {
   selected: boolean
   actionLoading: boolean
   onToggle: () => void
+  onStartReview: () => void
   onApprove: () => void
+  onNeedsRevision: () => void
   onReject: () => void
   onDeliver: () => void
 }
@@ -402,12 +528,22 @@ function SessionRow({
   selected,
   actionLoading,
   onToggle,
+  onStartReview,
   onApprove,
+  onNeedsRevision,
   onReject,
   onDeliver,
 }: SessionRowProps) {
+  const piiFlag = session.pii_flag ?? false
+  const piiCount = session.pii_count ?? 0
+  const rowBg = selected
+    ? 'bg-accent/5'
+    : piiFlag
+    ? 'bg-red-50 dark:bg-red-900/10'
+    : ''
+
   return (
-    <tr className={`hover:bg-surface-alt transition-colors ${selected ? 'bg-accent/5' : ''}`}>
+    <tr className={`hover:bg-surface-alt transition-colors ${rowBg}`}>
       <td className="px-3 py-3">
         <input
           type="checkbox"
@@ -432,14 +568,27 @@ function SessionRow({
         <SessionPipelineCells session={session} />
       </td>
       <td className="px-4 py-3">
-        <StatusBadge kind="review" value={session.review_status} />
+        <QualityBadge grade={session.quality_grade_min} />
+      </td>
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <StatusBadge kind="review" value={session.review_status} />
+          {piiFlag && (
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 border border-red-200 dark:border-red-800">
+              ⚠ PII {piiCount}건
+            </span>
+          )}
+        </div>
       </td>
       <td className="px-4 py-3 text-right">
         <RowActions
           pipelineState={getPipelineState(session)}
           reviewStatus={session.review_status}
+          isReady={isPipelineComplete(session)}
           loading={actionLoading}
+          onStartReview={onStartReview}
           onApprove={onApprove}
+          onNeedsRevision={onNeedsRevision}
           onReject={onReject}
           onDeliver={onDeliver}
         />
@@ -451,8 +600,11 @@ function SessionRow({
 interface RowActionsProps {
   pipelineState: PipelineState
   reviewStatus: AdminSession['review_status']
+  isReady: boolean
   loading: boolean
+  onStartReview: () => void
   onApprove: () => void
+  onNeedsRevision: () => void
   onReject: () => void
   onDeliver: () => void
 }
@@ -460,35 +612,55 @@ interface RowActionsProps {
 function RowActions({
   pipelineState,
   reviewStatus,
+  isReady,
   loading,
+  onStartReview,
   onApprove,
+  onNeedsRevision,
   onReject,
   onDeliver,
 }: RowActionsProps) {
   if (pipelineState === 'failed') {
     return <span className="text-xs text-danger">⚠ 처리 오류</span>
   }
-  if (pipelineState === 'running') {
-    return <span className="text-xs text-txt-sub">⏳ 처리 중</span>
+  switch (reviewStatus) {
+    case 'pending':
+      return isReady ? (
+        <Button variant="secondary" size="sm" onClick={onStartReview} disabled={loading} loading={loading}>
+          검수 시작
+        </Button>
+      ) : (
+        <span className="text-xs text-txt-sub">⏳ 처리 중</span>
+      )
+    case 'in_review':
+      return (
+        <div className="flex items-center justify-end gap-2">
+          <Button variant="primary" size="sm" onClick={onApprove} disabled={loading} loading={loading}>
+            승인
+          </Button>
+          <Button variant="secondary" size="sm" onClick={onNeedsRevision} disabled={loading}>
+            수정필요
+          </Button>
+          <Button variant="danger" size="sm" onClick={onReject} disabled={loading}>
+            거절
+          </Button>
+        </div>
+      )
+    case 'needs_revision':
+      return (
+        <Button variant="secondary" size="sm" onClick={onStartReview} disabled={loading} loading={loading}>
+          재검수 시작
+        </Button>
+      )
+    case 'approved':
+      return (
+        <Button variant="secondary" size="sm" onClick={onDeliver} disabled={loading}>
+          납품 등록
+        </Button>
+      )
+    case 'rejected':
+      return <span className="text-xs text-txt-tertiary">거절됨</span>
+    default:
+      return null
   }
-  if (reviewStatus === 'approved') {
-    return (
-      <Button variant="secondary" size="sm" onClick={onDeliver} disabled={loading}>
-        납품 등록
-      </Button>
-    )
-  }
-  if (reviewStatus === 'rejected') {
-    return <span className="text-xs text-txt-tertiary">거절됨</span>
-  }
-  return (
-    <div className="flex items-center justify-end gap-2">
-      <Button variant="primary" size="sm" onClick={onApprove} disabled={loading} loading={loading}>
-        승인
-      </Button>
-      <Button variant="danger" size="sm" onClick={onReject} disabled={loading}>
-        거절
-      </Button>
-    </div>
-  )
 }

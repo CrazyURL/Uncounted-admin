@@ -41,6 +41,9 @@ export interface AdminSession extends SessionPipeline {
   consent_status: 'none' | 'user_only' | 'both_agreed' | 'user_withdrew' | 'peer_withdrew'
   consented_at?: string | null
   created_at: string
+  pii_flag?: boolean
+  pii_count?: number
+  quality_grade_min?: 'A' | 'B' | 'C' | null
 }
 
 // 처리 흐름 모든 단계 완료 여부

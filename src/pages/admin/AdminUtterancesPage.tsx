@@ -138,6 +138,8 @@ export default function AdminUtterancesPage() {
   const sessionReview = (searchParams.get('session_review') ?? 'all') as 'all' | ReviewStatus
   const consent = (searchParams.get('consent') ?? 'all') as 'all' | 'both_agreed' | 'user_only'
   const qualityLow = searchParams.get('low') === '1'
+  const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10) || 1)
+  const pageSize = Math.max(5, Math.min(100, parseInt(searchParams.get('per') ?? '20', 10) || 20))
 
   // Data state
   const [data, setData] = useState<UtteranceListResponse | null>(null)
@@ -151,8 +153,6 @@ export default function AdminUtterancesPage() {
   const [selected, setSelected] = useState<Map<string, Set<string>>>(new Map())
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [pageSize, setPageSize] = useState<number>(20)
-  const [page, setPage] = useState<number>(1)
 
   // Review action state
   const [confirmAction, setConfirmAction] = useState<
@@ -176,6 +176,7 @@ export default function AdminUtterancesPage() {
       const next = new URLSearchParams(searchParams)
       if (value == null || value === '' || value === 'all') next.delete(key)
       else next.set(key, value)
+      if (key !== 'page' && key !== 'per') next.delete('page')
       setSearchParams(next, { replace: true })
     },
     [searchParams, setSearchParams],
@@ -196,10 +197,10 @@ export default function AdminUtterancesPage() {
       fetchUtteranceStats(),
       fetchReviewQueue({
         reviewStatus: sessionReview,
-        consentStatus: consent,
         qualityLow,
         search: search || undefined,
-        limit: 5000,
+        limit: pageSize,
+        page,
       }),
     ])
     if (list.error) setError(list.error)
@@ -208,7 +209,7 @@ export default function AdminUtterancesPage() {
     if (rq.error && !list.error) setError(rq.error)
     else if (!rq.error) setReviewData(rq.data ?? null)
     setLoading(false)
-  }, [settled, review, sessionId, search, sessionReview, consent, qualityLow])
+  }, [settled, review, sessionId, search, sessionReview, qualityLow, page, pageSize])
 
   useEffect(() => {
     load()
@@ -255,27 +256,9 @@ export default function AdminUtterancesPage() {
     [],
   )
 
-  // 필터 변경 시 페이지 리셋
-  useEffect(() => {
-    setPage(1)
-  }, [
-    settled,
-    review,
-    labelSource,
-    sessionId,
-    search,
-    sessionReview,
-    consent,
-    qualityLow,
-    pageSize,
-  ])
-
-  const totalPages = Math.max(1, Math.ceil(groups.length / pageSize))
+  const totalItems = reviewData?.total ?? 0
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize))
   const safePage = Math.min(page, totalPages)
-  const pagedGroups = useMemo(
-    () => groups.slice((safePage - 1) * pageSize, safePage * pageSize),
-    [groups, safePage, pageSize],
-  )
 
   // 검색으로 단일 session 진입 시 자동 펼치기
   useEffect(() => {
@@ -443,15 +426,14 @@ export default function AdminUtterancesPage() {
     <div className="space-y-6 pb-24">
       <header className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-txt">통화 + 발화 검수 · 납품</h1>
-          <p className="mt-1 text-sm text-txt-sub">
+          <p className="text-sm text-txt-sub">
             통화 단위 검수 (승인/거절) 와 발화 단위 검수 + 납품을 한 페이지에서 처리합니다.
           </p>
         </div>
         {!loading && (
           <div className="text-right text-xs text-txt-sub whitespace-nowrap pt-1">
             <div>
-              통화 <span className="font-semibold text-txt text-sm">{groups.length.toLocaleString('ko-KR')}</span>개
+              통화 <span className="font-semibold text-txt text-sm">{(reviewData?.total ?? groups.length).toLocaleString('ko-KR')}</span>개
               {' · '}
               총 <span className="font-semibold text-txt text-sm">{formatDurationCompact(totalDurationSec)}</span>
             </div>
@@ -469,7 +451,7 @@ export default function AdminUtterancesPage() {
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <SummaryCard label={labels.review.pending} value={reviewData?.pendingCount ?? 0} />
         <SummaryCard label={labels.review.in_review} value={reviewData?.inReviewCount ?? 0} />
-        <SummaryCard label={labels.review.approved} value={reviewData?.approvedCount ?? 0} />
+        <SummaryCard label={labels.review.approved} value={reviewData?.approvedCount ?? 0} sub={(reviewData?.approvedCount ?? 0) > 0 ? '납품 가능' : undefined} />
         <SummaryCard label={labels.review.rejected} value={reviewData?.rejectedCount ?? 0} />
         <SummaryCard label={labels.review.needs_revision} value={reviewData?.needsRevisionCount ?? 0} />
       </div>
@@ -489,10 +471,13 @@ export default function AdminUtterancesPage() {
           </div>
         </Card>
         <Card padding="sm">
-          <div className="text-xs text-txt-sub">미정산</div>
+          <div className="text-xs text-txt-sub">납품 전</div>
           <div className="mt-1 text-2xl font-bold text-warning">
             {stats?.unsettledCount.toLocaleString('ko-KR') ?? 0}
           </div>
+          {(stats?.unsettledCount ?? 0) > 0 && (
+            <div className="mt-0.5 text-xs text-warning">납품 대기 중</div>
+          )}
         </Card>
         <Card padding="sm">
           <div className="text-xs text-txt-sub">예상 매출</div>
@@ -596,9 +581,9 @@ export default function AdminUtterancesPage() {
           page={safePage}
           totalPages={totalPages}
           pageSize={pageSize}
-          totalItems={groups.length}
-          onPageChange={setPage}
-          onPageSizeChange={setPageSize}
+          totalItems={reviewData?.total ?? 0}
+          onPageChange={(p) => updateParam('page', String(p))}
+          onPageSizeChange={(ps) => updateParam('per', String(ps))}
         />
       )}
 
@@ -615,7 +600,7 @@ export default function AdminUtterancesPage() {
         </Card>
       ) : (
         <div className="space-y-2">
-          {pagedGroups.map((g) => (
+          {groups.map((g) => (
             <AdminUtteranceSessionRow
               key={g.sessionId}
               group={g}
@@ -714,11 +699,12 @@ export default function AdminUtterancesPage() {
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
-function SummaryCard({ label, value }: { label: string; value: number }) {
+function SummaryCard({ label, value, sub }: { label: string; value: number; sub?: string }) {
   return (
     <Card padding="sm">
       <div className="text-xs text-txt-sub">{label}</div>
       <div className="mt-1 text-2xl font-bold text-txt">{value.toLocaleString('ko-KR')}</div>
+      {sub && <div className="mt-0.5 text-xs text-txt-sub">{sub}</div>}
     </Card>
   )
 }

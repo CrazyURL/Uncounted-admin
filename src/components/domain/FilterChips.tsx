@@ -1,7 +1,7 @@
 export interface FilterChip {
   id: string
   label: string
-  count: number
+  count?: number
   warn?: boolean
 }
 
@@ -29,13 +29,15 @@ export function FilterChips({ chips, active, onChange, className = '' }: FilterC
             }`}
           >
             <span>{chip.label}</span>
-            <span
-              className={`tabular-nums ${
-                isActive ? 'text-white/80' : chip.warn ? 'text-warning font-semibold' : 'text-txt-tertiary'
-              }`}
-            >
-              {chip.count.toLocaleString()}
-            </span>
+            {chip.count !== undefined && (
+              <span
+                className={`tabular-nums ${
+                  isActive ? 'text-white/80' : chip.warn ? 'text-warning font-semibold' : 'text-txt-tertiary'
+                }`}
+              >
+                {chip.count.toLocaleString()}
+              </span>
+            )}
             {chip.warn && !isActive && <span className="text-warning">⚠</span>}
           </button>
         )

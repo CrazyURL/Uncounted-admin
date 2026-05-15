@@ -8,10 +8,10 @@ import type { AdminSession, ReviewStatus } from '../../types/adminSession'
 
 export interface ReviewQueueFilters {
   reviewStatus?: ReviewStatus | 'all'
-  consentStatus?: 'both_agreed' | 'user_only' | 'all'
   qualityLow?: boolean  // 저품질 우선 정렬 (quality_status='failed' 만)
   pipelineFailed?: boolean  // 처리 흐름 5단계 중 어느 하나라도 failed
-  hold?: boolean  // 보류 — consent_status != 'both_agreed'
+  piiFlag?: boolean  // pii_intervals 있는 발화가 존재하는 세션만
+  qualityGradeMin?: 'C'  // 최저 품질등급 C 세션만
   search?: string
   page?: number
   limit?: number
@@ -31,10 +31,10 @@ export interface ReviewQueueResponse {
 export async function fetchReviewQueue(filters: ReviewQueueFilters = {}) {
   const params = new URLSearchParams()
   if (filters.reviewStatus && filters.reviewStatus !== 'all') params.set('review_status', filters.reviewStatus)
-  if (filters.consentStatus && filters.consentStatus !== 'all') params.set('consent_status', filters.consentStatus)
   if (filters.qualityLow) params.set('quality_low', '1')
   if (filters.pipelineFailed) params.set('pipeline_failed', '1')
-  if (filters.hold) params.set('hold', 'true')
+  if (filters.piiFlag) params.set('pii_flag', '1')
+  if (filters.qualityGradeMin) params.set('quality_grade_min', filters.qualityGradeMin)
   if (filters.search) params.set('q', filters.search)
   if (filters.page) params.set('page', String(filters.page))
   if (filters.limit) params.set('limit', String(filters.limit))

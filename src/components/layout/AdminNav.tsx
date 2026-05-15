@@ -9,7 +9,6 @@ const ADMIN_MENU: MenuGroup[] = [
     id: 'inventory', labelKo: '재고', icon: 'warehouse', items: [
       { path: '/admin/calls', labelKo: '통화', icon: 'call' },
       { path: '/admin/utterances', labelKo: '발화', icon: 'voice_chat' },
-      { path: '/admin/units', labelKo: '유닛(레거시)', icon: 'grid_view' },
       { path: '/admin/labels', labelKo: '라벨', icon: 'label' },
       { path: '/admin/consents', labelKo: '동의', icon: 'verified_user' },
       { path: '/admin/meta-storage', labelKo: '메타', icon: 'description' },
@@ -32,7 +31,6 @@ const ADMIN_MENU: MenuGroup[] = [
   },
   {
     id: 'review', labelKo: '검수', icon: 'fact_check', items: [
-      { path: '/admin/utterances', labelKo: '검수 + 납품', icon: 'fact_check' },
       { path: '/admin/transactions', labelKo: '거래', icon: 'receipt_long' },
       { path: '/admin/balances', labelKo: '잔액', icon: 'account_balance_wallet' },
     ],
@@ -42,8 +40,6 @@ const ADMIN_MENU: MenuGroup[] = [
       { path: '/admin/build', labelKo: '위자드', icon: 'play_circle' },
       { path: '/admin/jobs', labelKo: '작업', icon: 'work' },
       { path: '/admin/training', labelKo: '모델 학습', icon: 'model_training' },
-      { path: '/admin/settlement', labelKo: '정산(레거시)', icon: 'payments' },
-      { path: '/admin/datasets', labelKo: '레거시', icon: 'inventory_2' },
     ],
   },
 ]
