@@ -16,6 +16,14 @@ import {
   isPipelineComplete,
 } from '../../types/adminSession'
 import { labels } from '../../lib/labels'
+import {
+  fetchUtterances,
+  fetchUtteranceStats,
+  updateUtteranceReviewStatus,
+  type AdminUtterance,
+  type UtteranceStatsResponse,
+} from '../../lib/api/utterances'
+import { UtteranceExpansion } from '../../components/domain/UtteranceExpansion'
 
 // ── 타입 & 상수 ─────────────────────────────────────────────────────────────
 
@@ -80,8 +88,10 @@ function getPipelineState(session: AdminSession): PipelineState {
 }
 
 function formatDuration(secs: number): string {
-  const m = Math.floor(secs / 60)
+  const h = Math.floor(secs / 3600)
+  const m = Math.floor((secs % 3600) / 60)
   const s = secs % 60
+  if (h > 0) return `${h}시간 ${m}분`
   return m > 0 ? `${m}분 ${s}초` : `${s}초`
 }
 
@@ -110,6 +120,7 @@ export default function AdminInventoryPage() {
   const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10))
 
   const [stats, setStats] = useState<DashboardStats | null>(null)
+  const [uttStats, setUttStats] = useState<UtteranceStatsResponse | null>(null)
   const [sessions, setSessions] = useState<AdminSession[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
@@ -124,10 +135,16 @@ export default function AdminInventoryPage() {
   const [bulkStartingReview, setBulkStartingReview] = useState(false)
   const [bulkRejecting, setBulkRejecting] = useState(false)
 
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
+  const [utterancesMap, setUtterancesMap] = useState<Map<string, AdminUtterance[]>>(new Map())
+  const [utteranceSelectedMap, setUtteranceSelectedMap] = useState<Map<string, Set<string>>>(new Map())
+  const [updatingId, setUpdatingId] = useState<string | null>(null)
+
   const loadStats = useCallback(async () => {
     setStatsLoading(true)
-    const res = await fetchDashboardStats()
+    const [res, uttRes] = await Promise.all([fetchDashboardStats(), fetchUtteranceStats()])
     if (res.data) setStats(res.data)
+    if (uttRes.data) setUttStats(uttRes.data)
     setStatsLoading(false)
   }, [])
 
@@ -320,6 +337,72 @@ export default function AdminInventoryPage() {
     setBulkRejecting(false)
   }
 
+  async function handleExpandRow(sessionId: string) {
+    if (expandedRows.has(sessionId)) {
+      setExpandedRows((prev) => {
+        const next = new Set(prev)
+        next.delete(sessionId)
+        return next
+      })
+      return
+    }
+    setExpandedRows((prev) => new Set(prev).add(sessionId))
+    if (!utterancesMap.has(sessionId)) {
+      const res = await fetchUtterances({ sessionId, limit: 200 })
+      if (res.data) {
+        setUtterancesMap((prev) => new Map(prev).set(sessionId, res.data!.utterances))
+      }
+    }
+  }
+
+  function handleToggleUtterance(sessionId: string, utteranceId: string) {
+    setUtteranceSelectedMap((prev) => {
+      const set = new Set(prev.get(sessionId) ?? [])
+      if (set.has(utteranceId)) set.delete(utteranceId)
+      else set.add(utteranceId)
+      return new Map(prev).set(sessionId, set)
+    })
+  }
+
+  function handleSelectAllUtterances(sessionId: string) {
+    const utts = utterancesMap.get(sessionId) ?? []
+    const includable = utts.filter((u) => u.review_status !== 'excluded')
+    const selected = utteranceSelectedMap.get(sessionId) ?? new Set<string>()
+    const allSelected = includable.length > 0 && selected.size === includable.length
+    setUtteranceSelectedMap((prev) => {
+      const next = new Map(prev)
+      next.set(sessionId, allSelected ? new Set() : new Set(includable.map((u) => u.id)))
+      return next
+    })
+  }
+
+  async function handleToggleReview(sessionId: string, u: AdminUtterance) {
+    setUpdatingId(u.id)
+    const isIncluded = u.review_status === 'excluded'
+    const newStatus: AdminUtterance['review_status'] = isIncluded ? 'pending' : 'excluded'
+    const res = await updateUtteranceReviewStatus(u.id, isIncluded)
+    if (res.data) {
+      setUtterancesMap((prev) => {
+        const updated = (prev.get(sessionId) ?? []).map((existing) =>
+          existing.id === u.id ? { ...existing, review_status: newStatus } : existing
+        )
+        return new Map(prev).set(sessionId, updated)
+      })
+    } else {
+      toast.error(res.error ?? labels.error.saveFailed)
+    }
+    setUpdatingId(null)
+  }
+
+  function handleLabelSaved(sessionId: string, utteranceId: string, updatedFields: Partial<AdminUtterance>) {
+    setUtterancesMap((prev) => {
+      const updated = (prev.get(sessionId) ?? []).map((u) =>
+        u.id === utteranceId ? { ...u, ...updatedFields } : u
+      )
+      return new Map(prev).set(sessionId, updated)
+    })
+  }
+
   const chips = buildChips(stats)
   const totalPages = Math.ceil(total / SESSIONS_PER_PAGE)
   const r = stats?.review
@@ -360,6 +443,27 @@ export default function AdminInventoryPage() {
           sub={failedCount > 0 ? '즉시 확인 필요' : undefined}
           tone={failedCount > 0 ? 'danger' : undefined}
           onClick={failedCount > 0 ? () => setFilter('failed') : undefined}
+        />
+      </div>
+
+      {/* 발화 KPI 카드 */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <BigStat
+          title="총 발화"
+          value={statsLoading ? '…' : (uttStats?.total ?? 0).toLocaleString()}
+          sub={uttStats ? formatDuration(uttStats.totalDurationSec) : undefined}
+        />
+        <BigStat
+          title="정산 완료"
+          value={statsLoading ? '…' : (uttStats?.settledCount ?? 0).toLocaleString()}
+        />
+        <BigStat
+          title="납품 전"
+          value={statsLoading ? '…' : (uttStats?.unsettledCount ?? 0).toLocaleString()}
+        />
+        <BigStat
+          title="예상 매출"
+          value={statsLoading ? '…' : uttStats ? `₩${uttStats.estimatedRevenueKrw.toLocaleString()}` : '-'}
         />
       </div>
 
@@ -412,6 +516,7 @@ export default function AdminInventoryPage() {
                     aria-label="전체 선택"
                   />
                 </th>
+                <th className="px-2 py-3 w-6" />
                 <th className="px-4 py-3 font-medium">통화명</th>
                 <th className="px-4 py-3 font-medium w-24">길이</th>
                 <th className="px-4 py-3 font-medium w-44">처리 흐름</th>
@@ -427,7 +532,12 @@ export default function AdminInventoryPage() {
                   session={session}
                   selected={selectedIds.has(session.id)}
                   actionLoading={actionLoading.has(session.id)}
+                  expanded={expandedRows.has(session.id)}
+                  utterances={utterancesMap.get(session.id) ?? []}
+                  utteranceSelected={utteranceSelectedMap.get(session.id) ?? new Set()}
+                  updatingId={updatingId}
                   onToggle={() => toggleSelect(session.id)}
+                  onToggleExpand={() => handleExpandRow(session.id)}
                   onStartReview={() => handleStartReview(session.id)}
                   onApprove={() => handleApprove(session.id)}
                   onNeedsRevision={() => handleNeedsRevision(session.id)}
@@ -435,6 +545,10 @@ export default function AdminInventoryPage() {
                   onDeliver={() =>
                     setDeliveryTarget({ id: session.id, title: session.title ?? null })
                   }
+                  onToggleUtterance={(uid) => handleToggleUtterance(session.id, uid)}
+                  onSelectAllUtterances={() => handleSelectAllUtterances(session.id)}
+                  onToggleReview={(u) => handleToggleReview(session.id, u)}
+                  onLabelSaved={(uid, fields) => handleLabelSaved(session.id, uid, fields)}
                 />
               ))}
             </tbody>
@@ -515,24 +629,42 @@ interface SessionRowProps {
   session: AdminSession
   selected: boolean
   actionLoading: boolean
+  expanded: boolean
+  utterances: AdminUtterance[]
+  utteranceSelected: Set<string>
+  updatingId: string | null
   onToggle: () => void
+  onToggleExpand: () => void
   onStartReview: () => void
   onApprove: () => void
   onNeedsRevision: () => void
   onReject: () => void
   onDeliver: () => void
+  onToggleUtterance: (utteranceId: string) => void
+  onSelectAllUtterances: () => void
+  onToggleReview: (u: AdminUtterance) => void
+  onLabelSaved: (id: string, updatedFields: Partial<AdminUtterance>) => void
 }
 
 function SessionRow({
   session,
   selected,
   actionLoading,
+  expanded,
+  utterances,
+  utteranceSelected,
+  updatingId,
   onToggle,
+  onToggleExpand,
   onStartReview,
   onApprove,
   onNeedsRevision,
   onReject,
   onDeliver,
+  onToggleUtterance,
+  onSelectAllUtterances,
+  onToggleReview,
+  onLabelSaved,
 }: SessionRowProps) {
   const piiFlag = session.pii_flag ?? false
   const piiCount = session.pii_count ?? 0
@@ -543,57 +675,93 @@ function SessionRow({
     : ''
 
   return (
-    <tr className={`hover:bg-surface-alt transition-colors ${rowBg}`}>
-      <td className="px-3 py-3">
-        <input
-          type="checkbox"
-          checked={selected}
-          onChange={onToggle}
-          className="accent-accent"
-          aria-label={`선택: ${session.title ?? session.id}`}
-        />
-      </td>
-      <td className="px-4 py-3">
-        <div className="font-medium text-txt truncate max-w-[200px]">
-          {session.title ?? `통화 ${session.id.slice(-6)}`}
-        </div>
-        <div className="text-xs text-txt-tertiary">
-          {new Date(session.date).toLocaleDateString('ko-KR')}
-        </div>
-      </td>
-      <td className="px-4 py-3 text-txt-sub tabular-nums">
-        {formatDuration(session.duration_seconds)}
-      </td>
-      <td className="px-4 py-3">
-        <SessionPipelineCells session={session} />
-      </td>
-      <td className="px-4 py-3">
-        <QualityBadge grade={session.quality_grade_min} />
-      </td>
-      <td className="px-4 py-3">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <StatusBadge kind="review" value={session.review_status} />
-          {piiFlag && (
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 border border-red-200 dark:border-red-800">
-              ⚠ PII {piiCount}건
-            </span>
-          )}
-        </div>
-      </td>
-      <td className="px-4 py-3 text-right">
-        <RowActions
-          pipelineState={getPipelineState(session)}
-          reviewStatus={session.review_status}
-          isReady={isPipelineComplete(session)}
-          loading={actionLoading}
-          onStartReview={onStartReview}
-          onApprove={onApprove}
-          onNeedsRevision={onNeedsRevision}
-          onReject={onReject}
-          onDeliver={onDeliver}
-        />
-      </td>
-    </tr>
+    <>
+      <tr className={`hover:bg-surface-alt transition-colors ${rowBg}`}>
+        <td className="px-3 py-3">
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={onToggle}
+            className="accent-accent"
+            aria-label={`선택: ${session.title ?? session.id}`}
+          />
+        </td>
+        <td className="px-2 py-3 text-center">
+          <button
+            type="button"
+            onClick={onToggleExpand}
+            className="text-txt-sub hover:text-txt transition-colors focus:outline-none"
+            aria-label={expanded ? '접기' : '펼치기'}
+          >
+            <svg
+              className={`w-4 h-4 transition-transform ${expanded ? 'rotate-90' : ''}`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </td>
+        <td className="px-4 py-3">
+          <div className="font-medium text-txt truncate max-w-[200px]">
+            {session.title ?? `통화 ${session.id.slice(-6)}`}
+          </div>
+          <div className="text-xs text-txt-tertiary">
+            {new Date(session.date).toLocaleDateString('ko-KR')}
+          </div>
+        </td>
+        <td className="px-4 py-3 text-txt-sub tabular-nums">
+          {formatDuration(session.duration_seconds)}
+        </td>
+        <td className="px-4 py-3">
+          <SessionPipelineCells session={session} />
+        </td>
+        <td className="px-4 py-3">
+          <QualityBadge grade={session.quality_grade_min} />
+        </td>
+        <td className="px-4 py-3">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <StatusBadge kind="review" value={session.review_status} />
+            {piiFlag && (
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 border border-red-200 dark:border-red-800">
+                ⚠ PII {piiCount}건
+              </span>
+            )}
+          </div>
+        </td>
+        <td className="px-4 py-3 text-right">
+          <RowActions
+            pipelineState={getPipelineState(session)}
+            reviewStatus={session.review_status}
+            isReady={isPipelineComplete(session)}
+            loading={actionLoading}
+            onStartReview={onStartReview}
+            onApprove={onApprove}
+            onNeedsRevision={onNeedsRevision}
+            onReject={onReject}
+            onDeliver={onDeliver}
+          />
+        </td>
+      </tr>
+      {expanded && (
+        <tr>
+          <td colSpan={8} className="p-0">
+            <UtteranceExpansion
+              session={session}
+              utterances={utterances}
+              selectedSet={utteranceSelected}
+              updatingId={updatingId}
+              onToggleUtterance={onToggleUtterance}
+              onSelectAll={onSelectAllUtterances}
+              onToggleReview={onToggleReview}
+              onLabelSaved={onLabelSaved}
+            />
+          </td>
+        </tr>
+      )}
+    </>
   )
 }
 
