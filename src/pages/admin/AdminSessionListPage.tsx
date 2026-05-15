@@ -695,6 +695,18 @@ export default function AdminSessionListPage() {
             </span>
           </div>
 
+          {/* 컬럼 헤더 */}
+          <div className="flex items-center border-b text-xs" style={{ backgroundColor: 'var(--color-surface-alt)', borderColor: 'var(--color-border-light)', color: 'var(--color-text-tertiary)' }}>
+            <div className="flex-shrink-0 w-9" />
+            <div className="flex-1 min-w-0 py-1.5 pr-2">파일명(가명처리)</div>
+            <div className="w-16 flex-shrink-0 py-1.5 text-right pr-3">길이</div>
+            <div className="w-24 flex-shrink-0 py-1.5 text-center">날짜</div>
+            <div className="w-36 flex-shrink-0 py-1.5 text-center">처리흐름</div>
+            <div className="w-20 flex-shrink-0 py-1.5 text-center">검수결과</div>
+            <div className="w-14 flex-shrink-0 py-1.5 text-center">품질등급</div>
+            <div className="w-12 flex-shrink-0 py-1.5 text-center">풀패키지</div>
+          </div>
+
           {/* 세션 목록 */}
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             {sessions.map(session => (

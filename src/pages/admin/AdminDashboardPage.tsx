@@ -12,7 +12,6 @@ import {
   Input,
   Select,
   Skeleton,
-  Badge,
   Button,
   StatusBadge,
   useToast,
@@ -20,7 +19,7 @@ import {
   type SelectOption,
 } from '../../components/ui'
 import { labels } from '../../lib/labels'
-import { fetchDashboardStats, type DashboardStats, type PipelineDistribution } from '../../lib/api/dashboard'
+import { fetchDashboardStats, type DashboardStats } from '../../lib/api/dashboard'
 import { fetchGpuWorkerStatusApi, type WorkerStatus } from '../../lib/api/gpuWorker'
 import {
   fetchReviewQueue,
@@ -37,11 +36,10 @@ import {
   isPipelineComplete,
 } from '../../types/adminSession'
 
-type TabId = 'consent' | 'pipeline' | 'review' | 'delivery' | 'alerts'
+type TabId = 'consent' | 'review' | 'delivery' | 'alerts'
 
 const TABS: Array<{ id: TabId; label: string }> = [
   { id: 'consent', label: labels.consent.both_agreed },
-  { id: 'pipeline', label: labels.noun.pipeline },
   { id: 'review', label: labels.noun.review },
   { id: 'delivery', label: labels.noun.delivery },
   { id: 'alerts', label: '이상 신호' },
@@ -110,7 +108,6 @@ export default function AdminDashboardPage() {
       ) : (
         <>
           {tab === 'consent' && stats && <ConsentTab stats={stats} onNavigate={navigate} />}
-          {tab === 'pipeline' && stats && <PipelineTab stats={stats} onNavigate={navigate} />}
           {tab === 'review' && stats && <ReviewTab stats={stats} onNavigate={navigate} />}
           {tab === 'delivery' && stats && <DeliveryTab stats={stats} onNavigate={navigate} />}
           {tab === 'alerts' && stats && <AlertsTab stats={stats} onNavigate={navigate} />}
@@ -122,6 +119,15 @@ export default function AdminDashboardPage() {
 
 // ── Tab: Consent ────────────────────────────────────────────────────────
 function ConsentTab({ stats, onNavigate }: { stats: DashboardStats; onNavigate: (p: string) => void }) {
+  const [bottleneckCount, setBottleneckCount] = useState<number | null>(null)
+
+  const totalRunning =
+    stats.pipeline.upload.running +
+    stats.pipeline.stt.running +
+    stats.pipeline.diarize.running +
+    stats.pipeline.pii.running +
+    stats.pipeline.quality.running
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -131,54 +137,21 @@ function ConsentTab({ stats, onNavigate }: { stats: DashboardStats; onNavigate: 
           sub={`최근 24시간 +${stats.consent.bothAgreed24h.toLocaleString('ko-KR')}건`}
         />
         <BigStat
-          title="누적 통화시간"
-          value={formatHours(stats.consent.totalDurationSec)}
-          sub="양측 동의 합산"
+          title="처리 중 (전 단계)"
+          value={totalRunning.toLocaleString('ko-KR')}
+          sub={bottleneckCount !== null && bottleneckCount > 0 ? `병목 ${bottleneckCount}건 감지` : '정상 처리 중'}
+          tone={bottleneckCount !== null && bottleneckCount > 0 ? 'warning' : undefined}
         />
         <BigStat
           title="검수 대기"
           value={stats.review.pending.toLocaleString('ko-KR')}
-          sub="처리 흐름 완료 후 검수 시작"
+          sub="처리 흐름 통과 후 검수 시작"
           onClick={() => onNavigate('/admin/utterances?session_review=pending')}
         />
       </div>
-      <InlineCallList />
-    </div>
-  )
-}
-
-// ── Tab: Pipeline ───────────────────────────────────────────────────────
-function PipelineTab({ stats, onNavigate }: { stats: DashboardStats; onNavigate: (p: string) => void }) {
-  const stages = [
-    { key: 'upload' as const, label: labels.pipeline.upload },
-    { key: 'stt' as const, label: labels.pipeline.stt },
-    { key: 'diarize' as const, label: labels.pipeline.diarize },
-    { key: 'pii' as const, label: labels.pipeline.pii },
-    { key: 'quality' as const, label: labels.pipeline.quality },
-  ]
-
-  // 파이프라인 전체에서 처리 중인 단계가 하나도 없는데 대기가 있으면 지연
-  const anyRunning = stages.some((s) => stats.pipeline[s.key].running > 0)
-  const anyPending = stages.some((s) => stats.pipeline[s.key].pending > 0)
-  const stallDetected = anyPending && !anyRunning
-
-  return (
-    <div className="space-y-4">
-      {stallDetected && (
-        <div className="flex items-start gap-2 rounded-lg border border-danger bg-danger-dim px-4 py-3 text-sm text-danger">
-          <span className="material-icons text-base leading-5">warning</span>
-          <span>
-            <strong>워커 지연 감지</strong> — 대기 중인 세션이 있지만 처리 중인 세션이 없습니다.
-            GPU 워커가 중단되었거나 Voice API에 연결하지 못하고 있을 수 있습니다.
-          </span>
-        </div>
-      )}
+      <StageLoadPanel stats={stats} />
       <WorkerStatusCard />
-      <div className="space-y-3">
-        {stages.map((s) => (
-          <PipelineRow key={s.key} label={s.label} dist={stats.pipeline[s.key]} onClick={() => onNavigate('/admin/sessions')} />
-        ))}
-      </div>
+      <InlineCallList onBottleneckChange={setBottleneckCount} />
     </div>
   )
 }
@@ -288,60 +261,61 @@ function WorkerStat({ label, value, tone }: { label: string; value: number; tone
   )
 }
 
-function PipelineRow({
-  label,
-  dist,
-  onClick,
-}: {
-  label: string
-  dist: PipelineDistribution
-  onClick?: () => void
-}) {
-  // total includes noAudio so the denominator reflects all both_agreed sessions
-  const total = dist.pending + dist.running + dist.done + dist.failed + (dist.noAudio ?? 0)
-  const donePct = total > 0 ? Math.round((dist.done / total) * 100) : 0
+
+// ── StageLoadPanel — 단계별 현재 적재 현황 ──────────────────────────────
+function StageLoadPanel({ stats }: { stats: DashboardStats }) {
+  const stages: Array<{ label: string; key: keyof DashboardStats['pipeline'] }> = [
+    { label: '업로드', key: 'upload' },
+    { label: 'STT', key: 'stt' },
+    { label: '화자분리', key: 'diarize' },
+    { label: 'PII', key: 'pii' },
+    { label: '품질검증', key: 'quality' },
+  ]
+  const doneCount = stats.pipeline.quality.done
+
   return (
-    <Card padding="sm">
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between gap-2">
-            <span className="font-medium text-txt">{label}</span>
-            <span className="text-xs text-txt-sub tabular-nums">
-              {dist.done.toLocaleString('ko-KR')}/{total.toLocaleString('ko-KR')} ({donePct}%)
-            </span>
-          </div>
-          <div className="mt-2 h-2 bg-muted rounded-full overflow-hidden flex">
-            {bar(dist.done, total, 'bg-success')}
-            {bar(dist.running, total, 'bg-accent')}
-            {bar(dist.pending, total, 'bg-border')}
-            {bar(dist.failed, total, 'bg-danger')}
-          </div>
-          <div className="mt-2 flex items-center flex-wrap gap-2 text-xs text-txt-sub">
-            <Badge tone="success" size="sm">{labels.status.done} {dist.done}</Badge>
-            <Badge tone="accent" size="sm">{labels.status.running} {dist.running}</Badge>
-            {dist.pending > 0 && <Badge tone="neutral" size="sm">대기 중 {dist.pending}</Badge>}
-            {dist.failed > 0 && <Badge tone="danger" size="sm">{labels.status.failed} {dist.failed}</Badge>}
-            {dist.noAudio > 0 && (
-              <Badge tone="warning" size="sm" title="오디오 미업로드 — GPU 워커가 처리할 수 없음">
-                오디오 없음 {dist.noAudio}
-              </Badge>
-            )}
+    <div className="bg-surface border border-border rounded-xl p-4">
+      <div className="text-xs font-medium text-txt-sub mb-3">단계별 현재 적재</div>
+      <div className="flex items-center gap-1 overflow-x-auto">
+        {stages.map((stage, idx) => {
+          const dist = stats.pipeline[stage.key]
+          const hasRunning = dist.running > 0
+          const hasFailed = dist.failed > 0
+          const runningClass = hasFailed
+            ? 'text-danger font-bold'
+            : hasRunning
+            ? 'text-warning font-bold'
+            : 'text-txt-tertiary'
+          return (
+            <div key={stage.key} className="flex items-center gap-1">
+              <div className="text-center min-w-[60px]">
+                <div className="text-[10px] text-txt-sub truncate">{stage.label}</div>
+                <div className={`text-sm tabular-nums ${runningClass}`}>
+                  {dist.running > 0 ? dist.running.toLocaleString('ko-KR') : '—'}
+                </div>
+                {dist.pending > 0 && (
+                  <div className="text-[9px] text-txt-tertiary tabular-nums">대기 {dist.pending}</div>
+                )}
+                {dist.failed > 0 && (
+                  <div className="text-[9px] text-danger tabular-nums">실패 {dist.failed}</div>
+                )}
+              </div>
+              {idx < stages.length - 1 && (
+                <span className="text-txt-tertiary text-xs flex-shrink-0">→</span>
+              )}
+            </div>
+          )
+        })}
+        <span className="text-txt-tertiary text-xs flex-shrink-0 mx-1">→</span>
+        <div className="text-center min-w-[48px]">
+          <div className="text-[10px] text-txt-sub">완료</div>
+          <div className="text-sm text-success font-bold tabular-nums">
+            {doneCount > 0 ? doneCount.toLocaleString('ko-KR') : '—'}
           </div>
         </div>
-        {onClick && (
-          <Button size="sm" variant="ghost" onClick={onClick} aria-label="자세히">
-            →
-          </Button>
-        )}
       </div>
-    </Card>
+    </div>
   )
-}
-
-function bar(value: number, total: number, cls: string) {
-  if (total === 0 || value === 0) return null
-  const pct = (value / total) * 100
-  return <div className={cls} style={{ width: `${pct}%` }} aria-hidden="true" />
 }
 
 // ── Tab: Review ─────────────────────────────────────────────────────────
@@ -455,10 +429,13 @@ function AlertsTab({ stats, onNavigate }: { stats: DashboardStats; onNavigate: (
 }
 
 // ── InlineCallList ──────────────────────────────────────────────────────
-function InlineCallList() {
+type CallListFilter = '전체' | '완료' | '처리중' | '병목'
+
+function InlineCallList({ onBottleneckChange }: { onBottleneckChange?: (count: number) => void }) {
   const [data, setData] = useState<ReviewQueueResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [filter, setFilter] = useState<CallListFilter>('전체')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -471,59 +448,128 @@ function InlineCallList() {
 
   useEffect(() => { load() }, [load])
 
-  const columns: ColumnDef<AdminSession>[] = useMemo(() => [
-    {
-      key: 'title',
-      header: '통화',
-      render: (s) => (
-        <div>
-          <div className="font-medium text-txt">{s.title || '(제목 없음)'}</div>
-          <div className="text-xs text-txt-tertiary">{s.id.slice(0, 8)}…</div>
-        </div>
-      ),
-    },
-    {
-      key: 'duration',
-      header: '길이',
-      render: (s) => inlineFmtDuration(s.duration_seconds),
-      width: '90px',
-    },
-    {
-      key: 'date',
-      header: '날짜',
-      render: (s) => new Date(s.date).toLocaleDateString('ko-KR'),
-      width: '100px',
-    },
-    {
-      key: 'pipeline',
-      header: '처리 흐름',
-      render: (s) => <InlinePipelineCells session={s} />,
-    },
-    {
-      key: 'review',
-      header: '검수',
-      render: (s) => <StatusBadge kind="review" value={s.review_status ?? 'pending'} />,
-      width: '110px',
-    },
-  ], [])
+  const allSessions = data?.sessions ?? []
+
+  const bottleneckSessions = useMemo(
+    () => allSessions.filter((s) => isBottleneck(s)),
+    [allSessions],
+  )
+  const processingSessions = useMemo(
+    () => allSessions.filter((s) => !isPipelineComplete(s) && !isBottleneck(s)),
+    [allSessions],
+  )
+  const doneSessions = useMemo(
+    () => allSessions.filter((s) => isPipelineComplete(s)),
+    [allSessions],
+  )
+
+  useEffect(() => {
+    onBottleneckChange?.(bottleneckSessions.length)
+  }, [bottleneckSessions.length, onBottleneckChange])
+
+  const displayedSessions = useMemo(() => {
+    let base: AdminSession[]
+    switch (filter) {
+      case '완료': base = doneSessions; break
+      case '처리중': base = processingSessions; break
+      case '병목': base = bottleneckSessions; break
+      default: base = allSessions
+    }
+    return [...base].sort((a, b) => {
+      const ea = getStageElapsedSec(a) ?? 0
+      const eb = getStageElapsedSec(b) ?? 0
+      return eb - ea
+    })
+  }, [filter, allSessions, doneSessions, processingSessions, bottleneckSessions])
 
   if (error) return <ErrorBanner message={error} onRetry={load} />
 
+  const filterChips: Array<{ id: CallListFilter; label: string; count: number }> = [
+    { id: '전체', label: '전체', count: allSessions.length },
+    { id: '완료', label: '완료', count: doneSessions.length },
+    { id: '처리중', label: '처리중', count: processingSessions.length },
+    { id: '병목', label: '병목', count: bottleneckSessions.length },
+  ]
+
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <span className="text-sm font-medium text-txt">양측 동의 통화 목록</span>
-        {data && <span className="text-xs text-txt-sub">{data.total.toLocaleString('ko-KR')}건</span>}
+        <div className="flex items-center gap-1.5">
+          {filterChips.map((chip) => {
+            const active = filter === chip.id
+            const isDanger = chip.id === '병목' && chip.count > 0
+            return (
+              <button
+                key={chip.id}
+                onClick={() => setFilter(chip.id)}
+                className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${
+                  active
+                    ? isDanger
+                      ? 'bg-danger text-white border-danger'
+                      : 'bg-accent text-white border-accent'
+                    : isDanger
+                    ? 'border-danger text-danger hover:bg-danger/10'
+                    : 'border-border text-txt-sub hover:text-txt hover:bg-surface-alt'
+                }`}
+              >
+                {chip.label} {chip.count > 0 && <span className="tabular-nums">{chip.count}</span>}
+              </button>
+            )
+          })}
+        </div>
       </div>
-      <DataTable<AdminSession>
-        data={data?.sessions ?? null}
-        columns={columns}
-        rowKey={(s) => s.id}
-        loading={loading}
-        error={null}
-        emptyTitle="양측 동의 통화 없음"
-        emptyHint="양측 동의가 완료된 통화가 없습니다."
-      />
+
+      {loading && allSessions.length === 0 ? (
+        <div className="space-y-2">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-12 bg-surface-alt rounded-lg animate-pulse" />
+          ))}
+        </div>
+      ) : displayedSessions.length === 0 ? (
+        <div className="text-center py-8 text-sm text-txt-sub">
+          {filter === '병목' ? '병목 통화 없음 — 모두 정상 처리 중' : '표시할 통화 없음'}
+        </div>
+      ) : (
+        <div className="border border-border rounded-xl overflow-hidden">
+          {/* 헤더 */}
+          <div className="grid grid-cols-[1fr_80px_90px_200px_100px] gap-3 px-4 py-2 bg-surface-alt border-b border-border text-[10px] font-medium text-txt-tertiary uppercase tracking-wide">
+            <div>파일명(가명)</div>
+            <div>길이</div>
+            <div>날짜</div>
+            <div>처리 흐름</div>
+            <div>검수</div>
+          </div>
+          {/* 행 */}
+          <div className="divide-y divide-border-light">
+            {displayedSessions.map((s) => {
+              const bottleneck = isBottleneck(s)
+              return (
+                <div
+                  key={s.id}
+                  className={`grid grid-cols-[1fr_80px_90px_200px_100px] gap-3 px-4 py-2.5 items-center text-sm ${
+                    bottleneck
+                      ? 'bg-danger/10 hover:bg-danger/15'
+                      : 'hover:bg-surface-alt'
+                  } transition-colors`}
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      {bottleneck && <span className="text-danger flex-shrink-0" title="30분 초과 병목">⚠</span>}
+                      <span className="font-medium text-txt truncate">{s.title || '(제목 없음)'}</span>
+                    </div>
+                    <div className="text-xs text-txt-tertiary">{s.id.slice(0, 8)}…</div>
+                  </div>
+                  <div className="text-txt-sub tabular-nums">{inlineFmtDuration(s.duration_seconds)}</div>
+                  <div className="text-txt-sub">{new Date(s.date).toLocaleDateString('ko-KR')}</div>
+                  <div><PipelineDotsRow session={s} /></div>
+                  <div><StatusBadge kind="review" value={s.review_status ?? 'pending'} /></div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -850,6 +896,50 @@ function InlinePipelineCells({ session }: { session: AdminSession }) {
   )
 }
 
+// ── PipelineDotsRow — 5-dot pipeline indicator with elapsed time ─────────
+function PipelineDotsRow({ session }: { session: AdminSession }) {
+  const steps: Array<{ key: string; status?: string; label: string }> = [
+    { key: 'upload', status: session.upload_status, label: '업로드' },
+    { key: 'stt', status: session.stt_status, label: 'STT' },
+    { key: 'diarize', status: session.diarize_status, label: '화자분리' },
+    { key: 'pii', status: session.pii_status, label: 'PII' },
+    { key: 'quality', status: session.quality_status, label: '품질검증' },
+  ]
+
+  const runningStep = getRunningStep(session)
+  const elapsed = getStageElapsedSec(session)
+  const bottleneck = isBottleneck(session)
+  const complete = isPipelineComplete(session)
+
+  return (
+    <div className="flex items-center gap-1.5 flex-wrap">
+      {steps.map((step) => {
+        const isRunning = step.status === 'running'
+        const isOverSLA = isRunning && bottleneck
+        let dotClass: string
+        if (step.status === 'done') dotClass = 'bg-success'
+        else if (isOverSLA || step.status === 'failed') dotClass = 'bg-danger animate-pulse'
+        else if (isRunning) dotClass = 'bg-accent animate-pulse'
+        else dotClass = 'bg-transparent border border-border'
+        return (
+          <div
+            key={step.key}
+            title={`${step.label} — ${step.status ?? 'pending'}`}
+            className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${dotClass}`}
+          />
+        )
+      })}
+      {complete ? (
+        <span className="ml-1 text-xs text-success">완료</span>
+      ) : runningStep && elapsed !== null ? (
+        <span className={`ml-1 text-xs ${bottleneck ? 'text-danger font-medium' : 'text-txt-sub'}`}>
+          {runningStep} {formatElapsedMin(elapsed)}
+        </span>
+      ) : null}
+    </div>
+  )
+}
+
 function inlineDotClass(status: string | undefined): string {
   switch (status) {
     case 'done': return 'bg-success'
@@ -909,13 +999,16 @@ function BigStat({
   value,
   sub,
   onClick,
+  tone,
 }: {
   title: string
   value: string
   sub?: string
   onClick?: () => void
+  tone?: 'warning' | 'danger'
 }) {
   const Wrapper = onClick ? 'button' : 'div'
+  const valueClass = tone === 'danger' ? 'text-danger' : tone === 'warning' ? 'text-warning' : 'text-txt'
   return (
     <Wrapper
       onClick={onClick}
@@ -926,7 +1019,7 @@ function BigStat({
       }`}
     >
       <div className="text-sm text-txt-sub">{title}</div>
-      <div className="mt-2 text-3xl font-bold text-txt tabular-nums">{value}</div>
+      <div className={`mt-2 text-3xl font-bold ${valueClass} tabular-nums`}>{value}</div>
       {sub && <div className="mt-1 text-xs text-txt-tertiary">{sub}</div>}
     </Wrapper>
   )
@@ -950,11 +1043,39 @@ function DashboardSkeleton() {
   )
 }
 
-function formatHours(sec: number): string {
-  if (sec <= 0) return '0시간'
-  const h = sec / 3600
-  if (h >= 100) return `${Math.round(h).toLocaleString('ko-KR')}시간`
-  return `${h.toFixed(1)}시간`
+const BOTTLENECK_SLA_SECONDS = 30 * 60
+
+function getStageElapsedSec(session: AdminSession): number | null {
+  const now = Date.now()
+  let start: string | null | undefined
+  if (session.upload_status === 'running') start = session.created_at
+  else if (session.stt_status === 'running') start = session.uploaded_at
+  else if (session.diarize_status === 'running') start = session.stt_at
+  else if (session.pii_status === 'running') start = session.diarize_at
+  else if (session.quality_status === 'running') start = session.pii_at
+  if (!start) return null
+  return Math.floor((now - new Date(start).getTime()) / 1000)
+}
+
+function isBottleneck(session: AdminSession, slaSeconds = BOTTLENECK_SLA_SECONDS): boolean {
+  const elapsed = getStageElapsedSec(session)
+  return elapsed !== null && elapsed > slaSeconds
+}
+
+function formatElapsedMin(sec: number): string {
+  if (sec < 60) return `${sec}초`
+  const m = Math.floor(sec / 60)
+  if (m < 60) return `${m}분`
+  return `${Math.floor(m / 60)}시간 ${m % 60}분`
+}
+
+function getRunningStep(session: AdminSession): string | null {
+  if (session.upload_status === 'running') return '업로드'
+  if (session.stt_status === 'running') return 'STT'
+  if (session.diarize_status === 'running') return '화자분리'
+  if (session.pii_status === 'running') return 'PII'
+  if (session.quality_status === 'running') return '품질검증'
+  return null
 }
 
 // ── InlineDeliverableSessions — 검수 승인 통화 인라인 목록 (납품 탭 하위) ──

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { type Session } from '../../types/session'
-import { qualityGradeFromScore, isSessionPublic, LABEL_FIELDS, countFilledLabelFields, downloadWavFromStorage, downloadSessionPackage } from '../../lib/adminHelpers'
+import { qualityGradeFromScore, countFilledLabelFields, downloadSessionPackage } from '../../lib/adminHelpers'
 import { formatDuration } from '../../lib/earnings'
 import { maskSessionTitle } from '../../lib/displayMask'
 
@@ -9,6 +9,7 @@ type Props = {
   selected: boolean
   onToggle: (id: string) => void
   hasTranscript?: boolean
+  reviewStatus?: string
 }
 
 const GRADE_COLORS: Record<string, string> = {
@@ -17,22 +18,27 @@ const GRADE_COLORS: Record<string, string> = {
   C: 'var(--color-danger)',
 }
 
-export default function AdminSessionRow({ session, selected, onToggle, hasTranscript }: Props) {
+const REVIEW_LABELS: Record<string, string> = {
+  pending: '대기',
+  in_review: '검수 중',
+  approved: '승인',
+  rejected: '거절',
+  needs_revision: '수정 필요',
+}
+
+export default function AdminSessionRow({ session, selected, onToggle, hasTranscript, reviewStatus }: Props) {
   const grade = qualityGradeFromScore(session.qaScore ?? 0)
   const gradeColor = GRADE_COLORS[grade]
-  const filledCount = countFilledLabelFields(session.labels)
-  const isPublic = isSessionPublic(session)
-  const [downloading, setDownloading] = useState(false)
   const [packaging, setPackaging] = useState(false)
 
-  async function handleWavDownload(e: React.MouseEvent) {
-    e.stopPropagation()
-    if (!session.audioUrl || downloading) return
-    setDownloading(true)
-    const { error } = await downloadWavFromStorage(session.audioUrl, session.id)
-    if (error) alert(`다운로드 실패: ${error}`)
-    setDownloading(false)
-  }
+  const pipelineSteps = [
+    { title: '업로드',     done: !!session.audioUrl },
+    { title: '화자분리',   done: !!session.hasDiarization },
+    { title: 'STT',        done: !!hasTranscript },
+    { title: 'PII처리',    done: !!session.isPiiCleaned },
+    { title: '자동라벨링', done: countFilledLabelFields(session.labels) > 0 },
+    { title: '품질검증',   done: session.qaScore != null },
+  ]
 
   async function handlePackageDownload(e: React.MouseEvent) {
     e.stopPropagation()
@@ -44,116 +50,64 @@ export default function AdminSessionRow({ session, selected, onToggle, hasTransc
   }
 
   return (
-    <button
-      onClick={() => onToggle(session.id)}
-      className={`w-full flex items-center gap-3 px-4 py-3 border-b border-border-light transition-colors ${
+    <div
+      className={`w-full flex items-center border-b border-border-light transition-colors text-sm ${
         selected ? 'bg-accent-dim' : 'bg-transparent hover:bg-surface-alt'
       }`}
     >
       {/* 체크박스 */}
       <div
-        className={`w-5 h-5 rounded flex-shrink-0 flex items-center justify-center border ${
-          selected ? 'bg-accent border-accent' : 'bg-transparent border-border'
-        }`}
+        onClick={() => onToggle(session.id)}
+        className="flex-shrink-0 w-9 flex items-center justify-center py-2.5 cursor-pointer"
       >
-        {selected && (
-          <span className="material-symbols-outlined text-on-accent text-sm">check</span>
-        )}
-      </div>
-
-      {/* 본문 */}
-      <div className="flex-1 min-w-0 text-left">
-        <p className="text-sm text-txt truncate">{maskSessionTitle(session.title)}</p>
-        <div className="flex items-center gap-2 mt-0.5">
-          <span className="text-xs text-txt-tertiary">
-            {session.date}
-          </span>
-          <span className="text-xs text-txt-tertiary">
-            {formatDuration(session.duration)}
-          </span>
-          <span className="text-xs px-1.5 py-0.5 rounded bg-surface-alt text-txt-sub">
-            {session.labels?.domain ?? '미지정'}
-          </span>
-        </div>
-      </div>
-
-      {/* 우측 배지 */}
-      <div className="flex items-center gap-2 flex-shrink-0">
-        <span
-          className={`material-symbols-outlined text-base ${
-            isPublic ? 'text-success' : 'text-txt-tertiary'
+        <div
+          className={`w-4 h-4 rounded flex items-center justify-center border ${
+            selected ? 'bg-accent border-accent' : 'bg-transparent border-border'
           }`}
-          title={isPublic ? '공개' : '비공개'}
         >
-          {isPublic ? 'visibility' : 'visibility_off'}
-        </span>
-        <div className="flex items-center gap-0.5" title={`라벨: ${filledCount}/5`}>
-          {LABEL_FIELDS.map(f => (
-            <div
-              key={f.key}
-              className={`w-1.5 h-1.5 rounded-full ${
-                session.labels?.[f.key] != null ? 'bg-success' : 'bg-border'
-              }`}
-              title={`${f.labelKo}: ${session.labels?.[f.key] ?? '미입력'}`}
-            />
-          ))}
+          {selected && (
+            <span className="material-symbols-outlined text-on-accent" style={{ fontSize: '12px' }}>check</span>
+          )}
         </div>
-        {session.audioUrl && (
-          <span
-            className="material-symbols-outlined text-base text-accent"
-            title="비식별화 완료 (WAV 업로드됨)"
-          >
-            shield
-          </span>
-        )}
-        {session.hasDiarization && (
-          <span
-            className="material-symbols-outlined text-base text-accent"
-            title="화자분리 완료"
-          >
-            record_voice_over
-          </span>
-        )}
-        {hasTranscript && (
-          <span
-            className="material-symbols-outlined text-base text-success"
-            title="STT 자막 있음"
-          >
-            subtitles
-          </span>
-        )}
-        {session.audioUrl && (
-          <button
-            onClick={handleWavDownload}
-            title="WAV 다운로드 (raw 오디오)"
-            className={`flex items-center justify-center w-6 h-6 rounded ${
-              downloading ? 'text-txt-tertiary' : 'text-accent'
+      </div>
+
+      {/* 파일명(가명처리) */}
+      <div className="flex-1 min-w-0 py-2.5 pr-2 truncate text-txt">
+        {maskSessionTitle(session.title)}
+      </div>
+
+      {/* 길이 */}
+      <div className="w-16 flex-shrink-0 py-2.5 text-xs text-txt-sub text-right pr-3">
+        {formatDuration(session.duration)}
+      </div>
+
+      {/* 날짜 */}
+      <div className="w-24 flex-shrink-0 py-2.5 text-xs text-txt-sub text-center">
+        {session.date}
+      </div>
+
+      {/* 처리흐름 */}
+      <div className="w-36 flex-shrink-0 py-2.5 flex items-center gap-1.5 justify-center">
+        {pipelineSteps.map((step) => (
+          <div
+            key={step.title}
+            title={`${step.title}: ${step.done ? '완료' : '미처리'}`}
+            className={`w-3 h-3 rounded-full flex-shrink-0 ${
+              step.done ? 'bg-success' : 'bg-border'
             }`}
-          >
-            <span className="material-symbols-outlined text-base">
-              {downloading ? 'hourglass_empty' : 'download'}
-            </span>
-          </button>
-        )}
-        <button
-          onClick={handlePackageDownload}
-          title="풀패키지 다운로드 (raw + 발화 WAV + 전사 + 메타 zip)"
-          className={`flex items-center justify-center w-6 h-6 rounded ${
-            packaging ? 'text-txt-tertiary' : 'text-accent'
-          }`}
-        >
-          <span className="material-symbols-outlined text-base">
-            {packaging ? 'hourglass_empty' : 'folder_zip'}
-          </span>
-        </button>
-        {session.isPiiCleaned && (
-          <span
-            className="material-symbols-outlined text-base text-accent"
-            title="PII 처리 완료"
-          >
-            verified_user
-          </span>
-        )}
+          />
+        ))}
+      </div>
+
+      {/* 검수결과 */}
+      <div className="w-20 flex-shrink-0 py-2.5 text-center">
+        <span className="text-xs text-txt-sub">
+          {reviewStatus ? (REVIEW_LABELS[reviewStatus] ?? reviewStatus) : '—'}
+        </span>
+      </div>
+
+      {/* 품질등급 */}
+      <div className="w-14 flex-shrink-0 py-2.5 flex items-center justify-center">
         <span
           className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold"
           style={{ backgroundColor: `${gradeColor}20`, color: gradeColor }}
@@ -161,6 +115,21 @@ export default function AdminSessionRow({ session, selected, onToggle, hasTransc
           {grade}
         </span>
       </div>
-    </button>
+
+      {/* 풀패키지 다운로드 */}
+      <div className="w-12 flex-shrink-0 py-2.5 flex items-center justify-center">
+        <button
+          onClick={handlePackageDownload}
+          title="풀패키지 다운로드 (raw + 발화 WAV + 전사 + 메타 zip)"
+          className={`flex items-center justify-center w-7 h-7 rounded hover:bg-surface-alt ${
+            packaging ? 'text-txt-tertiary' : 'text-accent'
+          }`}
+        >
+          <span className="material-symbols-outlined text-base">
+            {packaging ? 'hourglass_empty' : 'folder_zip'}
+          </span>
+        </button>
+      </div>
+    </div>
   )
 }
