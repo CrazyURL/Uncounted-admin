@@ -455,7 +455,7 @@ function InlineCallList({ onBottleneckChange }: { onBottleneckChange?: (count: n
     [allSessions],
   )
   const processingSessions = useMemo(
-    () => allSessions.filter((s) => !isPipelineComplete(s) && !isBottleneck(s)),
+    () => allSessions.filter((s) => !isPipelineComplete(s) && !isBottleneck(s) && firstFailedStep(s) === null),
     [allSessions],
   )
   const doneSessions = useMemo(
@@ -494,7 +494,17 @@ function InlineCallList({ onBottleneckChange }: { onBottleneckChange?: (count: n
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <span className="text-sm font-medium text-txt">양측 동의 통화 목록</span>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-txt">양측 동의 통화 목록</span>
+          <button
+            onClick={load}
+            disabled={loading}
+            className="text-xs text-txt-sub hover:text-txt disabled:opacity-40 transition-colors"
+            title="새로고침"
+          >
+            ↻
+          </button>
+        </div>
         <div className="flex items-center gap-1.5">
           {filterChips.map((chip) => {
             const active = filter === chip.id
