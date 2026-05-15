@@ -140,6 +140,18 @@ export default function AdminInventoryPage() {
   const [utteranceSelectedMap, setUtteranceSelectedMap] = useState<Map<string, Set<string>>>(new Map())
   const [updatingId, setUpdatingId] = useState<string | null>(null)
 
+  const [sortBy, setSortBy] = useState<'date' | 'duration' | null>(null)
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+
+  function handleSortClick(col: 'date' | 'duration') {
+    if (sortBy === col) {
+      setSortDir(prev => prev === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortBy(col)
+      setSortDir('asc')
+    }
+  }
+
   const loadStats = useCallback(async () => {
     setStatsLoading(true)
     const [res, uttRes] = await Promise.all([fetchDashboardStats(), fetchUtteranceStats()])
@@ -151,7 +163,9 @@ export default function AdminInventoryPage() {
   const loadSessions = useCallback(async () => {
     setLoading(true)
     setError(null)
-    const res = await fetchReviewQueue(buildFilters(filterId, page))
+    const filters = buildFilters(filterId, page)
+    if (sortBy) { filters.sortBy = sortBy; filters.sortDir = sortDir }
+    const res = await fetchReviewQueue(filters)
     if (res.data) {
       setSessions(res.data.sessions)
       setTotal(res.data.total)
@@ -159,7 +173,7 @@ export default function AdminInventoryPage() {
       setError(res.error ?? labels.error.fetchFailed)
     }
     setLoading(false)
-  }, [filterId, page])
+  }, [filterId, page, sortBy, sortDir])
 
   useEffect(() => {
     loadStats()
@@ -517,8 +531,18 @@ export default function AdminInventoryPage() {
                   />
                 </th>
                 <th className="px-2 py-3 w-6" />
-                <th className="px-4 py-3 font-medium">통화명</th>
-                <th className="px-4 py-3 font-medium w-24">길이</th>
+                <th
+                  className="px-4 py-3 font-medium cursor-pointer select-none hover:text-txt"
+                  onClick={() => handleSortClick('date')}
+                >
+                  통화명{sortBy === 'date' ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
+                </th>
+                <th
+                  className="px-4 py-3 font-medium w-24 cursor-pointer select-none hover:text-txt"
+                  onClick={() => handleSortClick('duration')}
+                >
+                  길이{sortBy === 'duration' ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
+                </th>
                 <th className="px-4 py-3 font-medium w-44">처리 흐름</th>
                 <th className="px-4 py-3 font-medium w-16">품질</th>
                 <th className="px-4 py-3 font-medium w-36">상태</th>

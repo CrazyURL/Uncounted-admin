@@ -15,6 +15,8 @@ export interface ReviewQueueFilters {
   search?: string
   page?: number
   limit?: number
+  sortBy?: 'date' | 'duration'
+  sortDir?: 'asc' | 'desc'
 }
 
 export interface ReviewQueueResponse {
@@ -38,6 +40,8 @@ export async function fetchReviewQueue(filters: ReviewQueueFilters = {}) {
   if (filters.search) params.set('q', filters.search)
   if (filters.page) params.set('page', String(filters.page))
   if (filters.limit) params.set('limit', String(filters.limit))
+  if (filters.sortBy) params.set('sort_by', filters.sortBy)
+  if (filters.sortDir) params.set('sort_dir', filters.sortDir)
   return apiFetch<ReviewQueueResponse>(`/api/admin/reviews?${params.toString()}`)
 }
 
