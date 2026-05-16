@@ -9,9 +9,10 @@ import type { AdminSession, ReviewStatus } from '../../types/adminSession'
 export interface ReviewQueueFilters {
   reviewStatus?: ReviewStatus | 'all'
   qualityLow?: boolean  // 저품질 우선 정렬 (quality_status='failed' 만)
-  pipelineFailed?: boolean  // 처리 흐름 5단계 중 어느 하나라도 failed
+  pipelineFailed?: boolean  // 처리 흐름 단계 중 어느 하나라도 failed
   piiFlag?: boolean  // pii_intervals 있는 발화가 존재하는 세션만
   qualityGradeMin?: 'C'  // 최저 품질등급 C 세션만
+  pipelineState?: 'idle' | 'running' | 'label_skipped'  // 파이프라인 상태 필터
   search?: string
   page?: number
   limit?: number
@@ -37,6 +38,7 @@ export async function fetchReviewQueue(filters: ReviewQueueFilters = {}) {
   if (filters.pipelineFailed) params.set('pipeline_failed', '1')
   if (filters.piiFlag) params.set('pii_flag', '1')
   if (filters.qualityGradeMin) params.set('quality_grade_min', filters.qualityGradeMin)
+  if (filters.pipelineState) params.set('pipeline_state', filters.pipelineState)
   if (filters.search) params.set('q', filters.search)
   if (filters.page) params.set('page', String(filters.page))
   if (filters.limit) params.set('limit', String(filters.limit))
