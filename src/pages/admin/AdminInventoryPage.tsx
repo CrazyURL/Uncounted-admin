@@ -42,7 +42,7 @@ function deriveGrade(score: number | null | undefined): 'A' | 'B' | 'C' | null {
 
 function QualityBadge({ grade, score }: { grade?: 'A' | 'B' | 'C' | null; score?: number | null }) {
   const g = grade ?? deriveGrade(score)
-  if (!g) return <span className="text-xs text-txt-tertiary">-</span>
+  if (!g) return <span className="text-xs text-txt-tertiary" title="처리 실패 또는 미완료로 품질 분석 불가">-</span>
   const cls =
     g === 'A'
       ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'

@@ -24,8 +24,11 @@ export function SessionPipelineCells({ session }: SessionPipelineCellsProps) {
     { key: 'quality', status: session.quality_status },
   ]
   const failed = firstFailedStep(session)
+  const hasFailed = steps.some((s) => s.status === 'failed')
   const progressPct = Math.round(
-    (steps.filter((s) => s.status === 'done' || s.status === 'skipped').length / steps.length) * 100,
+    (steps.filter((s) => s.status === 'done' || (!hasFailed && s.status === 'skipped')).length /
+      steps.length) *
+      100,
   )
   const isReady = getPipelineState(session) === 'ready'
 
