@@ -7,7 +7,6 @@ import { labels } from '../../lib/labels'
 import {
   type AdminSession,
   firstFailedStep,
-  pipelineProgress,
 } from '../../types/adminSession'
 
 interface SessionPipelineCellsProps {
@@ -23,7 +22,9 @@ export function SessionPipelineCells({ session }: SessionPipelineCellsProps) {
     { key: 'quality', status: session.quality_status },
   ]
   const failed = firstFailedStep(session)
-  const progressPct = Math.round(pipelineProgress(session) * 100)
+  const progressPct = Math.round(
+    (steps.filter((s) => s.status === 'done' || s.status === 'skipped').length / steps.length) * 100,
+  )
 
   return (
     <div className="flex items-center gap-1.5">
