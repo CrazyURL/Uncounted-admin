@@ -40,9 +40,29 @@ function deriveGrade(score: number | null | undefined): 'A' | 'B' | 'C' | null {
   return score >= 80 ? 'A' : score >= 50 ? 'B' : 'C'
 }
 
-function QualityBadge({ grade, score }: { grade?: 'A' | 'B' | 'C' | null; score?: number | null }) {
+function QualityBadge({
+  grade,
+  score,
+  qualityStatus,
+}: {
+  grade?: 'A' | 'B' | 'C' | null
+  score?: number | null
+  qualityStatus?: string | null
+}) {
   const g = grade ?? deriveGrade(score)
-  if (!g) return <span className="text-xs text-txt-tertiary" title="처리 실패 또는 미완료로 품질 분석 불가">-</span>
+  if (!g) {
+    if (qualityStatus === 'done') {
+      return (
+        <span
+          className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300"
+          title="품질 분석 완료됐으나 점수가 기록되지 않았습니다"
+        >
+          미집계
+        </span>
+      )
+    }
+    return <span className="text-xs text-txt-tertiary">-</span>
+  }
   const cls =
     g === 'A'
       ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
@@ -738,7 +758,11 @@ function SessionRow({
           <SessionPipelineCells session={session} />
         </td>
         <td className="px-4 py-3">
-          <QualityBadge grade={session.quality_grade_min} score={session.quality_score_avg} />
+          <QualityBadge
+            grade={session.quality_grade_min}
+            score={session.quality_score_avg}
+            qualityStatus={session.quality_status}
+          />
         </td>
         <td className="px-4 py-3">
           <div className="flex items-center gap-1.5 flex-wrap">
