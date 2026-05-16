@@ -12,8 +12,10 @@ import {
 } from '../../lib/api/reviews'
 import {
   type AdminSession,
-  firstFailedStep,
   isPipelineComplete,
+  getPipelineState,
+  getActiveStageLabel,
+  type PipelineState,
 } from '../../types/adminSession'
 import { labels } from '../../lib/labels'
 import {
@@ -37,15 +39,16 @@ type FilterId =
   | 'failed'
   | 'pii_flag'
   | 'quality_c'
-
-type PipelineState = 'failed' | 'running' | 'complete'
+  | 'pipeline_idle'
+  | 'pipeline_running'
+  | 'label_skipped'
 
 const SESSIONS_PER_PAGE = 20
 
 // ── 순수 헬퍼 함수 ───────────────────────────────────────────────────────────
 
-function buildFilters(filterId: FilterId, page: number): ReviewQueueFilters {
-  const base: ReviewQueueFilters = { page, limit: SESSIONS_PER_PAGE }
+function buildFilters(filterId: FilterId, page: number, search?: string): ReviewQueueFilters {
+  const base: ReviewQueueFilters = { page, limit: SESSIONS_PER_PAGE, ...(search ? { search } : {}) }
   switch (filterId) {
     case 'pending':        return { ...base, reviewStatus: 'pending' }
     case 'in_review':      return { ...base, reviewStatus: 'in_review' }
@@ -54,8 +57,11 @@ function buildFilters(filterId: FilterId, page: number): ReviewQueueFilters {
     case 'rejected':       return { ...base, reviewStatus: 'rejected' }
     case 'failed':         return { ...base, pipelineFailed: true }
     case 'pii_flag':       return { ...base, piiFlag: true }
-    case 'quality_c':      return { ...base, qualityGradeMin: 'C' }
-    default:               return base
+    case 'quality_c':        return { ...base, qualityGradeMin: 'C' }
+    case 'pipeline_idle':    return { ...base, pipelineState: 'idle' }
+    case 'pipeline_running': return { ...base, pipelineState: 'running' }
+    case 'label_skipped':    return { ...base, pipelineState: 'label_skipped' }
+    default:                 return base
   }
 }
 
@@ -76,15 +82,12 @@ function buildChips(stats: DashboardStats | null): FilterChip[] {
     { id: 'needs_revision', label: '수정 필요',  count: r?.needs_revision ?? 0 },
     { id: 'rejected',       label: '거절됨',     count: r?.rejected ?? 0 },
     { id: 'failed',         label: '처리 오류',  count: failedCount, warn: failedCount > 0 },
-    { id: 'pii_flag',       label: '⚠ PII 의심', warn: true },
-    { id: 'quality_c',      label: '저품질(C)',  warn: true },
+    { id: 'pii_flag',        label: '⚠ PII 의심',     warn: true },
+    { id: 'quality_c',       label: '저품질(C)',       warn: true },
+    { id: 'pipeline_idle',   label: '처리 대기' },
+    { id: 'pipeline_running',label: '처리 중' },
+    { id: 'label_skipped',   label: '⚠ 라벨링 누락', warn: true },
   ]
-}
-
-function getPipelineState(session: AdminSession): PipelineState {
-  if (firstFailedStep(session) !== null) return 'failed'
-  if (isPipelineComplete(session)) return 'complete'
-  return 'running'
 }
 
 function formatDuration(secs: number): string {
@@ -95,17 +98,23 @@ function formatDuration(secs: number): string {
   return m > 0 ? `${m}분 ${s}초` : `${s}초`
 }
 
-function QualityBadge({ grade }: { grade: 'A' | 'B' | 'C' | null | undefined }) {
-  if (!grade) return <span className="text-xs text-txt-tertiary">-</span>
+function deriveGrade(score: number | null | undefined): 'A' | 'B' | 'C' | null {
+  if (score == null) return null
+  return score >= 80 ? 'A' : score >= 50 ? 'B' : 'C'
+}
+
+function QualityBadge({ grade, score }: { grade?: 'A' | 'B' | 'C' | null; score?: number | null }) {
+  const g = grade ?? deriveGrade(score)
+  if (!g) return <span className="text-xs text-txt-tertiary">-</span>
   const cls =
-    grade === 'A'
+    g === 'A'
       ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-      : grade === 'B'
+      : g === 'B'
       ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
       : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
   return (
     <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${cls}`}>
-      {grade}
+      {g}{score != null ? `·${Math.round(score)}` : ''}
     </span>
   )
 }
@@ -118,6 +127,7 @@ export default function AdminInventoryPage() {
 
   const filterId = (searchParams.get('filter') as FilterId) ?? 'all'
   const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10))
+  const searchQuery = searchParams.get('q') ?? ''
 
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [uttStats, setUttStats] = useState<UtteranceStatsResponse | null>(null)
@@ -143,6 +153,21 @@ export default function AdminInventoryPage() {
   const [sortBy, setSortBy] = useState<'date' | 'duration' | null>(null)
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
 
+  const [inputValue, setInputValue] = useState(searchQuery)
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setSearchParams(prev => {
+        const next = new URLSearchParams(prev)
+        if (inputValue) next.set('q', inputValue)
+        else next.delete('q')
+        next.set('page', '1')
+        return next
+      }, { replace: true })
+    }, 300)
+    return () => clearTimeout(t)
+  }, [inputValue])
+
   function handleSortClick(col: 'date' | 'duration') {
     if (sortBy === col) {
       setSortDir(prev => prev === 'asc' ? 'desc' : 'asc')
@@ -163,7 +188,7 @@ export default function AdminInventoryPage() {
   const loadSessions = useCallback(async () => {
     setLoading(true)
     setError(null)
-    const filters = buildFilters(filterId, page)
+    const filters = buildFilters(filterId, page, searchQuery || undefined)
     if (sortBy) { filters.sortBy = sortBy; filters.sortDir = sortDir }
     const res = await fetchReviewQueue(filters)
     if (res.data) {
@@ -173,7 +198,7 @@ export default function AdminInventoryPage() {
       setError(res.error ?? labels.error.fetchFailed)
     }
     setLoading(false)
-  }, [filterId, page, sortBy, sortDir])
+  }, [filterId, page, sortBy, sortDir, searchQuery])
 
   useEffect(() => {
     loadStats()
@@ -185,11 +210,21 @@ export default function AdminInventoryPage() {
   }, [loadSessions])
 
   function setFilter(id: string) {
-    setSearchParams({ filter: id, page: '1' })
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev)
+      next.set('filter', id)
+      next.set('page', '1')
+      return next
+    })
   }
 
   function setPage(n: number) {
-    setSearchParams({ filter: filterId, page: String(n) })
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev)
+      next.set('filter', filterId)
+      next.set('page', String(n))
+      return next
+    })
   }
 
   function toggleSelect(id: string) {
@@ -481,6 +516,15 @@ export default function AdminInventoryPage() {
         />
       </div>
 
+      {/* 세션 검색 */}
+      <input
+        type="search"
+        placeholder="통화 번호 · 세션 ID 검색"
+        value={inputValue}
+        onChange={e => setInputValue(e.target.value)}
+        className="w-full px-3 py-2 text-sm border border-line rounded-lg bg-bg text-txt placeholder:text-txt-sub focus:outline-none focus:ring-1 focus:ring-accent"
+      />
+
       {/* 필터 칩 */}
       <FilterChips chips={chips} active={filterId} onChange={setFilter} />
 
@@ -743,7 +787,7 @@ function SessionRow({
           <SessionPipelineCells session={session} />
         </td>
         <td className="px-4 py-3">
-          <QualityBadge grade={session.quality_grade_min} />
+          <QualityBadge grade={session.quality_grade_min} score={session.quality_score_avg} />
         </td>
         <td className="px-4 py-3">
           <div className="flex items-center gap-1.5 flex-wrap">
@@ -758,8 +802,9 @@ function SessionRow({
         <td className="px-4 py-3 text-right">
           <RowActions
             pipelineState={getPipelineState(session)}
+            activeStageLabel={getActiveStageLabel(session)}
+            autoLabelStatus={session.auto_label_status}
             reviewStatus={session.review_status}
-            isReady={isPipelineComplete(session)}
             loading={actionLoading}
             onStartReview={onStartReview}
             onApprove={onApprove}
@@ -791,8 +836,9 @@ function SessionRow({
 
 interface RowActionsProps {
   pipelineState: PipelineState
+  activeStageLabel: string | null
+  autoLabelStatus?: string
   reviewStatus: AdminSession['review_status']
-  isReady: boolean
   loading: boolean
   onStartReview: () => void
   onApprove: () => void
@@ -803,8 +849,9 @@ interface RowActionsProps {
 
 function RowActions({
   pipelineState,
+  activeStageLabel,
+  autoLabelStatus,
   reviewStatus,
-  isReady,
   loading,
   onStartReview,
   onApprove,
@@ -812,18 +859,32 @@ function RowActions({
   onReject,
   onDeliver,
 }: RowActionsProps) {
-  if (pipelineState === 'failed') {
-    return <span className="text-xs text-danger">⚠ 처리 오류</span>
-  }
   switch (reviewStatus) {
     case 'pending':
-      return isReady ? (
-        <Button variant="secondary" size="sm" onClick={onStartReview} disabled={loading} loading={loading}>
-          검수 시작
-        </Button>
-      ) : (
-        <span className="text-xs text-txt-sub">⏳ 처리 중</span>
-      )
+      switch (pipelineState) {
+        case 'ready':
+          return autoLabelStatus === 'skipped' ? (
+            <div className="flex items-center justify-end gap-2">
+              <Button variant="secondary" size="sm" onClick={onStartReview} disabled={loading} loading={loading}>
+                검수 시작
+              </Button>
+              <span className="text-xs text-yellow-600">⚠ 라벨 누락</span>
+            </div>
+          ) : (
+            <Button variant="secondary" size="sm" onClick={onStartReview} disabled={loading} loading={loading}>
+              검수 시작
+            </Button>
+          )
+        case 'idle':
+        case 'waiting':
+          return <span className="text-xs text-txt-sub">처리 대기</span>
+        case 'stuck':
+          return <span className="text-xs text-amber-600">⚠ 병목{activeStageLabel ? ` (${activeStageLabel})` : ''}</span>
+        case 'failed':
+          return <span className="text-xs text-red-600">❌ 실패</span>
+        default:
+          return <span className="text-xs text-txt-sub">⏳ 처리 중{activeStageLabel ? ` (${activeStageLabel})` : ''}</span>
+      }
     case 'in_review':
       return (
         <div className="flex items-center justify-end gap-2">

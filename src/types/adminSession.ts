@@ -4,7 +4,10 @@
 // 기존 src/types/session.ts 의 Session 타입은 사용자 앱과 공유되므로
 // admin 전용 확장 필드는 본 파일에서 분리 관리.
 
-export type PipelineStatus = 'pending' | 'running' | 'done' | 'failed'
+export type PipelineStatus = 'pending' | 'running' | 'done' | 'failed' | 'skipped'
+
+// 전체 파이프라인의 집계 상태
+export type PipelineState = 'idle' | 'waiting' | 'running' | 'stuck' | 'failed' | 'ready'
 
 export type ReviewStatus =
   | 'pending'
@@ -26,6 +29,9 @@ export interface SessionPipeline {
   pii_status?: PipelineStatus
   pii_at?: string | null
 
+  auto_label_status?: PipelineStatus
+  label_at?: string | null
+
   quality_status?: PipelineStatus
   quality_at?: string | null
 
@@ -37,12 +43,19 @@ export interface SessionSpeaker {
   speaker_role: string | null
   speaker_gender: string | null
   speaker_voice_age_range: string | null
+  speaker_speech_age_range: string | null
   speaker_relation: string | null
+  speaker_accent_group: string | null
+  speaker_region_group: string | null
+  utterance_count: number
+  total_duration_sec: number
 }
 
 export interface PiiIntervalSample {
   startSec: number
   endSec: number
+  maskType: string | null
+  piiType: string | null
 }
 
 export interface AdminSession extends SessionPipeline {
@@ -64,31 +77,81 @@ export interface AdminSession extends SessionPipeline {
   speakers?: SessionSpeaker[]
 }
 
-// 처리 흐름 모든 단계 완료 여부
-export function isPipelineComplete(s: SessionPipeline): boolean {
-  return (
-    s.upload_status === 'done' &&
-    s.stt_status === 'done' &&
-    s.diarize_status === 'done' &&
-    s.pii_status === 'done' &&
-    s.quality_status === 'done'
-  )
+// 실제 voice API 처리 순서: 업로드 → STT → 화자분리 → 개인정보 → 자동 라벨링 → 품질 처리
+const STUCK_THRESHOLD_MS = 30 * 60 * 1000
+
+type StageKey = keyof Pick<
+  SessionPipeline,
+  'upload_status' | 'stt_status' | 'diarize_status' | 'pii_status' | 'auto_label_status' | 'quality_status'
+>
+
+type TimestampKey = keyof Pick<
+  SessionPipeline,
+  'uploaded_at' | 'stt_at' | 'diarize_at' | 'pii_at' | 'label_at' | 'quality_at'
+>
+
+const STAGES: Array<{ status: StageKey; prevAt: TimestampKey | null }> = [
+  { status: 'upload_status',     prevAt: null          },
+  { status: 'stt_status',        prevAt: 'uploaded_at' },
+  { status: 'diarize_status',    prevAt: 'stt_at'      },
+  { status: 'pii_status',        prevAt: 'diarize_at'  },
+  { status: 'auto_label_status', prevAt: 'pii_at'      },
+  { status: 'quality_status',    prevAt: 'label_at'    },
+]
+
+const STAGE_LABELS: Record<StageKey, string> = {
+  upload_status:     '업로드',
+  stt_status:        'STT',
+  diarize_status:    '화자분리',
+  pii_status:        '개인정보',
+  auto_label_status: '자동 라벨링',
+  quality_status:    '품질 처리',
 }
 
-// 처리 흐름 진행도 (0~1)
+function isTerminal(v?: PipelineStatus): boolean {
+  return v === 'done' || v === 'skipped'
+}
+
+export function getPipelineState(session: SessionPipeline, now: Date = new Date()): PipelineState {
+  if (STAGES.some((s) => session[s.status] === 'failed')) return 'failed'
+
+  if (STAGES.every((s) => isTerminal(session[s.status]))) return 'ready'
+
+  if (STAGES.every((s) => !session[s.status] || session[s.status] === 'pending')) return 'idle'
+
+  for (const stage of STAGES) {
+    if (session[stage.status] === 'running') {
+      if (stage.prevAt) {
+        const prevAt = session[stage.prevAt]
+        if (prevAt && now.getTime() - new Date(prevAt).getTime() > STUCK_THRESHOLD_MS) {
+          return 'stuck'
+        }
+      }
+      return 'running'
+    }
+  }
+
+  // 일부 done/skipped, 일부 pending — 아무 스테이지도 running 아님
+  return 'waiting'
+}
+
+export function getActiveStageLabel(session: SessionPipeline): string | null {
+  for (const stage of STAGES) {
+    if (session[stage.status] === 'running') return STAGE_LABELS[stage.status]
+  }
+  return null
+}
+
+// 처리 흐름 모든 단계 완료 여부 (done 또는 skipped)
+export const isPipelineComplete = (s: SessionPipeline): boolean => getPipelineState(s) === 'ready'
+
+// 처리 흐름 진행도 (0~1, 정렬용)
 export function pipelineProgress(s: SessionPipeline): number {
-  const steps: Array<PipelineStatus | undefined> = [
-    s.upload_status,
-    s.stt_status,
-    s.diarize_status,
-    s.pii_status,
-    s.quality_status,
-  ]
-  const done = steps.filter((x) => x === 'done').length
-  return done / steps.length
+  const done = STAGES.filter((st) => isTerminal(s[st.status])).length
+  return done / STAGES.length
 }
 
-export type PipelineStep = 'upload' | 'stt' | 'diarize' | 'pii' | 'quality'
+export type PipelineStep = 'upload' | 'stt' | 'diarize' | 'pii' | 'auto_label' | 'quality'
 
 // 실패한 단계 이름 (있으면)
 export function firstFailedStep(s: SessionPipeline): PipelineStep | null {
@@ -96,6 +159,7 @@ export function firstFailedStep(s: SessionPipeline): PipelineStep | null {
   if (s.stt_status === 'failed') return 'stt'
   if (s.diarize_status === 'failed') return 'diarize'
   if (s.pii_status === 'failed') return 'pii'
+  if (s.auto_label_status === 'failed') return 'auto_label'
   if (s.quality_status === 'failed') return 'quality'
   return null
 }
