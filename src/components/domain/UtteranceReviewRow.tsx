@@ -211,7 +211,7 @@ export function UtteranceReviewRow({
       onKeyDown={handleKeyDown}
       className={[
         'px-4 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent',
-        isDanger ? 'bg-red-50' : savedFlash ? 'bg-green-50' : '',
+        isDanger ? 'bg-pink-50' : savedFlash ? 'bg-green-50' : '',
         'transition-colors duration-300',
       ].join(' ')}
       title={isDanger ? 'PII 의심 발화 — 검수자 확인 필요' : undefined}

@@ -263,15 +263,16 @@ export default function AdminInventoryPage() {
       toast.success(labels.toast.startedReview)
       loadSessions()
       loadStats()
+      handleExpandRow(sessionId)
     } else {
       toast.error(res.error ?? labels.error.saveFailed)
     }
     removeActionLoading(sessionId)
   }
 
-  async function handleApprove(sessionId: string) {
+  async function handleApprove(sessionId: string, note?: string) {
     addActionLoading(sessionId)
-    const res = await updateReviewStatus(sessionId, 'approved')
+    const res = await updateReviewStatus(sessionId, 'approved', note)
     if (res.data) {
       toast.success(labels.toast.approved)
       loadSessions()
@@ -282,9 +283,9 @@ export default function AdminInventoryPage() {
     removeActionLoading(sessionId)
   }
 
-  async function handleNeedsRevision(sessionId: string) {
+  async function handleNeedsRevision(sessionId: string, note?: string) {
     addActionLoading(sessionId)
-    const res = await updateReviewStatus(sessionId, 'needs_revision')
+    const res = await updateReviewStatus(sessionId, 'needs_revision', note)
     if (res.data) {
       toast.success(labels.toast.needsRevision)
       loadSessions()
@@ -295,10 +296,10 @@ export default function AdminInventoryPage() {
     removeActionLoading(sessionId)
   }
 
-  async function handleReject(sessionId: string) {
+  async function handleReject(sessionId: string, note?: string) {
     setRejectTarget(null)
     addActionLoading(sessionId)
-    const res = await updateReviewStatus(sessionId, 'rejected')
+    const res = await updateReviewStatus(sessionId, 'rejected', note)
     if (res.data) {
       toast.success(labels.toast.rejected)
       loadSessions()
@@ -610,6 +611,9 @@ export default function AdminInventoryPage() {
                   onApprove={() => handleApprove(session.id)}
                   onNeedsRevision={() => handleNeedsRevision(session.id)}
                   onReject={() => setRejectTarget(session.id)}
+                  onApprovePanel={(note) => handleApprove(session.id, note)}
+                  onNeedsRevisionPanel={(note) => handleNeedsRevision(session.id, note)}
+                  onRejectPanel={(note) => handleReject(session.id, note)}
                   onDeliver={() =>
                     setDeliveryTarget({ id: session.id, title: session.title ?? null })
                   }
@@ -712,6 +716,9 @@ interface SessionRowProps {
   onSelectAllUtterances: () => void
   onToggleReview: (u: AdminUtterance) => void
   onLabelSaved: (id: string, updatedFields: Partial<AdminUtterance>) => void
+  onApprovePanel: (note?: string) => void
+  onNeedsRevisionPanel: (note?: string) => void
+  onRejectPanel: (note?: string) => void
 }
 
 function SessionRow({
@@ -733,6 +740,9 @@ function SessionRow({
   onSelectAllUtterances,
   onToggleReview,
   onLabelSaved,
+  onApprovePanel,
+  onNeedsRevisionPanel,
+  onRejectPanel,
 }: SessionRowProps) {
   const piiFlag = session.pii_flag ?? false
   const piiCount = session.pii_count ?? 0
@@ -822,10 +832,14 @@ function SessionRow({
               utterances={utterances}
               selectedSet={utteranceSelected}
               updatingId={updatingId}
+              actionLoading={actionLoading}
               onToggleUtterance={onToggleUtterance}
               onSelectAll={onSelectAllUtterances}
               onToggleReview={onToggleReview}
               onLabelSaved={onLabelSaved}
+              onApprove={onApprovePanel}
+              onNeedsRevision={onNeedsRevisionPanel}
+              onRejectPanel={onRejectPanel}
             />
           </td>
         </tr>
