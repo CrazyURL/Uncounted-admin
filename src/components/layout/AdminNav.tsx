@@ -1,154 +1,50 @@
-import { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 
-type SubItem = { path: string; labelKo: string; icon: string }
-type MenuGroup = { id: string; labelKo: string; icon: string; items: SubItem[] }
+type NavItem = { path: string; labelKo: string; icon: string }
 
-const ADMIN_MENU: MenuGroup[] = [
-  {
-    id: 'inventory', labelKo: '재고', icon: 'warehouse', items: [
-      { path: '/admin/calls', labelKo: '통화', icon: 'call' },
-      { path: '/admin/utterances', labelKo: '발화', icon: 'voice_chat' },
-      { path: '/admin/labels', labelKo: '라벨', icon: 'label' },
-      { path: '/admin/consents', labelKo: '동의', icon: 'verified_user' },
-      { path: '/admin/meta-storage', labelKo: '메타', icon: 'description' },
-    ],
-  },
-  {
-    id: 'catalog', labelKo: '카탈로그', icon: 'category', items: [
-      { path: '/admin/sku-catalog', labelKo: 'SKU', icon: 'precision_manufacturing' },
-      { path: '/admin/studio', labelKo: '스튜디오', icon: 'movie_edit' },
-      { path: '/admin/sku-components', labelKo: '컴포넌트', icon: 'extension' },
-      { path: '/admin/quality-tiers', labelKo: '등급', icon: 'grade' },
-    ],
-  },
-  {
-    id: 'clients', labelKo: '납품처', icon: 'business', items: [
-      { path: '/admin/clients', labelKo: '관리', icon: 'business' },
-      { path: '/admin/delivery-profiles', labelKo: '프로필', icon: 'local_shipping' },
-      { path: '/admin/sku-rules', labelKo: 'SKU 규칙', icon: 'account_tree' },
-    ],
-  },
-  {
-    id: 'review', labelKo: '검수', icon: 'fact_check', items: [
-      { path: '/admin/transactions', labelKo: '거래', icon: 'receipt_long' },
-      { path: '/admin/balances', labelKo: '잔액', icon: 'account_balance_wallet' },
-    ],
-  },
-  {
-    id: 'build', labelKo: '빌드', icon: 'build', items: [
-      { path: '/admin/build', labelKo: '위자드', icon: 'play_circle' },
-      { path: '/admin/jobs', labelKo: '작업', icon: 'work' },
-      { path: '/admin/training', labelKo: '모델 학습', icon: 'model_training' },
-    ],
-  },
+const NAV_ITEMS: NavItem[] = [
+  { path: '/admin/calls', labelKo: '통화', icon: 'call' },
+  { path: '/admin/clients', labelKo: '납품처 관리', icon: 'business' },
+  { path: '/admin/transactions', labelKo: '거래내역', icon: 'receipt_long' },
+  { path: '/admin/balances', labelKo: '잔액관리', icon: 'account_balance_wallet' },
+  { path: '/admin/training', labelKo: '모델 학습', icon: 'model_training' },
 ]
-
-function findActiveGroup(pathname: string): string | null {
-  // 대시보드
-  if (pathname === '/admin') return null
-  // legacy
-  if (pathname.startsWith('/admin/sessions')) return 'inventory'
-
-  for (const g of ADMIN_MENU) {
-    for (const item of g.items) {
-      if (pathname.startsWith(item.path)) return g.id
-    }
-  }
-  // settlement → build group
-  if (pathname.startsWith('/admin/settlement')) return 'build'
-  // 검수 + 납품 + 거래 + 잔액 → review group
-  if (pathname.startsWith('/admin/review')) return 'review'
-  if (pathname.startsWith('/admin/delivery')) return 'review'
-  if (pathname.startsWith('/admin/transactions')) return 'review'
-  if (pathname.startsWith('/admin/balances')) return 'review'
-  // job detail → build group
-  if (pathname.match(/^\/admin\/jobs\/.+/)) return 'build'
-  // dataset detail → build group
-  if (pathname.match(/^\/admin\/datasets\/.+/)) return 'build'
-  // user detail → inventory group
-  if (pathname.match(/^\/admin\/users\/.+/)) return 'inventory'
-  return null
-}
 
 export default function AdminNav() {
   const location = useLocation()
   const navigate = useNavigate()
 
-  const [activeGroupId, setActiveGroupId] = useState<string | null>(() => findActiveGroup(location.pathname))
-
-  // sync group when navigating externally
-  useEffect(() => {
-    setActiveGroupId(findActiveGroup(location.pathname))
-  }, [location.pathname])
-
-  const activeGroup = activeGroupId ? ADMIN_MENU.find(g => g.id === activeGroupId) ?? null : null
-
-  function isSubActive(subPath: string) {
-    // exact prefix match
-    if (location.pathname.startsWith(subPath)) return true
-    // legacy aliases
-    if (subPath === '/admin/calls' && location.pathname.startsWith('/admin/sessions')) return true
-    // /admin/studio는 이제 직접 메뉴 항목이 있으므로 별도 alias 불필요
-    return false
+  function isActive(path: string) {
+    if (path === '/admin/calls') {
+      return location.pathname.startsWith('/admin/calls') || location.pathname.startsWith('/admin/sessions')
+    }
+    return location.pathname.startsWith(path)
   }
 
   return (
     <div className="flex-shrink-0" style={{ backgroundColor: 'var(--color-bg)' }}>
-      {/* Group tabs */}
       <nav
-        className="flex border-b"
+        className="flex border-b overflow-x-auto"
         style={{ borderColor: 'var(--color-border-light)' }}
       >
-        {ADMIN_MENU.map(g => {
-          const active = g.id === activeGroupId
+        {NAV_ITEMS.map((item) => {
+          const active = isActive(item.path)
           return (
             <button
-              key={g.id}
-              onClick={() => {
-                setActiveGroupId(g.id)
-                navigate(g.items[0].path)
-              }}
-              className="flex-1 flex items-center justify-center gap-1 py-2.5 text-xs font-medium transition-colors"
+              key={item.path}
+              onClick={() => navigate(item.path)}
+              className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium whitespace-nowrap transition-colors"
               style={{
                 color: active ? 'var(--color-accent)' : 'var(--color-text-sub)',
                 borderBottom: active ? '2px solid var(--color-accent)' : '2px solid transparent',
               }}
             >
-              <span className="material-symbols-outlined text-base">{g.icon}</span>
-              {g.labelKo}
-            </button>
-          )
-        })}
-      </nav>
-
-      {/* Sub-item tabs */}
-      {activeGroup && (
-      <nav
-        className="flex border-b overflow-x-auto"
-        style={{ borderColor: 'var(--color-surface-alt)' }}
-      >
-        {activeGroup.items.map(item => {
-          const active = isSubActive(item.path)
-          return (
-            <button
-              key={item.path}
-              onClick={() => navigate(item.path)}
-              className="flex items-center gap-1 px-3 py-2 text-xs whitespace-nowrap transition-colors"
-              style={{
-                color: active ? '#fff' : 'var(--color-text-tertiary)',
-                backgroundColor: active ? 'rgba(19,55,236,0.15)' : 'transparent',
-                borderRadius: '6px',
-                margin: '4px 2px',
-              }}
-            >
-              <span className="material-symbols-outlined text-sm">{item.icon}</span>
+              <span className="material-symbols-outlined text-base">{item.icon}</span>
               {item.labelKo}
             </button>
           )
         })}
       </nav>
-      )}
     </div>
   )
 }

@@ -23,6 +23,14 @@ export interface BalancesResponse {
     userShareRatio: number
     yearlyCapKrw: number
   }
+  settlementStats?: {
+    settledUtteranceCount: number
+    unsettledUtteranceCount: number
+    deliveredSessionCount: number
+    undeliveredSessionCount: number
+    deliveredUserCount: number
+    undeliveredUserCount: number
+  }
 }
 
 export async function fetchBalances(search?: string, limit?: number) {

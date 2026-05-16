@@ -27,6 +27,12 @@ export interface AdminUtterance {
   session_review_status: SessionReviewStatus | string
   session_consent_status: string | null
   speaker_id: string | null
+  session_speaker_id: string | null
+  speaker_role: string | null
+  speaker_gender: string | null
+  speaker_voice_age_range: string | null
+  segment_id: string | null
+  segment_topic: string | null
   start_ms: number
   end_ms: number
   duration_seconds: number
@@ -57,6 +63,7 @@ export interface UtteranceStatsResponse {
   total: number
   settledCount: number
   unsettledCount: number
+  deliveredCount?: number
   totalDurationSec: number
   estimatedRevenueKrw: number
 }

@@ -139,6 +139,45 @@ export default function AdminBalancesPage() {
         </Card>
       </div>
 
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        <Card padding="sm">
+          <div className="text-xs text-txt-sub">정산완료 발화</div>
+          <div className="mt-1 text-2xl font-bold text-txt tabular-nums">
+            {(data?.settlementStats?.settledUtteranceCount ?? 0).toLocaleString('ko-KR')}
+          </div>
+        </Card>
+        <Card padding="sm">
+          <div className="text-xs text-txt-sub">미정산 발화</div>
+          <div className="mt-1 text-2xl font-bold text-txt tabular-nums">
+            {(data?.settlementStats?.unsettledUtteranceCount ?? 0).toLocaleString('ko-KR')}
+          </div>
+        </Card>
+        <Card padding="sm">
+          <div className="text-xs text-txt-sub">납품완료 통화</div>
+          <div className="mt-1 text-2xl font-bold text-txt tabular-nums">
+            {(data?.settlementStats?.deliveredSessionCount ?? 0).toLocaleString('ko-KR')}
+          </div>
+        </Card>
+        <Card padding="sm">
+          <div className="text-xs text-txt-sub">미납품 통화</div>
+          <div className="mt-1 text-2xl font-bold text-txt tabular-nums">
+            {(data?.settlementStats?.undeliveredSessionCount ?? 0).toLocaleString('ko-KR')}
+          </div>
+        </Card>
+        <Card padding="sm">
+          <div className="text-xs text-txt-sub">납품완료 사용자</div>
+          <div className="mt-1 text-2xl font-bold text-txt tabular-nums">
+            {(data?.settlementStats?.deliveredUserCount ?? 0).toLocaleString('ko-KR')}
+          </div>
+        </Card>
+        <Card padding="sm">
+          <div className="text-xs text-txt-sub">미납품 사용자</div>
+          <div className="mt-1 text-2xl font-bold text-txt tabular-nums">
+            {(data?.settlementStats?.undeliveredUserCount ?? 0).toLocaleString('ko-KR')}
+          </div>
+        </Card>
+      </div>
+
       {error && <ErrorBanner message={error} onRetry={load} />}
 
       <Card padding="sm">

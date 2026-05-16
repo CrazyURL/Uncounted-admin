@@ -15,6 +15,7 @@ export interface DashboardStats {
     bothAgreedCount: number
     bothAgreed24h: number
     totalDurationSec: number
+    userCount?: number
   }
   pipeline: {
     upload: PipelineDistribution

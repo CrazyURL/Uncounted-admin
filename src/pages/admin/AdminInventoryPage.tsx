@@ -402,20 +402,24 @@ export default function AdminInventoryPage() {
       <h1 className="text-xl font-semibold text-txt">재고 · 통화</h1>
 
       {/* KPI 카드 */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         <BigStat
-          title="양측 동의"
+          title="사용자 수"
+          value={statsLoading ? '…' : (stats?.consent.userCount ?? 0).toLocaleString()}
+        />
+        <BigStat
+          title="전체 통화"
           value={statsLoading ? '…' : (stats?.consent.bothAgreedCount ?? 0).toLocaleString()}
           sub={stats ? formatDuration(stats.consent.totalDurationSec) : undefined}
         />
         <BigStat
           title="검수 대기"
-          value={statsLoading ? '…' : ((r?.pending ?? 0) + (r?.in_review ?? 0)).toLocaleString()}
+          value={statsLoading ? '…' : Math.max(0, (r?.pending ?? 0) + (r?.in_review ?? 0) - failedCount).toLocaleString()}
           sub={(r?.in_review ?? 0) > 0 ? `검수 중 ${r!.in_review}건 포함` : undefined}
           onClick={() => setFilter('pending')}
         />
         <BigStat
-          title="승인됨"
+          title="검수승인"
           value={statsLoading ? '…' : (r?.approved ?? 0).toLocaleString()}
           sub={(r?.approved ?? 0) > 0 ? '납품 대기 중' : undefined}
           onClick={() => setFilter('approved')}
@@ -437,17 +441,17 @@ export default function AdminInventoryPage() {
       {/* 발화 KPI 카드 */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <BigStat
-          title="총 발화"
+          title="총 발화건수"
           value={statsLoading ? '…' : (uttStats?.total ?? 0).toLocaleString()}
           sub={uttStats ? formatDuration(uttStats.totalDurationSec) : undefined}
         />
         <BigStat
-          title="정산 완료"
-          value={statsLoading ? '…' : (uttStats?.settledCount ?? 0).toLocaleString()}
+          title="납품 완료발화"
+          value={statsLoading ? '…' : (uttStats?.deliveredCount ?? 0).toLocaleString()}
         />
         <BigStat
-          title="납품 전"
-          value={statsLoading ? '…' : (uttStats?.unsettledCount ?? 0).toLocaleString()}
+          title="납품전 발화건수"
+          value={statsLoading ? '…' : ((uttStats?.total ?? 0) - (uttStats?.deliveredCount ?? 0)).toLocaleString()}
         />
         <BigStat
           title="예상 매출"
@@ -458,7 +462,7 @@ export default function AdminInventoryPage() {
       {/* 세션 검색 */}
       <input
         type="search"
-        placeholder="통화 번호 · 세션 ID 검색"
+        placeholder="통화 번호 · 세션 ID · 가입자 ID 검색"
         value={inputValue}
         onChange={e => setInputValue(e.target.value)}
         className="w-full px-3 py-2 text-sm border border-line rounded-lg bg-bg text-txt placeholder:text-txt-sub focus:outline-none focus:ring-1 focus:ring-accent"
