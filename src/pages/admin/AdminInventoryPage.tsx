@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { BigStat, Button, ConfirmDialog, EmptyState, ErrorBanner, StatusBadge, useToast } from '../../components/ui'
-import { FilterChips, type FilterChip } from '../../components/domain/FilterChips'
+import { FilterChips } from '../../components/domain/FilterChips'
 import { SessionPipelineCells } from '../../components/domain/SessionPipelineCells'
 import { SessionDeliveryModal } from '../../components/domain/SessionDeliveryModal'
 import { fetchDashboardStats, type DashboardStats } from '../../lib/api/dashboard'
@@ -26,69 +26,7 @@ import {
   type UtteranceStatsResponse,
 } from '../../lib/api/utterances'
 import { UtteranceExpansion } from '../../components/domain/UtteranceExpansion'
-
-// ── 타입 & 상수 ─────────────────────────────────────────────────────────────
-
-type FilterId =
-  | 'all'
-  | 'pending'
-  | 'in_review'
-  | 'approved'
-  | 'needs_revision'
-  | 'rejected'
-  | 'failed'
-  | 'pii_flag'
-  | 'quality_c'
-  | 'pipeline_idle'
-  | 'pipeline_running'
-  | 'label_skipped'
-
-const SESSIONS_PER_PAGE = 20
-
-// ── 순수 헬퍼 함수 ───────────────────────────────────────────────────────────
-
-function buildFilters(filterId: FilterId, page: number, search?: string): ReviewQueueFilters {
-  const base: ReviewQueueFilters = { page, limit: SESSIONS_PER_PAGE, ...(search ? { search } : {}) }
-  switch (filterId) {
-    case 'pending':        return { ...base, reviewStatus: 'pending' }
-    case 'in_review':      return { ...base, reviewStatus: 'in_review' }
-    case 'approved':       return { ...base, reviewStatus: 'approved' }
-    case 'needs_revision': return { ...base, reviewStatus: 'needs_revision' }
-    case 'rejected':       return { ...base, reviewStatus: 'rejected' }
-    case 'failed':         return { ...base, pipelineFailed: true }
-    case 'pii_flag':       return { ...base, piiFlag: true }
-    case 'quality_c':        return { ...base, qualityGradeMin: 'C' }
-    case 'pipeline_idle':    return { ...base, pipelineState: 'idle' }
-    case 'pipeline_running': return { ...base, pipelineState: 'running' }
-    case 'label_skipped':    return { ...base, pipelineState: 'label_skipped' }
-    default:                 return base
-  }
-}
-
-function buildChips(stats: DashboardStats | null): FilterChip[] {
-  const r = stats?.review
-  const failedCount = stats?.alerts.pipelineFailedCount ?? 0
-  const total =
-    (r?.pending ?? 0) +
-    (r?.in_review ?? 0) +
-    (r?.approved ?? 0) +
-    (r?.rejected ?? 0) +
-    (r?.needs_revision ?? 0)
-  return [
-    { id: 'all',            label: '전체',      count: total },
-    { id: 'pending',        label: '검수 대기',  count: r?.pending ?? 0 },
-    { id: 'in_review',      label: '검수 중',    count: r?.in_review ?? 0 },
-    { id: 'approved',       label: '승인됨',     count: r?.approved ?? 0 },
-    { id: 'needs_revision', label: '수정 필요',  count: r?.needs_revision ?? 0 },
-    { id: 'rejected',       label: '거절됨',     count: r?.rejected ?? 0 },
-    { id: 'failed',         label: '처리 오류',  count: failedCount, warn: failedCount > 0 },
-    { id: 'pii_flag',        label: '⚠ PII 의심',     warn: true },
-    { id: 'quality_c',       label: '저품질(C)',       warn: true },
-    { id: 'pipeline_idle',   label: '처리 대기' },
-    { id: 'pipeline_running',label: '처리 중' },
-    { id: 'label_skipped',   label: '⚠ 라벨링 누락', warn: true },
-  ]
-}
+import { type FilterId, buildFilters, buildChips, SESSIONS_PER_PAGE } from '../../lib/adminFilters'
 
 function formatDuration(secs: number): string {
   const h = Math.floor(secs / 3600)
@@ -890,8 +828,9 @@ function RowActions({
             </Button>
           )
         case 'idle':
-        case 'waiting':
           return <span className="text-xs text-txt-sub">처리 대기</span>
+        case 'waiting':
+          return <span className="text-xs text-amber-600">처리 중단{activeStageLabel ? ` (${activeStageLabel})` : ''}</span>
         case 'stuck':
           return <span className="text-xs text-amber-600">⚠ 병목{activeStageLabel ? ` (${activeStageLabel})` : ''}</span>
         case 'failed':

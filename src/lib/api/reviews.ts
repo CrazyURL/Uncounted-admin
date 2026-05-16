@@ -12,7 +12,7 @@ export interface ReviewQueueFilters {
   pipelineFailed?: boolean  // 처리 흐름 단계 중 어느 하나라도 failed
   piiFlag?: boolean  // pii_intervals 있는 발화가 존재하는 세션만
   qualityGradeMin?: 'C'  // 최저 품질등급 C 세션만
-  pipelineState?: 'idle' | 'running' | 'label_skipped'  // 파이프라인 상태 필터
+  pipelineState?: 'idle' | 'waiting' | 'running' | 'stuck' | 'label_skipped'  // 파이프라인 상태 필터
   search?: string
   page?: number
   limit?: number
