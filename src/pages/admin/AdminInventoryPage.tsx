@@ -433,8 +433,7 @@ export default function AdminInventoryPage() {
         />
         <BigStat
           title="검수 대기"
-          value={statsLoading ? '…' : Math.max(0, (r?.pending ?? 0) + (r?.in_review ?? 0) - failedCount).toLocaleString()}
-          sub={(r?.in_review ?? 0) > 0 ? `검수 중 ${r!.in_review}건 포함` : undefined}
+          value={statsLoading ? '…' : (r?.pending ?? 0).toLocaleString()}
           onClick={() => setFilter('pending')}
         />
         <BigStat
@@ -524,7 +523,7 @@ export default function AdminInventoryPage() {
         />
       ) : (
         <div className="overflow-x-auto rounded-xl border border-border">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm table-fixed min-w-[860px]">
             <thead>
               <tr className="border-b border-border bg-surface-alt text-txt-sub text-left">
                 <th className="px-3 py-3 w-8">
@@ -550,9 +549,9 @@ export default function AdminInventoryPage() {
                   길이{sortBy === 'duration' ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
                 </th>
                 <th className="px-4 py-3 font-medium w-44">처리 흐름</th>
-                <th className="px-4 py-3 font-medium w-16">품질</th>
-                <th className="px-4 py-3 font-medium w-36">상태</th>
-                <th className="px-4 py-3 font-medium w-56 text-right">액션</th>
+                <th className="px-4 py-3 font-medium w-20">품질</th>
+                <th className="px-4 py-3 font-medium w-40">상태</th>
+                <th className="px-4 py-3 font-medium w-64 text-right">액션</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -743,8 +742,8 @@ function SessionRow({
             </svg>
           </button>
         </td>
-        <td className="px-4 py-3">
-          <div className="font-medium text-txt truncate max-w-[200px]">
+        <td className="px-4 py-3 overflow-hidden">
+          <div className="font-medium text-txt truncate">
             {session.title ?? `통화 ${session.id.slice(-6)}`}
           </div>
           <div className="text-xs text-txt-tertiary">
