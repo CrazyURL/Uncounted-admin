@@ -54,6 +54,18 @@ export function AdminUtteranceSessionRow({
     () => analyzeSessionRisk(group.utterances),
     [group.utterances],
   )
+  const segmentGroups = useMemo(() => {
+    const groups: { segmentId: string | null; topic: string | null; utterances: AdminUtterance[] }[] = []
+    for (const u of group.utterances) {
+      const last = groups[groups.length - 1]
+      if (last && last.segmentId === u.segment_id) {
+        last.utterances.push(u)
+      } else {
+        groups.push({ segmentId: u.segment_id, topic: u.segment_topic, utterances: [u] })
+      }
+    }
+    return groups
+  }, [group.utterances])
   const sessionReview = group.session.review_status ?? 'pending'
   const hasUtterances = group.utterances.length > 0
   const pipelineComplete = isPipelineComplete(group.session)
@@ -167,18 +179,32 @@ export function AdminUtteranceSessionRow({
           </div>
 
           <div className="divide-y divide-border-light">
-            {group.utterances.map((u) => (
-              <UtteranceReviewRow
-                key={u.id}
-                utterance={u}
-                checked={selectedSet.has(u.id)}
-                included={u.review_status === 'pending'}
-                busy={updatingId === u.id}
-                isDanger={risk.dangerUttIds.has(u.id)}
-                onToggleSelect={() => onToggleUtterance(u.id)}
-                onToggleReview={() => onToggleReview(u)}
-                onLabelSaved={onLabelSaved}
-              />
+            {segmentGroups.map((seg, idx) => (
+              <div key={seg.segmentId ?? `no-seg-${idx}`}>
+                {seg.segmentId && (
+                  <div className="px-4 py-1 bg-bg-hover border-b border-border-light flex items-center gap-2">
+                    <span className="text-[10px] text-txt-sub font-medium uppercase tracking-wide">
+                      세그먼트 {idx + 1}
+                    </span>
+                    {seg.topic && (
+                      <span className="text-xs text-txt-sub">{seg.topic}</span>
+                    )}
+                  </div>
+                )}
+                {seg.utterances.map((u) => (
+                  <UtteranceReviewRow
+                    key={u.id}
+                    utterance={u}
+                    checked={selectedSet.has(u.id)}
+                    included={u.review_status === 'pending'}
+                    busy={updatingId === u.id}
+                    isDanger={risk.dangerUttIds.has(u.id)}
+                    onToggleSelect={() => onToggleUtterance(u.id)}
+                    onToggleReview={() => onToggleReview(u)}
+                    onLabelSaved={onLabelSaved}
+                  />
+                ))}
+              </div>
             ))}
           </div>
         </div>

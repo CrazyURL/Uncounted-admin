@@ -251,8 +251,23 @@ export function UtteranceReviewRow({
         <span className="text-xs text-txt-sub w-10 tabular-nums text-right">
           {utterance.duration_seconds.toFixed(1)}초
         </span>
-        <span className="text-xs text-txt-sub w-10">
-          {utterance.speaker_id ? `S${utterance.speaker_id.slice(-2)}` : '-'}
+        <span className="flex items-center gap-0.5 w-20 shrink-0">
+          {utterance.speaker_role === 'self' ? (
+            <span className="text-[10px] px-1 py-0.5 rounded bg-blue-100 text-blue-700 font-medium leading-none">나</span>
+          ) : utterance.speaker_role === 'other' ? (
+            <span className="text-[10px] px-1 py-0.5 rounded bg-gray-100 text-gray-600 font-medium leading-none">상대</span>
+          ) : (
+            <span className="text-xs text-txt-sub">{utterance.speaker_id ? `S${utterance.speaker_id.slice(-2)}` : '-'}</span>
+          )}
+          {utterance.speaker_gender === 'male' && (
+            <span className="text-[10px] text-blue-500 leading-none">♂</span>
+          )}
+          {utterance.speaker_gender === 'female' && (
+            <span className="text-[10px] text-pink-500 leading-none">♀</span>
+          )}
+          {utterance.speaker_voice_age_range && (
+            <span className="text-[10px] text-txt-sub leading-none">{utterance.speaker_voice_age_range}</span>
+          )}
         </span>
 
         {/* 발화 텍스트 */}
