@@ -163,3 +163,72 @@ export function firstFailedStep(s: SessionPipeline): PipelineStep | null {
   if (s.quality_status === 'failed') return 'quality'
   return null
 }
+
+// ── 판매 상태 ─────────────────────────────────────────────────────────────────
+
+export type SaleStatus = 'sellable' | 'restricted' | 'locked'
+
+/**
+ * 세션의 판매 가능 상태를 판정한다.
+ *
+ * locked 조건 (하나라도 해당하면 locked):
+ *   - consent_status !== 'both_agreed'
+ *   - 파이프라인 미완료 또는 실패
+ *   - pii_flag === true (PII 위험)
+ *   - review_status === 'rejected'
+ *   - 포함 발화 0개 (utteranceCount 또는 includedUtteranceCount가 명시적으로 0)
+ *
+ * sellable 조건 (locked가 아니고 모두 충족):
+ *   - review_status === 'approved'
+ *   - 포함 발화 1개 이상 (또는 발화 수 미지정)
+ *
+ * restricted: locked도 sellable도 아닌 나머지
+ */
+export function getSaleStatus(
+  session: AdminSession,
+  utteranceCount?: number,
+  includedUtteranceCount?: number,
+): SaleStatus {
+  const included = includedUtteranceCount ?? utteranceCount
+
+  if (session.consent_status !== 'both_agreed') return 'locked'
+  if (!isPipelineComplete(session)) return 'locked'
+  if (session.pii_flag === true) return 'locked'
+  if (session.review_status === 'rejected') return 'locked'
+  if (included !== undefined && included === 0) return 'locked'
+
+  if (session.review_status === 'approved' && (included === undefined || included >= 1)) {
+    return 'sellable'
+  }
+
+  return 'restricted'
+}
+
+/** 최소 판매 가능 조건 충족 여부 */
+export function isMinSaleable(
+  session: AdminSession,
+  utteranceCount?: number,
+  includedUtteranceCount?: number,
+): boolean {
+  return getSaleStatus(session, utteranceCount, includedUtteranceCount) === 'sellable'
+}
+
+/** 판매 상태 한국어 레이블 */
+export function getSaleStatusLabel(status: SaleStatus): string {
+  switch (status) {
+    case 'sellable':   return '판매 가능'
+    case 'restricted': return '제한'
+    case 'locked':     return '잠김'
+  }
+}
+
+/** 판매 상태에 대응하는 Badge variant */
+export function getSaleStatusBadgeVariant(
+  status: SaleStatus,
+): 'default' | 'secondary' | 'destructive' {
+  switch (status) {
+    case 'sellable':   return 'default'
+    case 'restricted': return 'secondary'
+    case 'locked':     return 'destructive'
+  }
+}

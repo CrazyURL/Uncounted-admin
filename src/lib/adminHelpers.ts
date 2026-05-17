@@ -1,4 +1,6 @@
 import { type Session, type LabelCategory } from '../types/session'
+import { type AdminSession, getSaleStatus, type SaleStatus } from '../types/adminSession'
+import { type AdminUtterance } from './api/utterances'
 import { type Dataset, type DatasetFilterCriteria, type DatasetSummary, type QualityGrade, type LabelFieldKey, type LabelFieldCoverage, type LabelCoverageReport, type ExportFieldSelection } from '../types/dataset'
 import { type SkuId, SKU_CATALOG } from '../types/sku'
 import { RELATIONSHIP_OPTIONS, DOMAIN_OPTIONS, PURPOSE_OPTIONS, TONE_OPTIONS, NOISE_OPTIONS } from './labelOptions'
@@ -920,5 +922,329 @@ export async function exportTranscriptJsonl(
   }
 
   return { jsonl: lines.join('\n'), count: lines.length }
+}
+
+// ── 최소 판매 가능 데이터셋 Export ──────────────────────────────────────────
+
+export interface MinSaleableExportParams {
+  sessions: AdminSession[]
+  utterancesBySessionId: Record<string, AdminUtterance[]>
+  exportType: 'single' | 'selected' | 'all_filtered'
+  includeRestricted: boolean
+  exportedBy?: string | null
+}
+
+interface UtterancesJsonlOptions {
+  includeAutoLabels?: boolean
+}
+
+/**
+ * 발화 배열을 JSONL 문자열로 변환한다.
+ * speaker_role은 candidate/unknown 수준으로만 출력한다.
+ */
+export function buildUtterancesJsonl(
+  callId: string,
+  utterances: AdminUtterance[],
+  options?: UtterancesJsonlOptions,
+): string {
+  const { includeAutoLabels = true } = options ?? {}
+
+  return utterances
+    .filter(u => u.review_status !== 'excluded')
+    .map(u => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const row: Record<string, any> = {
+        id: u.id,
+        call_id: callId,
+        start_ms: u.start_ms,
+        end_ms: u.end_ms,
+        duration_seconds: u.duration_seconds,
+        text: u.text,
+        speaker: {
+          label: u.speaker_id ?? null,
+          role: 'candidate',
+          gender: u.speaker_gender ?? null,
+          voice_age_range: u.speaker_voice_age_range ?? null,
+        },
+        segment_id: u.segment_id ?? null,
+        segment_topic: u.segment_topic ?? null,
+      }
+
+      if (includeAutoLabels) {
+        row.auto_labels = {
+          emotion: u.emotion ?? null,
+          emotion_confidence: u.emotion_confidence ?? null,
+          dialog_act: u.dialog_act ?? null,
+          dialog_act_confidence: u.dialog_act_confidence ?? null,
+          label_source: u.label_source ?? null,
+          model_version: u.auto_label_model_version ?? null,
+        }
+      }
+
+      return JSON.stringify(row)
+    })
+    .join('\n')
+}
+
+/**
+ * 세션 단위 JSON을 빌드한다.
+ * speaker role은 candidate/unknown 수준으로만 출력한다.
+ * owner confidence 등 추정값은 metadata로 포함한다.
+ */
+export function buildCallExportJson(
+  session: AdminSession,
+  utterances: AdminUtterance[],
+  saleStatus: SaleStatus,
+): Record<string, unknown> {
+  const includedUtterances = utterances.filter(u => u.review_status !== 'excluded')
+
+  const speakers = (session.speakers ?? []).map(sp => ({
+    label: sp.speaker_label,
+    role: 'candidate',
+    gender: sp.speaker_gender ?? null,
+    voice_age_range: sp.speaker_voice_age_range ?? null,
+    speech_age_range: sp.speaker_speech_age_range ?? null,
+    relation: sp.speaker_relation ?? null,
+    accent_group: sp.speaker_accent_group ?? null,
+    region_group: sp.speaker_region_group ?? null,
+    utterance_count: sp.utterance_count,
+    total_duration_sec: sp.total_duration_sec,
+    metadata: {
+      owner_role_note: 'Owner role is probabilistic and provided with confidence metadata.',
+    },
+  }))
+
+  return {
+    call_id: session.id,
+    sale_status: saleStatus,
+    date: session.date,
+    duration_seconds: session.duration_seconds,
+    consent_status: session.consent_status,
+    review_status: session.review_status ?? null,
+    quality: {
+      grade_min: session.quality_grade_min ?? null,
+      score_avg: session.quality_score_avg ?? null,
+      snr_db_avg: session.snr_db_avg ?? null,
+      speech_ratio_avg: session.speech_ratio_avg ?? null,
+    },
+    pii: {
+      flag: session.pii_flag ?? false,
+      count: session.pii_count ?? 0,
+    },
+    speakers,
+    utterance_count: includedUtterances.length,
+  }
+}
+
+/**
+ * manifest.json 빌드.
+ * export 범위와 메타데이터를 기록한다.
+ */
+export function buildMinSaleableManifest(params: {
+  exportType: MinSaleableExportParams['exportType']
+  exportedBy?: string | null
+  sessionCount: number
+  utteranceCount: number
+  includedSaleStatuses: SaleStatus[]
+  exportedAt: string
+}): Record<string, unknown> {
+  return {
+    _format: 'uncounted-minsaleable-v1',
+    _exportedAt: params.exportedAt,
+    _exportedBy: params.exportedBy ?? null,
+    exportType: params.exportType,
+    includedSaleStatuses: params.includedSaleStatuses,
+    sessionCount: params.sessionCount,
+    utteranceCount: params.utteranceCount,
+    notes: [
+      'Owner role is probabilistic and provided with confidence metadata.',
+      'Speaker roles are labeled as candidate/unknown — not confirmed assignments.',
+      'Locked sessions are excluded from this export.',
+    ],
+  }
+}
+
+/** 판매 데이터셋 집계 통계 빌드 */
+export function buildDatasetSummary(
+  sessions: AdminSession[],
+  utterancesBySessionId: Record<string, AdminUtterance[]>,
+  saleStatuses: Record<string, SaleStatus>,
+): Record<string, unknown> {
+  let totalUtterances = 0
+  let totalDurationSec = 0
+  const statusCounts: Record<SaleStatus, number> = { sellable: 0, restricted: 0, locked: 0 }
+
+  for (const s of sessions) {
+    const status = saleStatuses[s.id] ?? getSaleStatus(s)
+    statusCounts[status]++
+    totalDurationSec += s.duration_seconds
+    const utterances = utterancesBySessionId[s.id] ?? []
+    totalUtterances += utterances.filter(u => u.review_status !== 'excluded').length
+  }
+
+  return {
+    sessionCount: sessions.length,
+    totalDurationHours: Math.round((totalDurationSec / 3600) * 100) / 100,
+    totalUtterances,
+    statusBreakdown: statusCounts,
+  }
+}
+
+/** 품질 보고서 빌드 */
+export function buildQualityReport(
+  sessions: AdminSession[],
+  utterancesBySessionId: Record<string, AdminUtterance[]>,
+): Record<string, unknown> {
+  const gradeCounts: Record<string, number> = { A: 0, B: 0, C: 0, unknown: 0 }
+  let totalSnr = 0
+  let snrCount = 0
+  let totalSpeechRatio = 0
+  let speechRatioCount = 0
+
+  for (const s of sessions) {
+    const grade = s.quality_grade_min ?? 'unknown'
+    gradeCounts[grade] = (gradeCounts[grade] ?? 0) + 1
+
+    if (s.snr_db_avg != null) { totalSnr += s.snr_db_avg; snrCount++ }
+    if (s.speech_ratio_avg != null) { totalSpeechRatio += s.speech_ratio_avg; speechRatioCount++ }
+  }
+
+  const emotionDist: Record<string, number> = {}
+  const dialogActDist: Record<string, number> = {}
+
+  for (const utterances of Object.values(utterancesBySessionId)) {
+    for (const u of utterances) {
+      if (u.review_status === 'excluded') continue
+      if (u.emotion) emotionDist[u.emotion] = (emotionDist[u.emotion] ?? 0) + 1
+      if (u.dialog_act) dialogActDist[u.dialog_act] = (dialogActDist[u.dialog_act] ?? 0) + 1
+    }
+  }
+
+  return {
+    qualityGradeDistribution: gradeCounts,
+    avgSnrDb: snrCount > 0 ? Math.round((totalSnr / snrCount) * 10) / 10 : null,
+    avgSpeechRatio: speechRatioCount > 0 ? Math.round((totalSpeechRatio / speechRatioCount) * 1000) / 1000 : null,
+    emotionDistribution: emotionDist,
+    dialogActDistribution: dialogActDist,
+  }
+}
+
+/** 동의 상태 요약 보고서 빌드 */
+export function buildConsentReport(sessions: AdminSession[]): Record<string, unknown> {
+  const consentCounts: Record<string, number> = {}
+
+  for (const s of sessions) {
+    const status = s.consent_status
+    consentCounts[status] = (consentCounts[status] ?? 0) + 1
+  }
+
+  const bothAgreed = consentCounts['both_agreed'] ?? 0
+  const total = sessions.length
+
+  return {
+    total,
+    bothAgreed,
+    bothAgreedRatio: total > 0 ? Math.round((bothAgreed / total) * 1000) / 1000 : 0,
+    breakdown: consentCounts,
+  }
+}
+
+/**
+ * 최소 판매 가능 데이터셋을 ZIP으로 생성하여 다운로드한다.
+ *
+ * ZIP 구조:
+ *   manifest.json
+ *   summary.json
+ *   quality_report.json
+ *   consent_report.json
+ *   calls/
+ *     {session_id}.json
+ *   utterances/
+ *     {session_id}.jsonl
+ */
+export async function exportMinSaleableDataset(
+  params: MinSaleableExportParams,
+): Promise<{ count: number; skipped: number; error?: string }> {
+  const { sessions, utterancesBySessionId, exportType, includeRestricted, exportedBy } = params
+  const exportedAt = new Date().toISOString()
+
+  // 판매 상태 판정
+  const saleStatuses: Record<string, SaleStatus> = {}
+  const eligibleSessions: AdminSession[] = []
+
+  for (const s of sessions) {
+    const utterances = utterancesBySessionId[s.id] ?? []
+    const includedCount = utterances.filter(u => u.review_status !== 'excluded').length
+    const status = getSaleStatus(s, utterances.length, includedCount)
+    saleStatuses[s.id] = status
+
+    if (status === 'locked') continue
+    if (status === 'restricted' && !includeRestricted) continue
+    eligibleSessions.push(s)
+  }
+
+  const skipped = sessions.length - eligibleSessions.length
+  let totalUtterances = 0
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const jszip = await import('jszip') as any
+  const JSZip = jszip.default ?? jszip
+  const zip = new JSZip()
+
+  const callsFolder = zip.folder('calls')
+  const utterancesFolder = zip.folder('utterances')
+
+  for (const session of eligibleSessions) {
+    const utterances = utterancesBySessionId[session.id] ?? []
+    const callJson = buildCallExportJson(session, utterances, saleStatuses[session.id])
+    callsFolder.file(`${session.id}.json`, JSON.stringify(callJson, null, 2))
+
+    const jsonl = buildUtterancesJsonl(session.id, utterances)
+    utterancesFolder.file(`${session.id}.jsonl`, jsonl)
+    totalUtterances += (jsonl ? jsonl.split('\n').filter(Boolean).length : 0)
+  }
+
+  const includedStatuses: SaleStatus[] = ['sellable']
+  if (includeRestricted) includedStatuses.push('restricted')
+
+  const manifest = buildMinSaleableManifest({
+    exportType,
+    exportedBy,
+    sessionCount: eligibleSessions.length,
+    utteranceCount: totalUtterances,
+    includedSaleStatuses: includedStatuses,
+    exportedAt,
+  })
+  zip.file('manifest.json', JSON.stringify(manifest, null, 2))
+
+  const summary = buildDatasetSummary(eligibleSessions, utterancesBySessionId, saleStatuses)
+  zip.file('summary.json', JSON.stringify(summary, null, 2))
+
+  const qualityReport = buildQualityReport(eligibleSessions, utterancesBySessionId)
+  zip.file('quality_report.json', JSON.stringify(qualityReport, null, 2))
+
+  const consentReport = buildConsentReport(eligibleSessions)
+  zip.file('consent_report.json', JSON.stringify(consentReport, null, 2))
+
+  try {
+    const zipBlob: Blob = await zip.generateAsync({
+      type: 'blob',
+      compression: 'DEFLATE',
+      compressionOptions: { level: 6 },
+    })
+    const dateSuffix = exportedAt.slice(0, 10)
+    const url = URL.createObjectURL(zipBlob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `uncounted_dataset_${dateSuffix}.zip`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    setTimeout(() => URL.revokeObjectURL(url), 15000)
+  } catch (e) {
+    return { count: eligibleSessions.length, skipped, error: String(e) }
+  }
+
+  return { count: eligibleSessions.length, skipped }
 }
 
