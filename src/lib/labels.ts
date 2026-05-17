@@ -22,7 +22,7 @@ export const labels = {
 
   // ── 검수 상태머신 (sessions.review_status) ─────────────────────────────
   review: {
-    pending: '대기 중',
+    pending: '검수대기중',
     in_review: '검수 중',
     approved: '승인됨',
     rejected: '거절됨',
