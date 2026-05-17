@@ -26,6 +26,7 @@ function getTitle(pathname: string): string {
   // clients
   if (pathname.startsWith('/admin/clients')) return '납품처 관리'
   if (pathname.startsWith('/admin/delivery-profiles')) return '납품 프로필'
+  if (pathname.startsWith('/admin/delivery')) return '납품 패키지'
   if (pathname.startsWith('/admin/sku-rules')) return '고객-SKU 매핑'
   // build
   if (pathname.startsWith('/admin/build')) return '빌드 위자드'

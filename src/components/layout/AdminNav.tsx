@@ -4,6 +4,7 @@ type NavItem = { path: string; labelKo: string; icon: string }
 
 const NAV_ITEMS: NavItem[] = [
   { path: '/admin/calls', labelKo: '통화', icon: 'call' },
+  { path: '/admin/delivery', labelKo: '납품 패키지', icon: 'inventory_2' },
   { path: '/admin/clients', labelKo: '납품처 관리', icon: 'business' },
   { path: '/admin/transactions', labelKo: '거래내역', icon: 'receipt_long' },
   { path: '/admin/balances', labelKo: '잔액관리', icon: 'account_balance_wallet' },
