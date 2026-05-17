@@ -57,7 +57,7 @@ export function buildChips(stats: DashboardStats | null): FilterChip[] {
     { id: 'needs_revision',  label: '수정 필요',       count: r?.needs_revision ?? 0 },
     { id: 'rejected',        label: '거절됨',          count: r?.rejected ?? 0 },
     { id: 'failed',          label: '처리 오류',       count: failedCount, warn: failedCount > 0 },
-    { id: 'pii_flag',        label: '⚠ PII 의심',     warn: true },
+    { id: 'pii_flag',        label: '⚠ PII 의심',     count: stats?.alerts.piiSessionCount ?? 0, warn: true },
     { id: 'quality_c',       label: '저품질(C)',       warn: true },
     { id: 'pipeline_idle',    label: '처리 대기' },
     { id: 'pipeline_waiting', label: '처리 중단',  warn: true },

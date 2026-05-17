@@ -45,6 +45,7 @@ export interface DashboardStats {
   alerts: {
     pipelineFailedCount: number
     rejectedCount: number
+    piiSessionCount: number
   }
 }
 
