@@ -100,11 +100,11 @@ export default function AdminBalancesPage() {
         key: 'cap',
         header: labels.noun.cap,
         align: 'right',
-        render: (u) => <CapCell user={u} yearlyCapKrw={data?.constants.yearlyCapKrw ?? 3_000_000} />,
+        render: (u) => <CapCell user={u} yearlyCapKrw={data?.constants?.yearlyCapKrw ?? 3_000_000} />,
         width: '180px',
       },
     ],
-    [data?.constants.yearlyCapKrw],
+    [data?.constants?.yearlyCapKrw],
   )
 
   return (
@@ -112,7 +112,7 @@ export default function AdminBalancesPage() {
       <header>
         <h1 className="text-2xl font-bold text-txt">{labels.noun.balance} 관리</h1>
         <p className="mt-1 text-sm text-txt-sub">
-          사용자별 발화 시간 누적 + 연간 한도 도달률 ({formatKrw(data?.constants.yearlyCapKrw ?? 3_000_000)})
+          사용자별 발화 시간 누적 + 연간 한도 도달률 ({formatKrw(data?.constants?.yearlyCapKrw ?? 3_000_000)})
         </p>
       </header>
 
