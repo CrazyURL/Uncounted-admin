@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { BigStat, Button, ConfirmDialog, EmptyState, ErrorBanner, StatusBadge, useToast } from '../../components/ui'
 import { FilterChips } from '../../components/domain/FilterChips'
@@ -15,6 +15,8 @@ import {
   getPipelineState,
   getActiveStageLabel,
   type PipelineState,
+  type SaleStatus,
+  getSaleStatus,
 } from '../../types/adminSession'
 import { labels } from '../../lib/labels'
 import {
@@ -26,6 +28,14 @@ import {
 } from '../../lib/api/utterances'
 import { UtteranceExpansion } from '../../components/domain/UtteranceExpansion'
 import { type FilterId, buildFilters, buildChips, SESSIONS_PER_PAGE } from '../../lib/adminFilters'
+import { getOwnerDisplay } from '../../lib/ownerDisplay'
+import { exportMinSaleableDataset } from '../../lib/adminHelpers'
+import { MinSaleableDownloadPanel } from '../../components/domain/MinSaleableDownloadPanel'
+import ExportLogPanel from '../../components/domain/ExportLogPanel'
+import { DeliveryPackageModal } from '../../components/domain/DeliveryPackageModal'
+import { saveExportLog, createExportLog } from '../../lib/exportLog'
+import { useAuth } from '../../lib/AuthContext'
+import type { ExportLog } from '../../types/admin'
 
 function formatDuration(secs: number): string {
   const h = Math.floor(secs / 3600)
@@ -81,6 +91,7 @@ function QualityBadge({
 export default function AdminInventoryPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const toast = useToast()
+  const { userId } = useAuth()
 
   const filterId = (searchParams.get('filter') as FilterId) ?? 'all'
   const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10))
@@ -111,6 +122,8 @@ export default function AdminInventoryPage() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
 
   const [inputValue, setInputValue] = useState(searchQuery)
+  const [downloading, setDownloading] = useState(false)
+  const [deliveryPackageLog, setDeliveryPackageLog] = useState<ExportLog | null>(null)
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -410,11 +423,250 @@ export default function AdminInventoryPage() {
     })
   }
 
+  const saleStatusMap = useMemo<Map<string, SaleStatus>>(() => {
+    const map = new Map<string, SaleStatus>()
+    for (const s of sessions) {
+      const utts = utterancesMap.has(s.id) ? utterancesMap.get(s.id) : undefined
+      const uttCount = utts?.length
+      const includedCount = utts?.filter((u) => u.review_status !== 'excluded').length
+      map.set(s.id, getSaleStatus(s, uttCount, includedCount))
+    }
+    return map
+  }, [sessions, utterancesMap])
+
+  const panelStats = useMemo(() => {
+    let sellable = 0, restricted = 0, locked = 0
+    let utteranceCount = 0, totalSecs = 0, estimatedRevenue = 0
+    for (const s of sessions) {
+      const st = saleStatusMap.get(s.id) ?? 'locked'
+      if (st === 'sellable') { sellable++; totalSecs += s.duration_seconds }
+      else if (st === 'restricted') { restricted++; totalSecs += s.duration_seconds }
+      else locked++
+      const utts = utterancesMap.get(s.id) ?? []
+      const includable = utts.filter((u) => u.review_status !== 'excluded')
+      utteranceCount += includable.length
+      if (st !== 'locked') {
+        estimatedRevenue += includable.reduce((sum, u) => sum + (u.unit_price_krw ?? 0), 0)
+      }
+    }
+    return { sellable, restricted, locked, utteranceCount, totalSecs, estimatedRevenue }
+  }, [sessions, saleStatusMap, utterancesMap])
+
   const chips = buildChips(stats)
   const totalPages = Math.ceil(total / SESSIONS_PER_PAGE)
   const r = stats?.review
   const failedCount = stats?.alerts.pipelineFailedCount ?? 0
   const bulkBusy = bulkApproving || bulkStartingReview || bulkRejecting
+
+  async function handleDownloadSelected(options: { includeRestricted: boolean }) {
+    const targetSessions = sessions.filter(
+      (s) => selectedIds.has(s.id) && (saleStatusMap.get(s.id) ?? 'locked') !== 'locked'
+    )
+    if (targetSessions.length === 0) {
+      toast.error('선택된 세션 중 다운로드 가능한 항목이 없습니다')
+      return
+    }
+    setDownloading(true)
+    try {
+      const localMap = new Map(utterancesMap)
+      await Promise.all(
+        targetSessions
+          .filter((s) => !localMap.has(s.id))
+          .map(async (s) => {
+            const res = await fetchUtterances({ sessionId: s.id, limit: 200 })
+            if (res.data) localMap.set(s.id, res.data.utterances)
+          })
+      )
+      setUtterancesMap(localMap)
+      const utterancesBySessionId: Record<string, AdminUtterance[]> = {}
+      for (const s of targetSessions) {
+        utterancesBySessionId[s.id] = localMap.get(s.id) ?? []
+      }
+      const exportedUtteranceCount = targetSessions.reduce((sum, s) => {
+        const status = saleStatusMap.get(s.id) ?? 'locked'
+        if (status === 'restricted' && !options.includeRestricted) return sum
+        return sum + (utterancesBySessionId[s.id] ?? []).filter((u) => u.review_status !== 'excluded').length
+      }, 0)
+      let resultStatus: 'success' | 'failed' = 'failed'
+      let errorMessage: string | undefined
+      let callCount = 0
+      try {
+        const result = await exportMinSaleableDataset({
+          sessions: targetSessions,
+          utterancesBySessionId,
+          exportType: 'selected',
+          includeRestricted: options.includeRestricted,
+          exportedBy: userId,
+        })
+        callCount = result.count
+        if (result.count === 0) {
+          toast.error('내보낼 데이터가 없습니다')
+        } else if (result.error) {
+          errorMessage = result.error
+          toast.error(`내보내기 실패: ${result.error}`)
+        } else {
+          resultStatus = 'success'
+          toast.success(`${result.count}건 다운로드 완료`)
+        }
+      } catch (err) {
+        errorMessage = err instanceof Error ? err.message : '알 수 없는 오류'
+        toast.error(`내보내기 실패: ${errorMessage}`)
+      }
+      saveExportLog(createExportLog({
+        export_type: 'selected',
+        session_ids: targetSessions.map((s) => s.id),
+        call_count: callCount,
+        utterance_count: exportedUtteranceCount,
+        included_sale_status: options.includeRestricted ? ['sellable', 'restricted'] : ['sellable'],
+        excluded_sale_status: ['locked'],
+        include_restricted: options.includeRestricted,
+        exported_by: userId,
+        file_name: null, // TODO: exportMinSaleableDataset가 파일명 반환 시 연동
+        filters_snapshot: null,
+        result_status: resultStatus,
+        error_message: errorMessage,
+      }))
+    } finally {
+      setDownloading(false)
+    }
+  }
+
+  async function handleDownloadAll(options: { includeRestricted: boolean }) {
+    const targetSessions = sessions.filter(
+      (s) => (saleStatusMap.get(s.id) ?? 'locked') !== 'locked'
+    )
+    if (targetSessions.length === 0) {
+      toast.error('다운로드 가능한 세션이 없습니다')
+      return
+    }
+    setDownloading(true)
+    try {
+      const localMap = new Map(utterancesMap)
+      await Promise.all(
+        targetSessions
+          .filter((s) => !localMap.has(s.id))
+          .map(async (s) => {
+            const res = await fetchUtterances({ sessionId: s.id, limit: 200 })
+            if (res.data) localMap.set(s.id, res.data.utterances)
+          })
+      )
+      setUtterancesMap(localMap)
+      const utterancesBySessionId: Record<string, AdminUtterance[]> = {}
+      for (const s of targetSessions) {
+        utterancesBySessionId[s.id] = localMap.get(s.id) ?? []
+      }
+      const exportedUtteranceCount = targetSessions.reduce((sum, s) => {
+        const status = saleStatusMap.get(s.id) ?? 'locked'
+        if (status === 'restricted' && !options.includeRestricted) return sum
+        return sum + (utterancesBySessionId[s.id] ?? []).filter((u) => u.review_status !== 'excluded').length
+      }, 0)
+      let resultStatus: 'success' | 'failed' = 'failed'
+      let errorMessage: string | undefined
+      let callCount = 0
+      try {
+        const result = await exportMinSaleableDataset({
+          sessions: targetSessions,
+          utterancesBySessionId,
+          exportType: 'all_filtered',
+          includeRestricted: options.includeRestricted,
+          exportedBy: userId,
+        })
+        callCount = result.count
+        if (result.count === 0) {
+          toast.error('내보낼 데이터가 없습니다')
+        } else if (result.error) {
+          errorMessage = result.error
+          toast.error(`내보내기 실패: ${result.error}`)
+        } else {
+          resultStatus = 'success'
+          toast.success(`${result.count}건 다운로드 완료`)
+        }
+      } catch (err) {
+        errorMessage = err instanceof Error ? err.message : '알 수 없는 오류'
+        toast.error(`내보내기 실패: ${errorMessage}`)
+      }
+      saveExportLog(createExportLog({
+        export_type: 'all_filtered',
+        session_ids: targetSessions.map((s) => s.id),
+        call_count: callCount,
+        utterance_count: exportedUtteranceCount,
+        included_sale_status: options.includeRestricted ? ['sellable', 'restricted'] : ['sellable'],
+        excluded_sale_status: ['locked'],
+        include_restricted: options.includeRestricted,
+        exported_by: userId,
+        file_name: null, // TODO: exportMinSaleableDataset가 파일명 반환 시 연동
+        filters_snapshot: null,
+        result_status: resultStatus,
+        error_message: errorMessage,
+      }))
+    } finally {
+      setDownloading(false)
+    }
+  }
+
+  async function handleDownloadSingle(sessionId: string) {
+    const status = saleStatusMap.get(sessionId) ?? 'locked'
+    if (status === 'locked') {
+      toast.error('잠금 상태입니다. 다운로드 불가')
+      return
+    }
+    setDownloading(true)
+    try {
+      const localMap = new Map(utterancesMap)
+      if (!localMap.has(sessionId)) {
+        const res = await fetchUtterances({ sessionId, limit: 200 })
+        if (res.data) {
+          localMap.set(sessionId, res.data.utterances)
+          setUtterancesMap(localMap)
+        }
+      }
+      const session = sessions.find((s) => s.id === sessionId)
+      if (!session) return
+      const utterancesForSession = localMap.get(sessionId) ?? []
+      const exportedUtteranceCount = utterancesForSession.filter((u) => u.review_status !== 'excluded').length
+      let resultStatus: 'success' | 'failed' = 'failed'
+      let errorMessage: string | undefined
+      let callCount = 0
+      try {
+        const result = await exportMinSaleableDataset({
+          sessions: [session],
+          utterancesBySessionId: { [sessionId]: utterancesForSession },
+          exportType: 'single',
+          includeRestricted: true,
+          exportedBy: userId,
+        })
+        callCount = result.count
+        if (result.count === 0) {
+          toast.error('내보낼 발화가 없습니다')
+        } else if (result.error) {
+          errorMessage = result.error
+          toast.error(`내보내기 실패: ${result.error}`)
+        } else {
+          resultStatus = 'success'
+          toast.success(`1건 다운로드 완료`)
+        }
+      } catch (err) {
+        errorMessage = err instanceof Error ? err.message : '알 수 없는 오류'
+        toast.error(`내보내기 실패: ${errorMessage}`)
+      }
+      saveExportLog(createExportLog({
+        export_type: 'single',
+        session_ids: [sessionId],
+        call_count: callCount,
+        utterance_count: exportedUtteranceCount,
+        included_sale_status: ['sellable', 'restricted'],
+        excluded_sale_status: ['locked'],
+        include_restricted: true,
+        exported_by: userId,
+        file_name: null, // TODO: exportMinSaleableDataset가 파일명 반환 시 연동
+        filters_snapshot: null,
+        result_status: resultStatus,
+        error_message: errorMessage,
+      }))
+    } finally {
+      setDownloading(false)
+    }
+  }
 
   return (
     <div className="space-y-6 p-6">
@@ -489,6 +741,23 @@ export default function AdminInventoryPage() {
       {/* 필터 칩 */}
       <FilterChips chips={chips} active={filterId} onChange={setFilter} />
 
+      {/* 판매 데이터셋 Export 패널 */}
+      <MinSaleableDownloadPanel
+        sellableCount={panelStats.sellable}
+        restrictedCount={panelStats.restricted}
+        lockedCount={panelStats.locked}
+        includedUtteranceCount={panelStats.utteranceCount}
+        totalDurationLabel={formatDuration(panelStats.totalSecs)}
+        estimatedRevenueLabel={panelStats.estimatedRevenue > 0 ? `₩${panelStats.estimatedRevenue.toLocaleString()}` : '-'}
+        selectedCount={selectedIds.size}
+        isDownloading={downloading}
+        onDownloadSelected={handleDownloadSelected}
+        onDownloadAllSellable={handleDownloadAll}
+      />
+
+      {/* 다운로드 로그 */}
+      <ExportLogPanel onRegisterDelivery={setDeliveryPackageLog} />
+
       {/* 일괄 처리 바 */}
       {selectedIds.size > 0 && (
         <div className="flex items-center gap-3 px-4 py-2.5 bg-accent/10 border border-accent/30 rounded-lg">
@@ -523,7 +792,7 @@ export default function AdminInventoryPage() {
         />
       ) : (
         <div className="overflow-x-auto rounded-xl border border-border">
-          <table className="w-full text-sm table-fixed min-w-[860px]">
+          <table className="w-full text-sm table-fixed min-w-[1100px]">
             <thead>
               <tr className="border-b border-border bg-surface-alt text-txt-sub text-left">
                 <th className="px-3 py-3 w-8">
@@ -551,6 +820,9 @@ export default function AdminInventoryPage() {
                 <th className="px-4 py-3 font-medium w-44">처리 흐름</th>
                 <th className="px-4 py-3 font-medium w-20">품질</th>
                 <th className="px-4 py-3 font-medium w-40">상태</th>
+                <th className="px-4 py-3 font-medium w-20">판매상태</th>
+                <th className="px-4 py-3 font-medium w-20">Owner 추정</th>
+                <th className="px-4 py-3 font-medium w-16 text-center">내보내기</th>
                 <th className="px-4 py-3 font-medium w-64 text-right">액션</th>
               </tr>
             </thead>
@@ -565,6 +837,7 @@ export default function AdminInventoryPage() {
                   utterances={utterancesMap.get(session.id) ?? []}
                   utteranceSelected={utteranceSelectedMap.get(session.id) ?? new Set()}
                   updatingId={updatingId}
+                  saleStatus={saleStatusMap.get(session.id) ?? 'locked'}
                   onToggle={() => toggleSelect(session.id)}
                   onToggleExpand={() => handleExpandRow(session.id)}
                   onStartReview={() => handleStartReview(session.id)}
@@ -581,6 +854,7 @@ export default function AdminInventoryPage() {
                   onSelectAllUtterances={() => handleSelectAllUtterances(session.id)}
                   onToggleReview={(u) => handleToggleReview(session.id, u)}
                   onLabelSaved={(uid, fields) => handleLabelSaved(session.id, uid, fields)}
+                  onDownloadSingle={() => handleDownloadSingle(session.id)}
                 />
               ))}
             </tbody>
@@ -629,6 +903,18 @@ export default function AdminInventoryPage() {
         }}
       />
 
+      {deliveryPackageLog && (
+        <DeliveryPackageModal
+          log={deliveryPackageLog}
+          open={true}
+          onClose={() => setDeliveryPackageLog(null)}
+          onSuccess={() => {
+            setDeliveryPackageLog(null)
+            loadStats()
+          }}
+        />
+      )}
+
       {/* 거절 확인 다이얼로그 */}
       <ConfirmDialog
         open={rejectTarget !== null}
@@ -646,6 +932,26 @@ export default function AdminInventoryPage() {
 }
 
 // ── 로컬 서브 컴포넌트 ───────────────────────────────────────────────────────
+
+function SaleStatusBadge({ status }: { status: SaleStatus }) {
+  if (status === 'sellable')
+    return (
+      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+        판매 가능
+      </span>
+    )
+  if (status === 'restricted')
+    return (
+      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">
+        제한
+      </span>
+    )
+  return (
+    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+      잠금
+    </span>
+  )
+}
 
 function SessionTableSkeleton() {
   return (
@@ -665,6 +971,7 @@ interface SessionRowProps {
   utterances: AdminUtterance[]
   utteranceSelected: Set<string>
   updatingId: string | null
+  saleStatus: SaleStatus
   onToggle: () => void
   onToggleExpand: () => void
   onStartReview: () => void
@@ -679,6 +986,7 @@ interface SessionRowProps {
   onApprovePanel: (note?: string) => void
   onNeedsRevisionPanel: (note?: string) => void
   onRejectPanel: (note?: string) => void
+  onDownloadSingle: () => void
 }
 
 function SessionRow({
@@ -689,6 +997,7 @@ function SessionRow({
   utterances,
   utteranceSelected,
   updatingId,
+  saleStatus,
   onToggle,
   onToggleExpand,
   onStartReview,
@@ -703,6 +1012,7 @@ function SessionRow({
   onApprovePanel,
   onNeedsRevisionPanel,
   onRejectPanel,
+  onDownloadSingle,
 }: SessionRowProps) {
   const piiFlag = session.pii_flag ?? false
   const piiCount = session.pii_count ?? 0
@@ -773,6 +1083,23 @@ function SessionRow({
             )}
           </div>
         </td>
+        <td className="px-4 py-3">
+          <SaleStatusBadge status={saleStatus} />
+        </td>
+        <td className="px-4 py-3 text-xs text-txt-sub tabular-nums">
+          {getOwnerDisplay(session)}
+        </td>
+        <td className="px-4 py-3 text-center">
+          <button
+            type="button"
+            onClick={onDownloadSingle}
+            disabled={saleStatus === 'locked'}
+            className="text-sm text-accent hover:text-accent-hover disabled:text-txt-tertiary disabled:cursor-not-allowed focus:outline-none"
+            title={saleStatus === 'locked' ? '잠금 상태 — 다운로드 불가' : 'ZIP 내보내기'}
+          >
+            ↓
+          </button>
+        </td>
         <td className="px-4 py-3 text-right">
           <RowActions
             pipelineState={getPipelineState(session)}
@@ -790,7 +1117,7 @@ function SessionRow({
       </tr>
       {expanded && (
         <tr>
-          <td colSpan={8} className="p-0">
+          <td colSpan={11} className="p-0">
             <UtteranceExpansion
               session={session}
               utterances={utterances}

@@ -987,6 +987,20 @@ export function buildUtterancesJsonl(
 }
 
 /**
+ * 평문 트랜스크립트를 빌드한다.
+ * 형식: [SPEAKER_XX] 발화 텍스트 (한 줄당 하나, excluded 발화 제외)
+ */
+export function buildCallTranscriptTxt(
+  callId: string,
+  utterances: AdminUtterance[],
+): string {
+  const lines = utterances
+    .filter(u => u.review_status !== 'excluded')
+    .map(u => `[${u.speaker_id ?? 'UNKNOWN'}] ${u.text ?? ''}`)
+  return `# call_id: ${callId}\n` + lines.join('\n')
+}
+
+/**
  * 세션 단위 JSON을 빌드한다.
  * speaker role은 candidate/unknown 수준으로만 출력한다.
  * owner confidence 등 추정값은 metadata로 포함한다.
@@ -998,7 +1012,8 @@ export function buildCallExportJson(
 ): Record<string, unknown> {
   const includedUtterances = utterances.filter(u => u.review_status !== 'excluded')
 
-  const speakers = (session.speakers ?? []).map(sp => ({
+  const sessionSpeakers = session.speakers ?? []
+  const speakers = sessionSpeakers.map(sp => ({
     label: sp.speaker_label,
     role: 'candidate',
     gender: sp.speaker_gender ?? null,
@@ -1014,13 +1029,24 @@ export function buildCallExportJson(
     },
   }))
 
+  // owner_inference: speaker_role 기반 추정 — confidence 없음, 확정값 아님
+  const ownerSpeaker = sessionSpeakers.find(sp => sp.speaker_role === 'owner')
+  const ownerInference = {
+    owner_speaker: ownerSpeaker?.speaker_label ?? null,
+    confidence: null,
+    source: ownerSpeaker ? 'zero_cycle_inference' : null,
+    counterparty_count: ownerSpeaker ? sessionSpeakers.length - 1 : null,
+  }
+
   return {
     call_id: session.id,
+    user_id: session.user_id,
     sale_status: saleStatus,
     date: session.date,
     duration_seconds: session.duration_seconds,
     consent_status: session.consent_status,
     review_status: session.review_status ?? null,
+    owner_inference: ownerInference,
     quality: {
       grade_min: session.quality_grade_min ?? null,
       score_avg: session.quality_score_avg ?? null,
@@ -1154,13 +1180,15 @@ export function buildConsentReport(sessions: AdminSession[]): Record<string, unk
  *
  * ZIP 구조:
  *   manifest.json
- *   summary.json
- *   quality_report.json
- *   consent_report.json
  *   calls/
- *     {session_id}.json
+ *     call_{session_id}.json
+ *     call_{session_id}.txt   (평문 트랜스크립트)
  *   utterances/
- *     {session_id}.jsonl
+ *     utterances_{session_id}.jsonl
+ *   metadata/
+ *     dataset_summary.json
+ *     quality_report.json
+ *     consent_report.json
  */
 export async function exportMinSaleableDataset(
   params: MinSaleableExportParams,
@@ -1193,14 +1221,18 @@ export async function exportMinSaleableDataset(
 
   const callsFolder = zip.folder('calls')
   const utterancesFolder = zip.folder('utterances')
+  const metadataFolder = zip.folder('metadata')
 
   for (const session of eligibleSessions) {
     const utterances = utterancesBySessionId[session.id] ?? []
     const callJson = buildCallExportJson(session, utterances, saleStatuses[session.id])
-    callsFolder.file(`${session.id}.json`, JSON.stringify(callJson, null, 2))
+    callsFolder.file(`call_${session.id}.json`, JSON.stringify(callJson, null, 2))
+
+    const txt = buildCallTranscriptTxt(session.id, utterances)
+    callsFolder.file(`call_${session.id}.txt`, txt)
 
     const jsonl = buildUtterancesJsonl(session.id, utterances)
-    utterancesFolder.file(`${session.id}.jsonl`, jsonl)
+    utterancesFolder.file(`utterances_${session.id}.jsonl`, jsonl)
     totalUtterances += (jsonl ? jsonl.split('\n').filter(Boolean).length : 0)
   }
 
@@ -1218,13 +1250,13 @@ export async function exportMinSaleableDataset(
   zip.file('manifest.json', JSON.stringify(manifest, null, 2))
 
   const summary = buildDatasetSummary(eligibleSessions, utterancesBySessionId, saleStatuses)
-  zip.file('summary.json', JSON.stringify(summary, null, 2))
+  metadataFolder.file('dataset_summary.json', JSON.stringify(summary, null, 2))
 
   const qualityReport = buildQualityReport(eligibleSessions, utterancesBySessionId)
-  zip.file('quality_report.json', JSON.stringify(qualityReport, null, 2))
+  metadataFolder.file('quality_report.json', JSON.stringify(qualityReport, null, 2))
 
   const consentReport = buildConsentReport(eligibleSessions)
-  zip.file('consent_report.json', JSON.stringify(consentReport, null, 2))
+  metadataFolder.file('consent_report.json', JSON.stringify(consentReport, null, 2))
 
   try {
     const zipBlob: Blob = await zip.generateAsync({

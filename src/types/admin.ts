@@ -193,6 +193,23 @@ export type ExportJobLog = {
   message: string
 }
 
+export type ExportLog = {
+  id: string
+  export_type: 'single' | 'selected' | 'all_filtered'
+  session_ids: string[]
+  call_count: number
+  utterance_count: number
+  included_sale_status: Array<'sellable' | 'restricted'>
+  excluded_sale_status: Array<'locked'>
+  include_restricted: boolean
+  exported_by: string | null
+  exported_at: string
+  file_name: string | null  // TODO: exportMinSaleableDataset가 파일명 반환 시 연동
+  filters_snapshot: unknown
+  result_status: 'success' | 'failed'
+  error_message?: string
+}
+
 export type ExportJobFilters = {
   minQualityGrade: 'A' | 'B' | 'C' | null
   qualityTier: QualityTier[] | null
