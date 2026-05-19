@@ -30,6 +30,8 @@ import { UtteranceExpansion } from '../../components/domain/UtteranceExpansion'
 import { type FilterId, buildFilters, buildChips, SESSIONS_PER_PAGE } from '../../lib/adminFilters'
 import { getOwnerDisplay } from '../../lib/ownerDisplay'
 import { exportMinSaleableDataset } from '../../lib/adminHelpers'
+import { exportSingleSession, exportBatch } from '../../lib/api/delivery'
+import { exportSessionV2 } from '../../lib/api/export'
 import { MinSaleableDownloadPanel } from '../../components/domain/MinSaleableDownloadPanel'
 import ExportLogPanel from '../../components/domain/ExportLogPanel'
 import { DeliveryPackageModal } from '../../components/domain/DeliveryPackageModal'
@@ -604,6 +606,88 @@ export default function AdminInventoryPage() {
     }
   }
 
+  async function handleZipSingle(sessionId: string) {
+    addActionLoading(sessionId)
+    const res = await exportSingleSession(sessionId)
+    removeActionLoading(sessionId)
+    if (res.error) {
+      toast.error(`ZIP 내보내기 실패: ${res.error}`)
+      return
+    }
+    if (res.jobId) {
+      toast.success('ZIP 내보내기가 시작되었습니다')
+    }
+  }
+
+  // ── v2 단건 export (창 E) ─────────────────────────────────────────────
+  // admin-export.ts 가 실제로 던지는 error 문자열에 맞춰 토스트 매핑.
+  // 501 은 단건 endpoint 에서 발생하지 않으므로 분기 없음 (batch/jobs 만 501).
+  function mapV2ExportError(error: string | undefined): string {
+    if (!error) return labels.toast.v2ExportError.generic
+    // 401 자동 처리 후 apiFetch 가 반환하는 문자열
+    if (error.includes('Session expired')) return labels.toast.v2ExportError.network
+    // 네트워크 단절
+    if (error.includes('Network error') || error.includes('Failed to fetch'))
+      return labels.toast.v2ExportError.network
+    // 400 — API 단 차단 ('embedded audio export is not implemented yet.')
+    //      또는 builder safety net ('audioExportMode=embedded')
+    if (error.includes('embedded audio') || error.includes('audioExportMode=embedded'))
+      return labels.toast.v2ExportError.audioUnsupported
+    // 400 — export-builder throw ('not export-eligible')
+    if (error.includes('not export-eligible'))
+      return labels.toast.v2ExportError.ineligible
+    // 500 — safety scan 위반 ('safety violation detected, export blocked')
+    if (error.includes('safety violation'))
+      return labels.toast.v2ExportError.safetyBlocked
+    return labels.toast.v2ExportError.generic
+  }
+
+  async function handleZipSingleV2(sessionId: string) {
+    addActionLoading(sessionId)
+    try {
+      const res = await exportSessionV2(sessionId, { include_restricted: false })
+      if (res.error || !res.data) {
+        toast.error(mapV2ExportError(res.error))
+        return
+      }
+      const downloadUrl = res.data.download_url
+      const opened = window.open(downloadUrl, '_blank', 'noopener,noreferrer')
+      if (opened) {
+        toast.success(labels.toast.v2ExportStarted)
+      } else {
+        // 팝업 차단 등으로 새 탭이 열리지 않은 경우 — 링크를 클립보드에 복사
+        try {
+          await navigator.clipboard?.writeText(downloadUrl)
+          toast.warning(labels.toast.v2ExportLinkCopied)
+        } catch {
+          toast.error(labels.toast.v2ExportPopupBlocked)
+        }
+      }
+    } finally {
+      removeActionLoading(sessionId)
+    }
+  }
+
+  async function handleBulkZip() {
+    const approved = sessions.filter(
+      (s) => selectedIds.has(s.id) && s.review_status === 'approved'
+    )
+    if (approved.length === 0) {
+      toast.error('선택 항목 중 승인된 세션이 없습니다')
+      return
+    }
+    const sessionIds = approved.flatMap((s) => [s.id])
+    setDownloading(true)
+    const res = await exportBatch(sessionIds)
+    setDownloading(false)
+    if (res.error) {
+      toast.error(`ZIP 묶음 내보내기 실패: ${res.error}`)
+      return
+    }
+    toast.success(`ZIP 묶음 내보내기 시작 — ${approved.length}건`)
+    setSelectedIds(new Set())
+  }
+
   async function handleDownloadSingle(sessionId: string) {
     const status = saleStatusMap.get(sessionId) ?? 'locked'
     if (status === 'locked') {
@@ -771,6 +855,9 @@ export default function AdminInventoryPage() {
           <Button variant="danger" size="sm" onClick={handleBulkReject} disabled={bulkBusy}>
             {bulkRejecting ? '처리 중…' : '일괄 거절'}
           </Button>
+          <Button variant="ghost" size="sm" onClick={handleBulkZip} disabled={bulkBusy || downloading}>
+            {downloading ? '처리 중…' : 'ZIP 묶음 내보내기'}
+          </Button>
           <button
             className="ml-auto text-sm text-txt-sub hover:text-txt focus:outline-none"
             onClick={() => setSelectedIds(new Set())}
@@ -855,6 +942,8 @@ export default function AdminInventoryPage() {
                   onToggleReview={(u) => handleToggleReview(session.id, u)}
                   onLabelSaved={(uid, fields) => handleLabelSaved(session.id, uid, fields)}
                   onDownloadSingle={() => handleDownloadSingle(session.id)}
+                  onZipDownload={() => handleZipSingle(session.id)}
+                  onZipDownloadV2={() => handleZipSingleV2(session.id)}
                 />
               ))}
             </tbody>
@@ -987,6 +1076,8 @@ interface SessionRowProps {
   onNeedsRevisionPanel: (note?: string) => void
   onRejectPanel: (note?: string) => void
   onDownloadSingle: () => void
+  onZipDownload: () => void
+  onZipDownloadV2: () => void
 }
 
 function SessionRow({
@@ -1013,6 +1104,8 @@ function SessionRow({
   onNeedsRevisionPanel,
   onRejectPanel,
   onDownloadSingle,
+  onZipDownload,
+  onZipDownloadV2,
 }: SessionRowProps) {
   const piiFlag = session.pii_flag ?? false
   const piiCount = session.pii_count ?? 0
@@ -1090,15 +1183,40 @@ function SessionRow({
           {getOwnerDisplay(session)}
         </td>
         <td className="px-4 py-3 text-center">
-          <button
-            type="button"
-            onClick={onDownloadSingle}
-            disabled={saleStatus === 'locked'}
-            className="text-sm text-accent hover:text-accent-hover disabled:text-txt-tertiary disabled:cursor-not-allowed focus:outline-none"
-            title={saleStatus === 'locked' ? '잠금 상태 — 다운로드 불가' : 'ZIP 내보내기'}
-          >
-            ↓
-          </button>
+          <div className="flex items-center justify-center gap-1">
+            <button
+              type="button"
+              onClick={onDownloadSingle}
+              disabled={saleStatus === 'locked'}
+              className="text-sm text-accent hover:text-accent-hover disabled:text-txt-tertiary disabled:cursor-not-allowed focus:outline-none"
+              title={saleStatus === 'locked' ? '잠금 상태 — 다운로드 불가' : 'CSV 내보내기'}
+            >
+              ↓
+            </button>
+            {session.review_status === 'approved' && (
+              <>
+                <button
+                  type="button"
+                  onClick={onZipDownload}
+                  className="text-xs font-medium text-accent hover:text-accent-hover focus:outline-none"
+                  title="ZIP 내보내기 (서버 — 레거시 작업)"
+                >
+                  ZIP
+                </button>
+                {session.consent_status === 'both_agreed' && (
+                  <button
+                    type="button"
+                    onClick={onZipDownloadV2}
+                    disabled={actionLoading}
+                    className="text-xs font-medium text-accent hover:text-accent-hover disabled:text-txt-tertiary disabled:cursor-not-allowed focus:outline-none"
+                    title="즉시 다운로드 (v2)"
+                  >
+                    다운로드
+                  </button>
+                )}
+              </>
+            )}
+          </div>
         </td>
         <td className="px-4 py-3 text-right">
           <RowActions
