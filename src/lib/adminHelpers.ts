@@ -1212,6 +1212,14 @@ export async function exportMinSaleableDataset(
   }
 
   const skipped = sessions.length - eligibleSessions.length
+
+  // 적합 세션이 0이면 ZIP을 생성하지 않고 즉시 반환한다.
+  // 호출 측이 count === 0 일 때 "내보낼 데이터가 없습니다" 토스트를 띄우므로,
+  // 빈 ZIP 다운로드가 함께 발생하지 않도록 여기서 차단한다.
+  if (eligibleSessions.length === 0) {
+    return { count: 0, skipped }
+  }
+
   let totalUtterances = 0
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
