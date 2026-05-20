@@ -28,6 +28,7 @@ import {
 } from '../../lib/api/utterances'
 import { UtteranceExpansion } from '../../components/domain/UtteranceExpansion'
 import { type FilterId, buildFilters, buildChips, SESSIONS_PER_PAGE } from '../../lib/adminFilters'
+import { summarizeBulkResults } from '../../lib/bulkActionResult'
 import { getOwnerDisplay } from '../../lib/ownerDisplay'
 import { exportMinSaleableDataset } from '../../lib/adminHelpers'
 import { exportSingleSession, exportBatch } from '../../lib/api/delivery'
@@ -298,11 +299,13 @@ export default function AdminInventoryPage() {
     const results = await Promise.allSettled(
       eligible.map((s) => updateReviewStatus(s.id, 'in_review'))
     )
-    const succeeded = results.filter((r) => r.status === 'fulfilled').length
-    const failed = results.filter((r) => r.status === 'rejected').length
-    toast.success(
-      `선택 ${selectedIds.size}건 중 ${eligible.length}건만 검수 시작 가능 — ${succeeded}건 성공${failed > 0 ? `, ${failed}건 실패` : ''}${skipped > 0 ? ` (${skipped}건 건너뜀)` : ''}`
-    )
+    const { succeeded, failed, firstError } = summarizeBulkResults(results)
+    const skipNote = skipped > 0 ? ` (${skipped}건 건너뜀)` : ''
+    if (succeeded === 0) {
+      toast.error(`검수 시작 실패 — ${failed}건 실패${firstError ? `: ${firstError}` : ''}${skipNote}`)
+    } else {
+      toast.success(`검수 시작 ${succeeded}건 성공${failed > 0 ? `, ${failed}건 실패` : ''}${skipNote}`)
+    }
     setSelectedIds(new Set())
     loadSessions()
     loadStats()
@@ -323,11 +326,13 @@ export default function AdminInventoryPage() {
     const results = await Promise.allSettled(
       eligible.map((s) => updateReviewStatus(s.id, 'approved'))
     )
-    const succeeded = results.filter((r) => r.status === 'fulfilled').length
-    const failed = results.filter((r) => r.status === 'rejected').length
-    toast.success(
-      `선택 ${selectedIds.size}건 중 ${eligible.length}건만 승인 가능 — ${succeeded}건 성공${failed > 0 ? `, ${failed}건 실패` : ''}${skipped > 0 ? ` (${skipped}건 건너뜀)` : ''}`
-    )
+    const { succeeded, failed, firstError } = summarizeBulkResults(results)
+    const skipNote = skipped > 0 ? ` (${skipped}건 건너뜀)` : ''
+    if (succeeded === 0) {
+      toast.error(`승인 실패 — ${failed}건 실패${firstError ? `: ${firstError}` : ''}${skipNote}`)
+    } else {
+      toast.success(`승인 ${succeeded}건 성공${failed > 0 ? `, ${failed}건 실패` : ''}${skipNote}`)
+    }
     setSelectedIds(new Set())
     loadSessions()
     loadStats()
@@ -348,11 +353,13 @@ export default function AdminInventoryPage() {
     const results = await Promise.allSettled(
       eligible.map((s) => updateReviewStatus(s.id, 'rejected'))
     )
-    const succeeded = results.filter((r) => r.status === 'fulfilled').length
-    const failed = results.filter((r) => r.status === 'rejected').length
-    toast.success(
-      `선택 ${selectedIds.size}건 중 ${eligible.length}건만 거절 가능 — ${succeeded}건 성공${failed > 0 ? `, ${failed}건 실패` : ''}${skipped > 0 ? ` (${skipped}건 건너뜀)` : ''}`
-    )
+    const { succeeded, failed, firstError } = summarizeBulkResults(results)
+    const skipNote = skipped > 0 ? ` (${skipped}건 건너뜀)` : ''
+    if (succeeded === 0) {
+      toast.error(`거절 실패 — ${failed}건 실패${firstError ? `: ${firstError}` : ''}${skipNote}`)
+    } else {
+      toast.success(`거절 ${succeeded}건 성공${failed > 0 ? `, ${failed}건 실패` : ''}${skipNote}`)
+    }
     setSelectedIds(new Set())
     loadSessions()
     loadStats()
