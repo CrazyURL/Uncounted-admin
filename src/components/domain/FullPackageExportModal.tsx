@@ -16,7 +16,9 @@ interface FullPackageExportModalProps {
 
 type Phase = 'select' | 'running' | 'done' | 'error'
 
-const POLL_INTERVAL_MS = 2000
+export const POLL_INTERVAL_MS = 2000
+/** 폴링 상한 — 워커가 terminal(ready/failed) 상태를 주지 않을 때 무한 폴링 방지 (90회 × 2s ≈ 3분). */
+export const MAX_POLL_ATTEMPTS = 90
 
 /**
  * Row 단건 풀 패키지 export 모달 (Phase 2B).
@@ -32,6 +34,7 @@ export function FullPackageExportModal({ open, sessionId, onClose }: FullPackage
   const [errorMsg, setErrorMsg] = useState<string>('')
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const cancelledRef = useRef(false)
+  const attemptsRef = useRef(0)
 
   // 모달 열림/세션 변경 시 상태 초기화
   useEffect(() => {
@@ -41,6 +44,7 @@ export function FullPackageExportModal({ open, sessionId, onClose }: FullPackage
       setStage('')
       setErrorMsg('')
       cancelledRef.current = false
+      attemptsRef.current = 0
     }
     return () => {
       cancelledRef.current = true
@@ -58,6 +62,7 @@ export function FullPackageExportModal({ open, sessionId, onClose }: FullPackage
 
   async function pollJob(jobId: string) {
     if (cancelledRef.current) return
+    attemptsRef.current += 1
     const res = await pollExportV2Job(jobId)
     if (cancelledRef.current) return
     if (res.error || !res.data) {
@@ -77,7 +82,12 @@ export function FullPackageExportModal({ open, sessionId, onClose }: FullPackage
       setErrorMsg(job.error_message === 'export_ineligible' ? '판매 부적격 세션입니다' : job.error_message ?? '패키지 생성 실패')
       return
     }
-    // queued / packaging → 계속 폴링
+    // queued / packaging → 상한 내에서 계속 폴링 (워커가 terminal 상태를 안 줄 때 무한 폴링 방지)
+    if (attemptsRef.current >= MAX_POLL_ATTEMPTS) {
+      setPhase('error')
+      setErrorMsg('작업이 지연되어 대기 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.')
+      return
+    }
     timerRef.current = setTimeout(() => void pollJob(jobId), POLL_INTERVAL_MS)
   }
 
