@@ -49,6 +49,17 @@ export interface AdminUtterance {
   dialog_act_confidence: number | null
   label_source: LabelSource | null
   auto_label_model_version: string | null
+  // 라벨 카테고리 (표시 전용)
+  utterance_form: {
+    utterance_type?: string
+    turn_type?: string
+    is_short_response?: boolean
+    is_backchannel?: boolean
+    is_greeting?: boolean
+    is_closing?: boolean
+  } | null
+  honorific_level: string | null
+  confidence_tier: string | null
 }
 
 export interface UtteranceListResponse {
