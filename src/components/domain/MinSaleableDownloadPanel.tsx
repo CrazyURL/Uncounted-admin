@@ -45,9 +45,15 @@ export function MinSaleableDownloadPanel({
 
   return (
     <Card variant="default" padding="none" className="p-5">
-      <CardHeader title="판매 데이터셋 Export" />
+      <CardHeader title="판매 데이터셋 내보내기 · 메타데이터 ZIP (오디오 미포함)" />
 
       <CardBody className="mt-3 space-y-4">
+        <p className="text-xs text-txt-sub">
+          이 버튼은 메타데이터·전사·라벨만 담은 빠른 ZIP을 만듭니다. 음성(WAV)은 포함되지 않습니다.
+          전사·라벨·메타데이터 전체 구조가 필요하면 각 통화 행의 “풀 패키지”를 사용하세요.
+          음성(WAV) 동봉은 준비 중입니다.
+        </p>
+
         {/* Stats grid */}
         <div className="grid grid-cols-2 gap-x-8 gap-y-2">
           <StatRow label="판매 가능 통화" value={`${sellableCount.toLocaleString()}건`} tone="success" />
@@ -141,12 +147,12 @@ export function MinSaleableDownloadPanel({
                 <div className="flex items-center gap-1.5 text-txt-sub">
                   <span className="opacity-40">○</span>
                   <span>
-                    audio 파일{' '}
+                    음성(WAV) 파일{' '}
                     <span
                       className="text-xs px-1.5 py-0.5 rounded"
                       style={{ backgroundColor: 'var(--color-surface-dim, #e5e5e5)' }}
                     >
-                      준비 중
+                      미포함 · 풀 패키지에서 제공
                     </span>
                   </span>
                 </div>
