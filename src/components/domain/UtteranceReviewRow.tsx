@@ -36,6 +36,31 @@ function emotionColor(emotion: string | null): string {
   }
 }
 
+// confidence(0~1)를 정수 퍼센트로. 범위 밖/비숫자면 null → 미표시.
+function formatConfidence(v: number | null | undefined): string | null {
+  if (typeof v !== 'number' || !Number.isFinite(v) || v < 0 || v > 1) return null
+  return `${Math.round(v * 100)}%`
+}
+
+const UTTERANCE_TYPE_MAP: Record<string, string> = {
+  statement: '진술',
+  question: '질문',
+  exclamation: '감탄',
+  request: '요청',
+}
+
+// utterance_form(jsonb) 요약 라벨. object 가 아니면 null → chip 미렌더.
+function utteranceFormLabel(form: AdminUtterance['utterance_form']): string | null {
+  if (typeof form !== 'object' || form === null || Array.isArray(form)) return null
+  if (form.is_greeting && !form.is_closing) return '인사'
+  if (form.is_closing && !form.is_greeting) return '종료'
+  if (form.is_backchannel) return '백채널'
+  if (form.is_short_response) return '단응답'
+  const t = form.utterance_type
+  if (typeof t === 'string' && t) return UTTERANCE_TYPE_MAP[t] ?? t
+  return null
+}
+
 function labelSourceBadge(source: LabelSource | null): {
   label: string
   cls: string
@@ -97,6 +122,7 @@ export function UtteranceReviewRow({
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [savedFlash, setSavedFlash] = useState(false)
+  const [expandedLabels, setExpandedLabels] = useState(false)
 
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const rowRef = useRef<HTMLDivElement>(null)
@@ -275,23 +301,6 @@ export function UtteranceReviewRow({
           {renderTextWithPiiHint(utterance.text)}
         </span>
 
-        {/* 감정 배지 */}
-        {utterance.emotion && (
-          <span
-            className={[
-              'text-xs px-1.5 py-0.5 rounded border font-medium whitespace-nowrap',
-              emotionColor(utterance.emotion),
-            ].join(' ')}
-          >
-            {utterance.emotion}
-            {utterance.emotion_confidence != null && (
-              <span className="ml-1 opacity-60">
-                {Math.round(utterance.emotion_confidence * 100)}%
-              </span>
-            )}
-          </span>
-        )}
-
         {/* label_source 배지 */}
         {utterance.label_source && (
           <span
@@ -334,6 +343,78 @@ export function UtteranceReviewRow({
           {busy ? '...' : included ? '제외' : '포함'}
         </button>
       </div>
+
+      {/* 라벨 카테고리 (발화 단위 자동라벨 — 표시 전용) */}
+      {(utterance.emotion || utterance.dialog_act || utterance.segment_topic) && (
+        <div className="mt-1.5 ml-10 flex flex-wrap items-center gap-1.5 text-xs">
+          {/* 감정 */}
+          {utterance.emotion && (
+            <span
+              className={[
+                'px-1.5 py-0.5 rounded border font-medium whitespace-nowrap',
+                emotionColor(utterance.emotion),
+              ].join(' ')}
+            >
+              {utterance.emotion}
+              {formatConfidence(utterance.emotion_confidence) && (
+                <span className="ml-1 opacity-60">{formatConfidence(utterance.emotion_confidence)}</span>
+              )}
+            </span>
+          )}
+
+          {/* 대화행위 */}
+          {utterance.dialog_act && (
+            <span className="px-1.5 py-0.5 rounded border font-medium whitespace-nowrap text-blue-700 bg-blue-50 border-blue-300">
+              {utterance.dialog_act}
+              {formatConfidence(utterance.dialog_act_confidence) && (
+                <span className="ml-1 opacity-60">{formatConfidence(utterance.dialog_act_confidence)}</span>
+              )}
+            </span>
+          )}
+
+          {/* 주제 */}
+          {utterance.segment_topic && (
+            <span className="px-1.5 py-0.5 rounded border font-medium whitespace-nowrap text-purple-700 bg-purple-50 border-purple-300">
+              {utterance.segment_topic}
+            </span>
+          )}
+
+          {/* 더보기 토글 */}
+          {(utteranceFormLabel(utterance.utterance_form) ||
+            utterance.honorific_level ||
+            (utterance.confidence_tier && utterance.confidence_tier !== utterance.label_source)) && (
+            <button
+              type="button"
+              onClick={() => setExpandedLabels((p) => !p)}
+              className="text-xs px-1.5 py-0.5 rounded border border-border-soft hover:bg-bg-hover text-txt-sub"
+              title="추가 라벨"
+            >
+              {expandedLabels ? '▲ 접기' : '▼ 더보기'}
+            </button>
+          )}
+
+          {/* 확장 라벨 */}
+          {expandedLabels && (
+            <>
+              {utteranceFormLabel(utterance.utterance_form) && (
+                <span className="px-1.5 py-0.5 rounded border font-medium whitespace-nowrap text-orange-700 bg-orange-50 border-orange-300">
+                  {utteranceFormLabel(utterance.utterance_form)}
+                </span>
+              )}
+              {utterance.honorific_level && (
+                <span className="px-1.5 py-0.5 rounded border font-medium whitespace-nowrap text-teal-700 bg-teal-50 border-teal-300">
+                  {utterance.honorific_level}
+                </span>
+              )}
+              {utterance.confidence_tier && utterance.confidence_tier !== utterance.label_source && (
+                <span className="px-1.5 py-0.5 rounded border font-medium whitespace-nowrap text-gray-700 bg-gray-100 border-gray-300">
+                  {utterance.confidence_tier}
+                </span>
+              )}
+            </>
+          )}
+        </div>
+      )}
 
       {/* 오디오 엘리먼트 (숨김) */}
       {audioUrl && (
