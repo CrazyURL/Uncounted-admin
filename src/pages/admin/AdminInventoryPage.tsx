@@ -31,7 +31,7 @@ import { type FilterId, buildFilters, buildChips, SESSIONS_PER_PAGE } from '../.
 import { getOwnerDisplay } from '../../lib/ownerDisplay'
 import { exportMinSaleableDataset } from '../../lib/adminHelpers'
 import { exportSingleSession, exportBatch } from '../../lib/api/delivery'
-import { exportSessionV2 } from '../../lib/api/export'
+import { FullPackageExportModal } from '../../components/domain/FullPackageExportModal'
 import { MinSaleableDownloadPanel } from '../../components/domain/MinSaleableDownloadPanel'
 import ExportLogPanel from '../../components/domain/ExportLogPanel'
 import { DeliveryPackageModal } from '../../components/domain/DeliveryPackageModal'
@@ -110,6 +110,7 @@ export default function AdminInventoryPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [actionLoading, setActionLoading] = useState<Set<string>>(new Set())
   const [deliveryTarget, setDeliveryTarget] = useState<{ id: string; title: string | null } | null>(null)
+  const [fullPkgSessionId, setFullPkgSessionId] = useState<string | null>(null)
   const [rejectTarget, setRejectTarget] = useState<string | null>(null)
   const [bulkApproving, setBulkApproving] = useState(false)
   const [bulkStartingReview, setBulkStartingReview] = useState(false)
@@ -619,53 +620,10 @@ export default function AdminInventoryPage() {
     }
   }
 
-  // ── v2 단건 export (창 E) ─────────────────────────────────────────────
-  // admin-export.ts 가 실제로 던지는 error 문자열에 맞춰 토스트 매핑.
-  // 501 은 단건 endpoint 에서 발생하지 않으므로 분기 없음 (batch/jobs 만 501).
-  function mapV2ExportError(error: string | undefined): string {
-    if (!error) return labels.toast.v2ExportError.generic
-    // 401 자동 처리 후 apiFetch 가 반환하는 문자열
-    if (error.includes('Session expired')) return labels.toast.v2ExportError.network
-    // 네트워크 단절
-    if (error.includes('Network error') || error.includes('Failed to fetch'))
-      return labels.toast.v2ExportError.network
-    // 400 — API 단 차단 ('embedded audio export is not implemented yet.')
-    //      또는 builder safety net ('audioExportMode=embedded')
-    if (error.includes('embedded audio') || error.includes('audioExportMode=embedded'))
-      return labels.toast.v2ExportError.audioUnsupported
-    // 400 — export-builder throw ('not export-eligible')
-    if (error.includes('not export-eligible'))
-      return labels.toast.v2ExportError.ineligible
-    // 500 — safety scan 위반 ('safety violation detected, export blocked')
-    if (error.includes('safety violation'))
-      return labels.toast.v2ExportError.safetyBlocked
-    return labels.toast.v2ExportError.generic
-  }
-
-  async function handleZipSingleV2(sessionId: string) {
-    addActionLoading(sessionId)
-    try {
-      const res = await exportSessionV2(sessionId, { include_restricted: false })
-      if (res.error || !res.data) {
-        toast.error(mapV2ExportError(res.error))
-        return
-      }
-      const downloadUrl = res.data.download_url
-      const opened = window.open(downloadUrl, '_blank', 'noopener,noreferrer')
-      if (opened) {
-        toast.success(labels.toast.v2ExportStarted)
-      } else {
-        // 팝업 차단 등으로 새 탭이 열리지 않은 경우 — 링크를 클립보드에 복사
-        try {
-          await navigator.clipboard?.writeText(downloadUrl)
-          toast.warning(labels.toast.v2ExportLinkCopied)
-        } catch {
-          toast.error(labels.toast.v2ExportPopupBlocked)
-        }
-      }
-    } finally {
-      removeActionLoading(sessionId)
-    }
+  // ── v2 단건 풀 패키지 export ──────────────────────────────────────────
+  // row "풀 패키지" 버튼 → FullPackageExportModal 오픈 (reference_only 동기 / embedded 비동기 job).
+  function openFullPackage(sessionId: string) {
+    setFullPkgSessionId(sessionId)
   }
 
   async function handleBulkZip() {
@@ -943,7 +901,7 @@ export default function AdminInventoryPage() {
                   onLabelSaved={(uid, fields) => handleLabelSaved(session.id, uid, fields)}
                   onDownloadSingle={() => handleDownloadSingle(session.id)}
                   onZipDownload={() => handleZipSingle(session.id)}
-                  onZipDownloadV2={() => handleZipSingleV2(session.id)}
+                  onZipDownloadV2={() => openFullPackage(session.id)}
                 />
               ))}
             </tbody>
@@ -990,6 +948,12 @@ export default function AdminInventoryPage() {
           loadStats()
           loadSessions()
         }}
+      />
+
+      <FullPackageExportModal
+        open={fullPkgSessionId !== null}
+        sessionId={fullPkgSessionId}
+        onClose={() => setFullPkgSessionId(null)}
       />
 
       {deliveryPackageLog && (
