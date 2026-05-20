@@ -159,7 +159,7 @@ export default function AdminDeliveryPage() {
 
       {error && (
         <div className="px-6 pb-2">
-          <ErrorBanner message={error} onDismiss={() => setError(null)} />
+          <ErrorBanner message={error} onRetry={load} />
         </div>
       )}
 
@@ -226,8 +226,8 @@ export default function AdminDeliveryPage() {
                   <td className="py-3 text-right">
                     {pkg.status === 'complete' && (
                       <Button
-                        size="xs"
-                        variant="outline"
+                        size="sm"
+                        variant="ghost"
                         onClick={() => setDownloadTarget(pkg)}
                       >
                         다운로드

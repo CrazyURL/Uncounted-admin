@@ -53,7 +53,7 @@ export function ExportProgressModal({ open, job, onClose }: ExportProgressModalP
   return (
     <Modal
       open={open}
-      onClose={isFinished ? onClose : undefined}
+      onClose={isFinished ? onClose : () => {}}
       title="ZIP 내보내기"
       size="sm"
       footer={
