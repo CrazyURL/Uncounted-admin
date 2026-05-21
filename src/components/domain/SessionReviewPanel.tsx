@@ -1,4 +1,5 @@
 import { type AdminSession } from '../../types/adminSession'
+import { speakerDisplayLabel } from '../../lib/speakerLabel'
 
 interface Props {
   session: AdminSession
@@ -8,12 +9,6 @@ function GenderLabel({ gender }: { gender: string | null }) {
   if (gender === 'male') return <span className="text-blue-600 dark:text-blue-400">남성</span>
   if (gender === 'female') return <span className="text-pink-600 dark:text-pink-400">여성</span>
   return <span className="text-txt-sub">미상</span>
-}
-
-function RoleLabel({ role }: { role: string | null }) {
-  if (role === 'self') return <span className="text-emerald-600 dark:text-emerald-400">본인</span>
-  if (role === 'other') return <span className="text-violet-600 dark:text-violet-400">상대방</span>
-  return <span className="text-txt-sub">-</span>
 }
 
 function QualityBadge({ grade }: { grade: 'A' | 'B' | 'C' | null | undefined }) {
@@ -87,9 +82,7 @@ export function SessionReviewPanel({ session }: Props) {
                   className="p-2 rounded-md border border-border-light bg-surface-alt"
                 >
                   <div className="flex items-center gap-1.5 mb-1">
-                    <span className="font-mono font-medium text-txt">{sp.speaker_label}</span>
-                    <span className="text-border-light">·</span>
-                    <RoleLabel role={sp.speaker_role} />
+                    <span className="font-medium text-txt">{speakerDisplayLabel(sp.speaker_label, sp.speaker_role)}</span>
                     <span className="text-border-light">·</span>
                     <GenderLabel gender={sp.speaker_gender} />
                   </div>
