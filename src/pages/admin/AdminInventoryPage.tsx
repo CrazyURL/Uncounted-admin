@@ -1180,7 +1180,7 @@ function SessionRow({
                     onClick={onZipDownloadV2}
                     disabled={actionLoading}
                     className="text-xs font-medium text-accent hover:text-accent-hover disabled:text-txt-tertiary disabled:cursor-not-allowed focus:outline-none"
-                    title="풀 패키지 ZIP · 전사/라벨/메타데이터 전체 (음성은 참조만, 동봉 WAV는 준비 중)"
+                    title="풀 패키지 ZIP · 전사/라벨/메타데이터 전체 (참조만 또는 음성 WAV 동봉 선택)"
                   >
                     풀 패키지
                   </button>
