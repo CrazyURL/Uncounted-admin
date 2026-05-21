@@ -100,9 +100,11 @@ export function SessionReviewPanel({ session }: Props) {
                     {sp.speaker_speech_age_range && (
                       <div>말투연령 <span className="text-txt">{sp.speaker_speech_age_range}</span></div>
                     )}
-                    {sp.speaker_relation && (
+                    {sp.speaker_relation ? (
                       <div>관계 <span className="text-txt">{sp.speaker_relation}</span></div>
-                    )}
+                    ) : sp.speaker_role === 'other' ? (
+                      <div>관계 <span className="text-txt-sub">미검출</span></div>
+                    ) : null}
                     {sp.speaker_role === 'self' && sp.speaker_accent_group && (
                       <div>사투리 <span className="text-txt">{sp.speaker_accent_group}</span></div>
                     )}
