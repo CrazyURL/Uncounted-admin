@@ -3,7 +3,7 @@
 // 사용처: AdminUtterancesPage, (legacy) AdminReviewQueuePage
 // upload → STT → 화자 분리 → PII → 자동레이블 → 품질 6단계.
 
-import { labels } from '../../lib/labels'
+import { labels, classifyUploadFailureLabel } from '../../lib/labels'
 import {
   type AdminSession,
   firstFailedStep,
@@ -15,16 +15,19 @@ interface SessionPipelineCellsProps {
 }
 
 export function SessionPipelineCells({ session }: SessionPipelineCellsProps) {
-  // 업로드 실패: 나머지 단계는 실행 자체가 불가 — 업로드 도트만 표시
   if (session.upload_status === 'failed') {
+    const failureLabel = classifyUploadFailureLabel(
+      session.upload_error_message,
+      session.raw_audio_url_present,
+    )
     return (
       <div className="flex items-center gap-1.5">
         <div
-          title={`${labels.pipeline.upload} — ${labels.status.failed}`}
+          title={`${labels.pipeline.upload} — ${failureLabel}${session.upload_error_message ? ` (${session.upload_error_message.slice(0, 120)})` : ''}`}
           className="w-2.5 h-2.5 rounded-full bg-danger"
-          aria-label="업로드 실패"
+          aria-label={failureLabel}
         />
-        <span className="ml-1 text-xs text-danger">업로드 실패</span>
+        <span className="ml-1 text-xs text-danger">{failureLabel}</span>
       </div>
     )
   }

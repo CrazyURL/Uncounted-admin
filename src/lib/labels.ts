@@ -188,6 +188,15 @@ export const labels = {
     qualityLow: '저품질 통화 — 수동 검수 권장',
     duplicateAttempt: '동일 매수자 중복 납품 시도',
   },
+
+  uploadFailure: {
+    actualUpload: '업로드 실패',
+    connectionRefused: '처리 서버 접속 실패',
+    pollTimeout: '처리 시간 초과',
+    stuck: '처리 중단 (시간 초과)',
+    zeroUtterances: '발화 미감지',
+    generic: '처리 오류',
+  },
 } as const
 
 // 유틸 함수 — 동적 키 접근 시 안전한 fallback
@@ -213,6 +222,24 @@ export function getGradeLabel(grade: string | null | undefined): string {
   if (!grade) return '-'
   const map = labels.grade as Record<string, string>
   return map[grade] ?? grade
+}
+
+export function classifyUploadFailureLabel(
+  errorMessage: string | null | undefined,
+  rawAudioUrlPresent: boolean | undefined,
+): string {
+  if (rawAudioUrlPresent === false) return labels.uploadFailure.actualUpload
+  if (!errorMessage) return labels.uploadFailure.generic
+  const s = errorMessage.toLowerCase()
+  if (s.includes('econnrefused') || s.includes('cannot connect') || s.includes('localhost:8001')) {
+    return labels.uploadFailure.connectionRefused
+  }
+  if (s.includes('poll_job timeout') || s.includes('timeout after')) {
+    return labels.uploadFailure.pollTimeout
+  }
+  if (s.includes('stuck')) return labels.uploadFailure.stuck
+  if (s.includes('voice_api_0_utterances')) return labels.uploadFailure.zeroUtterances
+  return labels.uploadFailure.generic
 }
 
 // 한도 도달률 → 경고 메시지 (0~1 스케일)
