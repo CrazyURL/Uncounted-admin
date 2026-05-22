@@ -19,6 +19,10 @@ export type ReviewStatus =
 export interface SessionPipeline {
   upload_status?: PipelineStatus
   uploaded_at?: string | null
+  /** gpu_last_error 원문 (UI 표시는 classifyUploadFailureLabel 경유) */
+  upload_error_message?: string | null
+  /** raw_audio_url 존재 여부 — 진짜 S3 업로드 실패와 처리 실패 구분용 */
+  raw_audio_url_present?: boolean
 
   stt_status?: PipelineStatus
   stt_at?: string | null
