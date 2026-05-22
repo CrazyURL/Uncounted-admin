@@ -23,7 +23,10 @@ function formatDate(iso: string): string {
 
 export default function ExportLogPanel({ onRegisterDelivery }: Props) {
   const [open, setOpen] = useState(false)
-  const logs = open ? getExportLogs().slice(0, 10) : []
+  const allLogs = getExportLogs()
+  const logs = open ? allLogs.slice(0, 10) : []
+
+  if (allLogs.length === 0) return null
 
   return (
     <div style={{ border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, overflow: 'hidden' }}>
