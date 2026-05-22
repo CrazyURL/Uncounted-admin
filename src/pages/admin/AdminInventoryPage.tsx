@@ -48,6 +48,36 @@ function formatDuration(secs: number): string {
   return m > 0 ? `${m}분 ${s}초` : `${s}초`
 }
 
+function CopyIdButton({ id }: { id: string }) {
+  const toast = useToast()
+  const handleCopy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(id)
+      toast.success('세션 ID 복사됨')
+    } catch {
+      toast.error('복사 실패 — 브라우저 클립보드 권한을 확인하세요')
+    }
+  }, [id, toast])
+
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      className="shrink-0 text-txt-tertiary hover:text-accent transition-colors focus:outline-none"
+      title={`세션 ID 복사: ${id}`}
+      aria-label="세션 ID 복사"
+    >
+      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+        />
+      </svg>
+    </button>
+  )
+}
+
 function deriveGrade(score: number | null | undefined): 'A' | 'B' | 'C' | null {
   if (score == null) return null
   return score >= 80 ? 'A' : score >= 50 ? 'B' : 'C'
@@ -1117,8 +1147,11 @@ function SessionRow({
           </button>
         </td>
         <td className="px-4 py-3 overflow-hidden">
-          <div className="font-medium text-txt truncate">
-            {session.title ?? `통화 ${session.id.slice(-6)}`}
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="font-medium text-txt truncate">
+              {session.title ?? `통화 ${session.id.slice(-6)}`}
+            </span>
+            <CopyIdButton id={session.id} />
           </div>
           <div className="text-xs text-txt-tertiary">
             {new Date(session.date).toLocaleDateString('ko-KR')}
