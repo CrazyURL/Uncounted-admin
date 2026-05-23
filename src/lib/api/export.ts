@@ -25,7 +25,7 @@ export interface ExportSessionV2Options {
  */
 export async function exportSessionV2(
   sessionId: string,
-  options: ExportSessionV2Options = {},
+  _options: ExportSessionV2Options = {},
 ): Promise<{ data?: ExportSessionV2Data; error?: string }> {
   if (usesMock) {
     return {
@@ -43,7 +43,7 @@ export async function exportSessionV2(
       method: 'POST',
       body: JSON.stringify({
         include_audio: false,
-        include_restricted: options.include_restricted ?? false,
+        include_restricted: true,
       }),
     },
   )
