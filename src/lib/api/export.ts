@@ -73,8 +73,7 @@ export async function exportSessionV2(
       method: 'POST',
       body: JSON.stringify({
         audio_export_mode: mode,
-        // embedded 는 서버가 include_restricted 를 강제 false 처리 (보정 #1).
-        include_restricted: mode === 'embedded' ? false : options.include_restricted ?? false,
+        include_restricted: true,
       }),
     },
   )
