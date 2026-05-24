@@ -6,6 +6,7 @@ import { formatDuration } from '../../lib/earnings'
 import { UtteranceReviewRow } from './UtteranceReviewRow'
 import { SessionReviewPanel } from './SessionReviewPanel'
 import { QualityReviewReportCard } from './QualityReviewReportCard'
+import { PiiCandidateReviewSection } from './PiiCandidateReviewSection'
 
 interface UtteranceExpansionProps {
   session: AdminSession
@@ -117,6 +118,9 @@ export function UtteranceExpansion({
 
       {/* 검수 결정 근거 패널 (화자·품질·PII) */}
       <SessionReviewPanel session={session} />
+
+      {/* PII 후보 검토 (PII-1B) */}
+      <PiiCandidateReviewSection sessionId={session.id} />
 
       {/* 저품질(C) 검수 큐 리포트 — C등급 발화 보유 세션만 표시 */}
       <QualityReviewReportCard sessionId={session.id} refreshKey={qualityRefreshKey} />
