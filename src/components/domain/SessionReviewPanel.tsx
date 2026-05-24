@@ -158,17 +158,14 @@ export function SessionReviewPanel({ session }: Props) {
           )}
         </div>
 
-        {/* 개인정보(PII) */}
+        {/* PII 검토 대기 (= needs_human_decision + pending 후보 수. 확정 PII 수 아님) */}
         <div>
           <div className="font-medium text-txt-sub mb-2 flex items-center flex-wrap gap-1.5">
-            개인정보(PII)
+            PII 검토 대기
             {hasPii && (
-              <>
-                <span className="px-1.5 py-0.5 rounded bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 font-medium">
-                  {session.pii_count}건
-                </span>
-                <span className="text-xs font-normal text-emerald-600 dark:text-emerald-400">무음 처리 완료</span>
-              </>
+              <span className="px-1.5 py-0.5 rounded bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 font-medium">
+                {session.pii_count}건
+              </span>
             )}
           </div>
           {hasPii ? (
@@ -194,7 +191,7 @@ export function SessionReviewPanel({ session }: Props) {
               )}
             </div>
           ) : (
-            <span className="text-txt-sub">없음</span>
+            <span className="text-txt-sub">검토 대기 없음</span>
           )}
         </div>
 
