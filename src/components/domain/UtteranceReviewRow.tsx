@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { AdminUtterance, LabelSource } from '../../lib/api/utterances'
 import { fetchUtteranceAudio, patchUtterance } from '../../lib/api/utterances'
+import { UtteranceQualityReviewControls } from './UtteranceQualityReviewControls'
 
 // ── 상수 ──────────────────────────────────────────────────────────────────
 const EMOTION_OPTIONS = ['기쁨', '놀람', '슬픔', '분노', '불안', '당황', '중립'] as const
@@ -93,6 +94,8 @@ export interface UtteranceReviewRowProps {
   onToggleReview: () => void
   /** 저장 성공 시 호출 — 부모가 낙관 업데이트 후 다음 needs_review 로 스크롤 */
   onLabelSaved?: (id: string, updatedFields: Partial<AdminUtterance>) => void
+  /** 품질 검수 판정 변경 시 호출 — 부모가 리포트 재집계 트리거 */
+  onQualityReviewUpdated?: (id: string) => void
 }
 
 // ── 컴포넌트 ──────────────────────────────────────────────────────────────
@@ -105,6 +108,7 @@ export function UtteranceReviewRow({
   onToggleSelect,
   onToggleReview,
   onLabelSaved,
+  onQualityReviewUpdated,
 }: UtteranceReviewRowProps) {
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
   const [audioLoading, setAudioLoading] = useState(false)
@@ -415,6 +419,12 @@ export function UtteranceReviewRow({
           )}
         </div>
       )}
+
+      {/* 납품 품질 검수 컨트롤 (저품질 검수 큐 액션) */}
+      <UtteranceQualityReviewControls
+        utterance={utterance}
+        onUpdated={(id) => onQualityReviewUpdated?.(id)}
+      />
 
       {/* 오디오 엘리먼트 (숨김) */}
       {audioUrl && (

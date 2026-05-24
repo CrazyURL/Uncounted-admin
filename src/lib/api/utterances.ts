@@ -3,6 +3,27 @@
 import { apiFetch } from './client'
 
 export type UtteranceReviewStatus = 'pending' | 'excluded'
+
+// 납품 품질 검수 상태 (일반 review_status 와 직교 — 납품 포함/제외 판단 전용)
+export type QualityReviewStatus =
+  | 'pending'
+  | 'approved_exception'
+  | 'excluded_low_quality'
+  | 'needs_retranscription'
+  | 'needs_pii_masking'
+  | 'needs_transcript_edit'
+
+export type QualityExclusionReason =
+  | 'noisy'
+  | 'too_short'
+  | 'clipped'
+  | 'unintelligible'
+  | 'wrong_transcript'
+  | 'pii_unresolved'
+  | 'duplicate'
+  | 'other'
+
+export type QualityGrade = 'A' | 'B' | 'C' | 'D' | 'F'
 export type SessionReviewStatus =
   | 'pending'
   | 'in_review'
@@ -42,6 +63,11 @@ export interface AdminUtterance {
   review_status: UtteranceReviewStatus
   exclude_reason: string | null
   reviewed_at: string | null
+  // 납품 품질 검수 (migration 077 / PR1) — 서버 list select 에 포함 시 표시.
+  // 미포함 시 undefined → 배지 미렌더, 액션 버튼은 optimistic 으로 동작.
+  quality_grade?: QualityGrade | null
+  quality_review_status?: QualityReviewStatus | null
+  quality_exclusion_reason?: QualityExclusionReason | null
   // STAGE 14: auto-label fields
   emotion: string | null
   emotion_confidence: number | null
@@ -141,4 +167,51 @@ export async function updateUtteranceReviewStatus(
       body: JSON.stringify({ isIncluded, excludeReason }),
     },
   )
+}
+
+/**
+ * 납품 품질 검수 판정 저장.
+ * 백엔드: admin-utterances.ts 의 POST /utterances/:id/quality-review (PR1).
+ * ⚠️ review_status(일반 검수)와 직교 — quality_review_status 만 변경한다.
+ */
+export async function updateUtteranceQualityReview(
+  utteranceId: string,
+  body: { status: QualityReviewStatus; reason?: QualityExclusionReason | null; note?: string | null },
+) {
+  return apiFetch<{ ok: true; status: QualityReviewStatus; reason: QualityExclusionReason | null }>(
+    `/api/admin/utterances/${utteranceId}/quality-review`,
+    {
+      method: 'POST',
+      body: JSON.stringify(body),
+    },
+  )
+}
+
+export interface QualityReviewReport {
+  scope: 'session' | 'quality_c'
+  sessionId: string | null
+  scopeTotalUtterances: number
+  totalCUtterances: number
+  excludedCount: number
+  approvedExceptionCount: number
+  transcriptEditCount: number
+  piiMaskingCount: number
+  retranscriptionCount: number
+  pendingCount: number
+  finalIncludedUtterances: number
+  finalExcludedUtterances: number
+}
+
+/**
+ * 저품질 검수 큐 리포트 집계.
+ * 백엔드: admin-utterances.ts 의 GET /quality-review/report (PR2).
+ */
+export async function fetchQualityReviewReport(opts: {
+  sessionId?: string
+  filter?: 'quality_c'
+}): Promise<{ data?: QualityReviewReport; error?: string }> {
+  const params = new URLSearchParams()
+  if (opts.sessionId) params.set('session_id', opts.sessionId)
+  if (opts.filter) params.set('filter', opts.filter)
+  return apiFetch<QualityReviewReport>(`/api/admin/quality-review/report?${params.toString()}`)
 }

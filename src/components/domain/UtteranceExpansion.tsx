@@ -5,6 +5,7 @@ import { analyzeSessionRisk } from '../../lib/piiRisk'
 import { formatDuration } from '../../lib/earnings'
 import { UtteranceReviewRow } from './UtteranceReviewRow'
 import { SessionReviewPanel } from './SessionReviewPanel'
+import { QualityReviewReportCard } from './QualityReviewReportCard'
 
 interface UtteranceExpansionProps {
   session: AdminSession
@@ -53,6 +54,7 @@ export function UtteranceExpansion({
   onRejectPanel,
 }: UtteranceExpansionProps) {
   const [reviewNote, setReviewNote] = useState('')
+  const [qualityRefreshKey, setQualityRefreshKey] = useState(0)
   const includable = utterances.filter((u) => u.review_status !== 'excluded')
   const allSelected = includable.length > 0 && selectedSet.size === includable.length
   const risk = useMemo(() => analyzeSessionRisk(utterances), [utterances])
@@ -116,6 +118,9 @@ export function UtteranceExpansion({
       {/* 검수 결정 근거 패널 (화자·품질·PII) */}
       <SessionReviewPanel session={session} />
 
+      {/* 저품질(C) 검수 큐 리포트 — C등급 발화 보유 세션만 표시 */}
+      <QualityReviewReportCard sessionId={session.id} refreshKey={qualityRefreshKey} />
+
       {/* 발화 목록 헤더 */}
       <div className="px-4 py-2 flex items-center gap-3 border-b border-border-light text-xs">
         <label className="inline-flex items-center gap-2 cursor-pointer">
@@ -145,6 +150,7 @@ export function UtteranceExpansion({
             onToggleSelect={() => onToggleUtterance(u.id)}
             onToggleReview={() => onToggleReview(u)}
             onLabelSaved={onLabelSaved}
+            onQualityReviewUpdated={() => setQualityRefreshKey((k) => k + 1)}
           />
         ))}
       </div>
