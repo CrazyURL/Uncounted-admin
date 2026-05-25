@@ -215,3 +215,54 @@ export async function fetchQualityReviewReport(opts: {
   if (opts.filter) params.set('filter', opts.filter)
   return apiFetch<QualityReviewReport>(`/api/admin/quality-review/report?${params.toString()}`)
 }
+
+// ── 사람 emotion 라벨 (학습용, PR-H2a) ─────────────────────────────────────
+// utterances.emotion(모델 출력)과 분리된 utterance_human_labels 테이블에 누적한다.
+// 백엔드: POST /api/admin/utterances/:id/human-label (PR-H2a-api). 성공 시 200 { data: record }.
+// 서버가 labeler_id / labeler_email / session_id 를 인증 컨텍스트에서 도출하고,
+// resolved 인 경우 category_source 를 'manual' 로 강제한다(클라이언트는 전송하지 않는다).
+// 검증: resolved ⇒ fine_label·emotion_category 필수(누락 시 400), undecidable ⇒ 둘 다 null 허용.
+export type EmotionCategory = '긍정' | '중립' | '부정'
+export type EmotionFineLabel = '기쁨' | '놀람' | '슬픔' | '분노' | '불안' | '당황' | '중립'
+export type HumanLabelDecision = 'resolved' | 'pending_context' | 'undecidable'
+export type HumanLabelConfidence = 'high' | 'medium' | 'low'
+
+export interface SaveHumanLabelBody {
+  category_decision: HumanLabelDecision
+  emotion_category?: EmotionCategory | null
+  fine_label?: EmotionFineLabel | null
+  label_confidence?: HumanLabelConfidence
+  note?: string
+}
+
+export interface UtteranceHumanLabel {
+  id: string
+  utterance_id: string
+  session_id: string | null
+  label_type: string
+  fine_label: EmotionFineLabel | null
+  emotion_category: EmotionCategory | null
+  category_decision: HumanLabelDecision
+  category_source: 'derived' | 'manual' | null
+  label_confidence: HumanLabelConfidence | null
+  note: string | null
+  labeler_id: string
+  labeler_email: string | null
+  created_at: string
+  updated_at: string
+}
+
+/**
+ * 사람 emotion 라벨 저장(upsert). 모델값 utterances.emotion 은 변경하지 않는다.
+ * 백엔드: admin-utterances.ts 의 POST /utterances/:id/human-label.
+ * UNIQUE(utterance_id, label_type, labeler_id) — 같은 검수자가 다시 저장하면 갱신된다.
+ */
+export async function saveUtteranceHumanLabel(
+  utteranceId: string,
+  body: SaveHumanLabelBody,
+): Promise<{ data?: UtteranceHumanLabel; error?: string }> {
+  return apiFetch<UtteranceHumanLabel>(`/api/admin/utterances/${utteranceId}/human-label`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
