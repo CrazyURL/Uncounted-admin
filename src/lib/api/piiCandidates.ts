@@ -1,7 +1,8 @@
 // PII 후보(PII-1B) API 클라이언트.
 //
 // GET  /api/admin/pii-candidates              — 후보 큐(기본 needs_human_decision + pending)
-// POST /api/admin/pii-candidates/:id/decision — 관리자 판정(confirmed/rejected/skipped)
+// POST /api/admin/pii-candidates/:id/decision — 후보 테이블에만 판정 기록(rejected/skipped)
+// POST /api/admin/pii-candidates/:id/promote  — confirmed/corrected 후보를 pii_annotations 로 승격(PR-P2C)
 //
 // apiFetch 가 요청 암호화 + 응답 복호화 + 401 자동갱신을 처리한다.
 // 백엔드는 { data: [...] } 봉투로 반환하므로 res.data 가 후보 배열이다.
@@ -40,4 +41,25 @@ export async function decidePiiCandidate(
       body: JSON.stringify({ decision, selected_type: selectedType }),
     },
   )
+}
+
+// confirmed/corrected 후보를 pii_annotations 로 원자적 승격(서버 RPC).
+// confirmed → annotation.pii_type 는 후보 predicted_type 을 따른다.
+// corrected → selected_type 필수(서버가 검증) — 현재 후보 UI 에는 타입 수정 기능이 없어
+//             confirmed 만 호출한다. selected_type 인자는 향후 corrected UI 대비.
+export async function promotePiiCandidate(
+  id: string,
+  decision: 'confirmed' | 'corrected',
+  selectedType?: string,
+) {
+  return apiFetch<{
+    id: string
+    decision: 'confirmed' | 'corrected'
+    status: 'decided'
+    pii_type: string
+    annotation_id: string | null
+  }>(`/api/admin/pii-candidates/${id}/promote`, {
+    method: 'POST',
+    body: JSON.stringify({ decision, selected_type: selectedType }),
+  })
 }

@@ -9,7 +9,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { Badge, Button, useToast } from '../ui'
-import { getPiiCandidates, decidePiiCandidate } from '../../lib/api/piiCandidates'
+import { getPiiCandidates, decidePiiCandidate, promotePiiCandidate } from '../../lib/api/piiCandidates'
 import type { PiiCandidate, PiiDecision } from '../../types/piiCandidate'
 import { splitSnippetForHighlight } from '../../lib/pii/highlightSnippet'
 
@@ -54,7 +54,12 @@ export function PiiCandidateReviewSection({ sessionId }: PiiCandidateReviewSecti
   const decide = useCallback(
     async (id: string, decision: PiiDecision) => {
       setDecidingId(id)
-      const res = await decidePiiCandidate(id, decision)
+      // 정책: confirmed = pii_annotations 로 승격(promote), rejected/skipped = 후보 테이블에만 기록(decision).
+      // confirmed 를 여기서 promote 로 분기한다 — /decision 으로 보내면 확정 라벨(annotation)이 생성되지 않는다.
+      const res =
+        decision === 'confirmed'
+          ? await promotePiiCandidate(id, 'confirmed')
+          : await decidePiiCandidate(id, decision)
       if (res.error) {
         toast.error(`판정 저장 실패 — ${res.error}`)
       } else {
