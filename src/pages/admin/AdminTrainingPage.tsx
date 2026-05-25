@@ -4,8 +4,10 @@ import {
   triggerTraining,
   fetchTrainingStatus,
   exportTrainingData,
+  fetchPiiTrainingProgress,
   type TrainingStats,
   type TrainingJob,
+  type PiiTrainingProgress,
 } from '../../lib/api/training'
 
 const POLL_INTERVAL_MS = 5000
@@ -21,6 +23,8 @@ export default function AdminTrainingPage() {
 
   const [exporting, setExporting] = useState(false)
 
+  const [pii, setPii] = useState<PiiTrainingProgress | null>(null)
+
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const loadStats = useCallback(async () => {
@@ -35,9 +39,15 @@ export default function AdminTrainingPage() {
     setStatsLoading(false)
   }, [])
 
+  const loadPii = useCallback(async () => {
+    const res = await fetchPiiTrainingProgress()
+    if (res.data) setPii(res.data)
+  }, [])
+
   useEffect(() => {
     loadStats()
-  }, [loadStats])
+    loadPii()
+  }, [loadStats, loadPii])
 
   const stopPolling = useCallback(() => {
     if (pollRef.current) {
@@ -247,10 +257,98 @@ export default function AdminTrainingPage() {
         </>
       )}
 
+      {/* PII 학습 데이터 (read-only — 트리거 없음) */}
+      {pii && <PiiProgressCard pii={pii} />}
+
       {/* Job progress */}
       {job && (
         <JobProgress job={job} />
       )}
+    </div>
+  )
+}
+
+/* ── PII 학습 데이터 카드 (read-only) ── */
+
+function PiiProgressCard({ pii }: { pii: PiiTrainingProgress }) {
+  const { gate } = pii
+  const eligible = gate.learning_eligible
+
+  return (
+    <div
+      className="rounded-lg p-5 space-y-4"
+      style={{ backgroundColor: 'var(--color-surface-alt)', border: '1px solid var(--color-border-light)' }}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <span className="material-symbols-outlined text-base" style={{ color: 'var(--color-text-sub)' }}>
+            shield_person
+          </span>
+          <span className="font-medium text-sm" style={{ color: 'var(--color-text)' }}>
+            PII 학습 데이터
+          </span>
+        </div>
+        <span
+          className="px-2 py-0.5 rounded text-xs font-medium"
+          style={{
+            backgroundColor: eligible ? 'rgba(34,197,94,0.12)' : 'rgba(107,114,128,0.12)',
+            color: eligible ? '#16a34a' : 'var(--color-text-sub)',
+          }}
+        >
+          {eligible ? '학습 가능' : '학습 불가'}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <PiiStat label="Positive 확정 라벨" value={`${pii.positive_annotations} / ${gate.pilot_required_positive}`} />
+        <PiiStat label="Negative 오탐 라벨" value={`${pii.negative_candidates} / ${gate.pilot_required_negative}`} />
+        <PiiStat label="Skipped" value={pii.skipped_candidates.toLocaleString()} />
+        <PiiStat label="검토 대기" value={pii.pending_review.toLocaleString()} />
+      </div>
+
+      <div className="space-y-1.5 text-xs" style={{ color: 'var(--color-text-sub)' }}>
+        <div className="flex justify-between">
+          <span>현재 단계</span>
+          <span className="font-medium" style={{ color: 'var(--color-text)' }}>
+            {gate.current}
+          </span>
+        </div>
+        {gate.next && (
+          <div className="flex justify-between">
+            <span>다음 단계</span>
+            <span>
+              {gate.next}
+              {gate.positive_remaining > 0 && ` · positive ${gate.positive_remaining}건 필요`}
+            </span>
+          </div>
+        )}
+      </div>
+
+      <div className="text-xs leading-relaxed" style={{ color: 'var(--color-text-tertiary)' }}>
+        PII 맞음 → positive, 아님 → negative, 수동 등록 → admin_manual positive, 보류 → skipped.
+        Gate 3(학습 파일럿) 도달 전에는 학습에 투입하지 않습니다.
+      </div>
+    </div>
+  )
+}
+
+interface PiiStatProps {
+  label: string
+  value: string
+}
+
+function PiiStat({ label, value }: PiiStatProps) {
+  return (
+    <div
+      className="rounded-lg p-3 space-y-1"
+      style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border-light)' }}
+    >
+      <div className="text-xs" style={{ color: 'var(--color-text-sub)' }}>
+        {label}
+      </div>
+      <div className="text-lg font-bold" style={{ color: 'var(--color-text)' }}>
+        {value}
+      </div>
     </div>
   )
 }
