@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { extractSpanFromRange, PII_TYPE_OPTIONS, type SpanOffsets } from './manualSpan'
+import {
+  extractSpanFromRange,
+  mapKoreanPiiTypeToEnum,
+  PII_TYPE_OPTIONS,
+  type SpanOffsets,
+} from './manualSpan'
 
 const TEXT_NODE = 3
 const ELEMENT_NODE = 1
@@ -96,5 +101,35 @@ describe('PII_TYPE_OPTIONS', () => {
     for (const o of PII_TYPE_OPTIONS) {
       expect(valid).toContain(o.value)
     }
+  })
+})
+
+describe('mapKoreanPiiTypeToEnum', () => {
+  it('maps known Korean predicted types to annotation enum', () => {
+    expect(mapKoreanPiiTypeToEnum('이름')).toBe('name')
+    expect(mapKoreanPiiTypeToEnum('전화번호')).toBe('phone')
+    expect(mapKoreanPiiTypeToEnum('휴대폰번호')).toBe('phone')
+    expect(mapKoreanPiiTypeToEnum('계좌번호')).toBe('account')
+    expect(mapKoreanPiiTypeToEnum('주소')).toBe('address')
+    expect(mapKoreanPiiTypeToEnum('IP주소')).toBe('ip')
+    expect(mapKoreanPiiTypeToEnum('이메일')).toBe('email')
+    expect(mapKoreanPiiTypeToEnum('기관/회사명')).toBe('organization')
+    expect(mapKoreanPiiTypeToEnum('주민등록번호')).toBe('resident_id')
+    expect(mapKoreanPiiTypeToEnum('기타')).toBe('other')
+  })
+
+  it('trims whitespace before matching', () => {
+    expect(mapKoreanPiiTypeToEnum('  이름 ')).toBe('name')
+  })
+
+  it('passes through an already-valid enum value (defensive)', () => {
+    expect(mapKoreanPiiTypeToEnum('phone')).toBe('phone')
+  })
+
+  it('returns null for unknown/empty types (fail-open, no blocking)', () => {
+    expect(mapKoreanPiiTypeToEnum('알수없는유형')).toBeNull()
+    expect(mapKoreanPiiTypeToEnum('')).toBeNull()
+    expect(mapKoreanPiiTypeToEnum(null)).toBeNull()
+    expect(mapKoreanPiiTypeToEnum(undefined)).toBeNull()
   })
 })
