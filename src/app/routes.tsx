@@ -23,6 +23,7 @@ import AdminBalancesPage from '../pages/admin/AdminBalancesPage'
 import AdminTransactionsPage from '../pages/admin/AdminTransactionsPage'
 import AdminInventoryPage from '../pages/admin/AdminInventoryPage'
 import AdminTrainingPage from '../pages/admin/AdminTrainingPage'
+import AdminEmotionLabelQueuePage from '../pages/admin/AdminEmotionLabelQueuePage'
 import AdminDeliveryPage from '../pages/admin/AdminDeliveryPage'
 import AdminExportsPage from '../pages/admin/AdminExportsPage'
 
@@ -63,6 +64,7 @@ const routes: RouteObject[] = [
       { path: '/admin/datasets', element: <AdminDatasetListPage /> },
       { path: '/admin/datasets/:datasetId', element: <AdminDatasetDetailPage /> },
       { path: '/admin/training', element: <AdminTrainingPage /> },
+      { path: '/admin/emotion-labels', element: <AdminEmotionLabelQueuePage /> },
       { path: '/admin/delivery', element: <AdminDeliveryPage /> },
       { path: '/admin/exports', element: <AdminExportsPage /> },
       // BM v10 신규 — 검수 + 납품 흐름 + 정산

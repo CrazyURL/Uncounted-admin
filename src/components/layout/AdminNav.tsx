@@ -9,6 +9,7 @@ const NAV_ITEMS: NavItem[] = [
   { path: '/admin/transactions', labelKo: '거래내역', icon: 'receipt_long' },
   { path: '/admin/balances', labelKo: '잔액관리', icon: 'account_balance_wallet' },
   { path: '/admin/training', labelKo: '모델 학습', icon: 'model_training' },
+  { path: '/admin/emotion-labels', labelKo: '감정 라벨 검수', icon: 'sentiment_satisfied' },
 ]
 
 export default function AdminNav() {
