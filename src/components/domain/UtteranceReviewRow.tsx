@@ -2,8 +2,17 @@
 // 오디오 재생 → 감정/대화행위 선택 → 저장 → 다음 needs_review 자동 이동
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { AdminUtterance, LabelSource } from '../../lib/api/utterances'
-import { fetchUtteranceAudio, patchUtterance } from '../../lib/api/utterances'
+import type {
+  AdminUtterance,
+  EmotionCategory,
+  HumanLabelDecision,
+  LabelSource,
+} from '../../lib/api/utterances'
+import {
+  fetchUtteranceAudio,
+  patchUtterance,
+  saveUtteranceHumanLabel,
+} from '../../lib/api/utterances'
 import { UtteranceQualityReviewControls } from './UtteranceQualityReviewControls'
 import { ManualPiiSpanRegister } from './ManualPiiSpanRegister'
 
@@ -25,6 +34,29 @@ const DIALOG_ACT_OPTIONS = [
   '진술', '질문', '요청', '감사', '동의', '부정', '인사', '기타',
 ] as const
 type DialogAct = (typeof DIALOG_ACT_OPTIONS)[number]
+
+// ── 사람 감정 라벨 (학습용, PR-H2a) ────────────────────────────────────────
+// 위 EMOTION_OPTIONS(7종 모델 라벨, utterances.emotion in-place PATCH)와는 별개다.
+// 사람 라벨은 utterances.emotion 을 건드리지 않고 utterance_human_labels 테이블에 누적된다.
+// 1차로 3종 카테고리(긍정/중립/부정) 또는 판단불가를 고르고, 7종 fine_label 은 드롭다운으로 보정한다.
+const HUMAN_CATEGORY_OPTIONS = ['긍정', '중립', '부정', '판단불가'] as const
+type HumanCategory = (typeof HUMAN_CATEGORY_OPTIONS)[number]
+
+// 카테고리 선택 시 자동 적용되는 기본 fine_label (설계 §3.2 안전맵 기준).
+// resolved 는 서버에서 fine_label·emotion_category 둘 다 필수(미전송 시 400)이므로 기본값이 필요하다.
+// ⚠️ 이 기본값은 학습 품질에 직접 영향을 준다 — 부정은 슬픔/분노/불안이 섞여 있으므로
+//    검수자가 가능하면 아래 fine_label 드롭다운으로 정확한 7종을 보정해야 한다(기본값 맹신 금지).
+const DEFAULT_FINE_BY_CATEGORY: Record<EmotionCategory, Emotion> = {
+  긍정: '기쁨',
+  중립: '중립',
+  부정: '불안',
+}
+
+interface SavedHumanLabel {
+  decision: HumanLabelDecision
+  category: EmotionCategory | null
+  fineLabel: Emotion | null
+}
 
 function emotionColor(emotion: string | null): string {
   switch (emotion) {
@@ -130,6 +162,13 @@ export function UtteranceReviewRow({
   const [expandedLabels, setExpandedLabels] = useState(false)
   const [manualPiiOpen, setManualPiiOpen] = useState(false)
 
+  // 사람 감정 라벨 (학습용) — 모델 emotion 과 분리된 별도 저장 상태
+  const [humanCategory, setHumanCategory] = useState<HumanCategory | null>(null)
+  const [humanFine, setHumanFine] = useState<Emotion | null>(null)
+  const [humanSaving, setHumanSaving] = useState(false)
+  const [humanSaveError, setHumanSaveError] = useState<string | null>(null)
+  const [savedHuman, setSavedHuman] = useState<SavedHumanLabel | null>(null)
+
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const rowRef = useRef<HTMLDivElement>(null)
 
@@ -207,6 +246,43 @@ export function UtteranceReviewRow({
     setTimeout(() => setSavedFlash(false), 600)
     setIsReviewing(false)
   }, [selectedEmotion, selectedDialogAct, saving, utterance, onLabelSaved])
+
+  // 사람 감정 라벨 — 카테고리 선택. 긍정/중립/부정은 기본 fine_label 을 자동 적용(드롭다운으로 보정 가능).
+  const handleSelectHumanCategory = useCallback((cat: HumanCategory) => {
+    setHumanCategory(cat)
+    setHumanSaveError(null)
+    setSavedHuman(null) // 재선택 시 직전 저장 표시 초기화 (다시 저장하기 전까지 깨끗한 상태)
+    setHumanFine(cat === '판단불가' ? null : DEFAULT_FINE_BY_CATEGORY[cat])
+  }, [])
+
+  // 사람 감정 라벨 저장 — utterances.emotion 미변경, utterance_human_labels 에 upsert.
+  const handleSaveHuman = useCallback(async () => {
+    if (!humanCategory || humanSaving) return
+    setHumanSaving(true)
+    setHumanSaveError(null)
+
+    const isUndecidable = humanCategory === '판단불가'
+    // resolved 는 fine_label·emotion_category 둘 다 필수. category_source 는 서버가 manual 로 강제하므로 미전송.
+    const fineLabel = isUndecidable ? null : (humanFine ?? DEFAULT_FINE_BY_CATEGORY[humanCategory])
+    const res = await saveUtteranceHumanLabel(
+      utterance.id,
+      isUndecidable
+        ? { category_decision: 'undecidable' }
+        : { category_decision: 'resolved', emotion_category: humanCategory, fine_label: fineLabel ?? undefined },
+    )
+    setHumanSaving(false)
+
+    if (res.error) {
+      setHumanSaveError(res.error)
+      return
+    }
+
+    setSavedHuman({
+      decision: isUndecidable ? 'undecidable' : 'resolved',
+      category: isUndecidable ? null : humanCategory,
+      fineLabel,
+    })
+  }, [humanCategory, humanFine, humanSaving, utterance.id])
 
   // 키보드 단축키 (row 포커스 시)
   const handleKeyDown = useCallback(
@@ -446,6 +522,18 @@ export function UtteranceReviewRow({
         </div>
       )}
 
+      {/* 사람 감정 라벨 배지 (이번 세션에서 저장한 값 — 모델 배지와 구분하여 "사람" 접두) */}
+      {savedHuman && (
+        <div className="mt-1 ml-10 flex flex-wrap items-center gap-1.5 text-xs">
+          <span className="px-1.5 py-0.5 rounded border font-medium whitespace-nowrap text-indigo-700 bg-indigo-50 border-indigo-300">
+            사람{' '}
+            {savedHuman.decision === 'undecidable'
+              ? '판단불가'
+              : `${savedHuman.fineLabel} · ${savedHuman.category}`}
+          </span>
+        </div>
+      )}
+
       {/* 납품 품질 검수 컨트롤 (저품질 검수 큐 액션) */}
       <UtteranceQualityReviewControls
         utterance={utterance}
@@ -475,8 +563,9 @@ export function UtteranceReviewRow({
 
       {/* 라벨 선택 영역 (재생 후 또는 클릭) */}
       {isReviewing && (
+        <>
         <div className="mt-2 ml-10 flex flex-wrap items-center gap-3">
-          {/* 감정 선택 */}
+          {/* 감정 선택 (모델 라벨 — utterances.emotion in-place 저장) */}
           <div className="flex items-center gap-1">
             <span className="text-xs text-txt-sub mr-1">감정</span>
             {EMOTION_OPTIONS.map((em, idx) => (
@@ -542,6 +631,65 @@ export function UtteranceReviewRow({
             </button>
           </div>
         </div>
+
+        {/* 사람 감정 라벨 (학습용) — 모델값 미변경, utterance_human_labels 에 저장.
+            onKeyDown stopPropagation: row 단축키(1~7=모델감정, Enter=모델저장)와 충돌 방지. */}
+        <div
+          onKeyDown={(e) => e.stopPropagation()}
+          className="mt-2 ml-10 pt-2 border-t border-dashed border-border-soft flex flex-wrap items-center gap-2"
+        >
+          <span className="text-xs font-medium text-indigo-700">사람 감정 라벨</span>
+          <span className="text-[10px] text-txt-sub mr-1">학습용 · 모델값 미변경</span>
+          {HUMAN_CATEGORY_OPTIONS.map((cat) => (
+            <button
+              key={cat}
+              type="button"
+              onClick={() => handleSelectHumanCategory(cat)}
+              className={[
+                'text-xs px-2 py-1 rounded border transition-colors',
+                humanCategory === cat
+                  ? 'bg-indigo-600 text-white border-indigo-600 font-semibold'
+                  : 'border-border-soft hover:bg-bg-hover text-txt-sub',
+              ].join(' ')}
+            >
+              {cat}
+            </button>
+          ))}
+
+          {/* 세부 감정(7종) — resolved 일 때만. 검수자가 정확한 fine_label 로 보정한다. */}
+          {humanCategory && humanCategory !== '판단불가' && (
+            <label className="flex items-center gap-1 text-xs text-txt-sub">
+              세부
+              <select
+                value={humanFine ?? ''}
+                onChange={(e) => setHumanFine(e.target.value as Emotion)}
+                className="text-xs px-1.5 py-1 rounded border border-border-soft bg-surface text-txt"
+              >
+                {EMOTION_OPTIONS.map((em) => (
+                  <option key={em} value={em}>
+                    {em}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+
+          <div className="flex items-center gap-2 ml-auto">
+            {humanSaveError && <span className="text-xs text-red-600">{humanSaveError}</span>}
+            {savedHuman && !humanSaveError && !humanSaving && (
+              <span className="text-xs text-indigo-600">사람 라벨 저장됨</span>
+            )}
+            <button
+              type="button"
+              onClick={handleSaveHuman}
+              disabled={!humanCategory || humanSaving}
+              className="text-xs px-3 py-1 rounded bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40 font-medium"
+            >
+              {humanSaving ? '저장 중...' : '사람 라벨 저장'}
+            </button>
+          </div>
+        </div>
+        </>
       )}
     </div>
   )
