@@ -1,7 +1,7 @@
 // 세션 펼침 영역 안의 PII 후보 검토 섹션 (PII-1B).
 //
 // 기본 큐(needs_human_decision + pending)를 세션 단위로 불러와, 후보별 최소 스니펫과
-// 하이라이트를 보여주고 관리자가 [이름 맞음 / 아님 / 보류] 를 누른다.
+// 하이라이트를 보여주고 관리자가 [PII 맞음 / 아님 / 보류] 를 누른다.
 // 전용 페이지를 만들지 않고 기존 검수 펼침 영역에 부착한다.
 //
 // 안전: 전체 transcript_text 를 요청/표시하지 않는다(API 가 주는 최소 스니펫만 사용).
@@ -20,7 +20,7 @@ const TIER_LABEL: Record<string, string> = {
 }
 
 const DECISION_TOAST: Record<PiiDecision, string> = {
-  confirmed: 'PII(이름)로 확정했습니다',
+  confirmed: 'PII로 확정했습니다',
   rejected: 'PII 아님으로 처리했습니다',
   skipped: '보류로 처리했습니다',
 }
@@ -129,7 +129,7 @@ export function PiiCandidateReviewSection({ sessionId }: PiiCandidateReviewSecti
                   disabled={busy}
                   onClick={() => decide(c.id, 'confirmed')}
                 >
-                  이름 맞음
+                  PII 맞음
                 </Button>
                 <Button size="sm" variant="secondary" disabled={busy} onClick={() => decide(c.id, 'rejected')}>
                   아님
