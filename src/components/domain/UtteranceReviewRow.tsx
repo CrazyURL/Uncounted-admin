@@ -58,6 +58,31 @@ interface SavedHumanLabel {
   fineLabel: Emotion | null
 }
 
+// 서버 human_label(PR-H2b-api)을 배지 표시용 SavedHumanLabel 로 변환.
+// 새로고침 후 server-init 으로 사람 라벨 배지를 재구성하는 데 쓴다.
+// pending_context 인데 카테고리·세부가 모두 비면 표시할 게 없으므로 null(배지 미렌더).
+function humanLabelToSaved(hl: AdminUtterance['human_label']): SavedHumanLabel | null {
+  if (!hl) return null
+  if (hl.category_decision === 'undecidable') {
+    return { decision: 'undecidable', category: null, fineLabel: null }
+  }
+  if (hl.category_decision === 'pending_context' && !hl.emotion_category && !hl.fine_label) {
+    return null
+  }
+  return {
+    decision: hl.category_decision,
+    category: hl.emotion_category,
+    fineLabel: (hl.fine_label as Emotion | null) ?? null,
+  }
+}
+
+// 서버 human_label → 작업용 카테고리 버튼 초기값(긍정/중립/부정/판단불가).
+function humanLabelToCategory(hl: AdminUtterance['human_label']): HumanCategory | null {
+  if (!hl) return null
+  if (hl.category_decision === 'undecidable') return '판단불가'
+  return hl.emotion_category ?? null
+}
+
 function emotionColor(emotion: string | null): string {
   switch (emotion) {
     case '기쁨': return 'text-green-700 bg-green-50 border-green-300'
@@ -162,12 +187,20 @@ export function UtteranceReviewRow({
   const [expandedLabels, setExpandedLabels] = useState(false)
   const [manualPiiOpen, setManualPiiOpen] = useState(false)
 
-  // 사람 감정 라벨 (학습용) — 모델 emotion 과 분리된 별도 저장 상태
-  const [humanCategory, setHumanCategory] = useState<HumanCategory | null>(null)
-  const [humanFine, setHumanFine] = useState<Emotion | null>(null)
+  // 사람 감정 라벨 (학습용) — 모델 emotion 과 분리된 별도 저장 상태.
+  // PR-H2b: 서버 human_label 로 초기화 → 새로고침 후에도 배지/선택이 유지된다.
+  const [humanCategory, setHumanCategory] = useState<HumanCategory | null>(
+    () => humanLabelToCategory(utterance.human_label),
+  )
+  const [humanFine, setHumanFine] = useState<Emotion | null>(() => {
+    const s = humanLabelToSaved(utterance.human_label)
+    return s && s.decision !== 'undecidable' ? s.fineLabel : null
+  })
   const [humanSaving, setHumanSaving] = useState(false)
   const [humanSaveError, setHumanSaveError] = useState<string | null>(null)
-  const [savedHuman, setSavedHuman] = useState<SavedHumanLabel | null>(null)
+  const [savedHuman, setSavedHuman] = useState<SavedHumanLabel | null>(
+    () => humanLabelToSaved(utterance.human_label),
+  )
 
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const rowRef = useRef<HTMLDivElement>(null)
@@ -177,6 +210,22 @@ export function UtteranceReviewRow({
     setSelectedEmotion((utterance.emotion as Emotion | null) ?? null)
     setSelectedDialogAct((utterance.dialog_act as DialogAct | null) ?? null)
   }, [utterance.emotion, utterance.dialog_act])
+
+  // 사람 라벨 server-init 재동기화 (PR-H2b).
+  // key = 결정|updated_at — 실제 서버 refetch 로 값이 바뀔 때만 갱신한다.
+  // 로컬 저장(handleSaveHuman)은 서버 refetch 가 아니므로 이 key 가 안 바뀌어 배지가 보존된다.
+  // 모델 emotion PATCH 의 낙관 업데이트({...u,...fields})도 human_label 참조를 보존하므로 무영향.
+  const serverHumanKey = utterance.human_label
+    ? `${utterance.human_label.category_decision}|${utterance.human_label.updated_at ?? ''}`
+    : 'none'
+  useEffect(() => {
+    setSavedHuman(humanLabelToSaved(utterance.human_label))
+    setHumanCategory(humanLabelToCategory(utterance.human_label))
+    const s = humanLabelToSaved(utterance.human_label)
+    setHumanFine(s && s.decision !== 'undecidable' ? s.fineLabel : null)
+    // utterance.human_label 은 serverHumanKey 에 반영됨 — id/key 변경 시에만 재동기화.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [utterance.id, serverHumanKey])
 
   // 오디오 로드 + 재생
   const handlePlay = useCallback(async () => {
@@ -656,14 +705,21 @@ export function UtteranceReviewRow({
             </button>
           ))}
 
-          {/* 세부 감정(7종) — resolved 일 때만. 검수자가 정확한 fine_label 로 보정한다. */}
+          {/* 세부 감정(7종) — resolved 일 때만. 검수자가 정확한 fine_label 로 보정한다.
+              부정은 슬픔/분노/불안이 섞여 기본값(불안) 맹신이 위험 → 드롭다운 강조 + 확인 문구(PR-H2b).
+              저장 API/DB 정책은 바꾸지 않는다(시각적 유도만). */}
           {humanCategory && humanCategory !== '판단불가' && (
             <label className="flex items-center gap-1 text-xs text-txt-sub">
               세부
               <select
                 value={humanFine ?? ''}
                 onChange={(e) => setHumanFine(e.target.value as Emotion)}
-                className="text-xs px-1.5 py-1 rounded border border-border-soft bg-surface text-txt"
+                className={[
+                  'text-xs px-1.5 py-1 rounded border bg-surface text-txt',
+                  humanCategory === '부정'
+                    ? 'border-orange-400 ring-2 ring-orange-300 font-semibold'
+                    : 'border-border-soft',
+                ].join(' ')}
               >
                 {EMOTION_OPTIONS.map((em) => (
                   <option key={em} value={em}>
@@ -672,6 +728,13 @@ export function UtteranceReviewRow({
                 ))}
               </select>
             </label>
+          )}
+
+          {/* 부정 라벨 세부감정 확인 유도 — 시각적 nudge 만, 저장 정책 무변경. */}
+          {humanCategory === '부정' && (
+            <span className="text-[11px] text-orange-700 bg-orange-50 px-1.5 py-0.5 rounded border border-orange-200">
+              부정 라벨은 세부 감정(슬픔/분노/불안)을 확인해 주세요.
+            </span>
           )}
 
           <div className="flex items-center gap-2 ml-auto">

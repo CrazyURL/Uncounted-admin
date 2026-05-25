@@ -40,6 +40,16 @@ export type LabelSource =
   | 'auto'
   | string
 
+// 발화 목록에 실려 오는 사람 emotion 라벨(최신 1행, PR-H2b-api).
+// POST 응답 UtteranceHumanLabel 과 달리 labeler_id/labeler_email 는 의도적으로 미포함.
+export interface EmbeddedHumanLabel {
+  fine_label: EmotionFineLabel | null
+  emotion_category: EmotionCategory | null
+  category_decision: HumanLabelDecision
+  category_source: 'derived' | 'manual' | null
+  updated_at: string | null
+}
+
 export interface AdminUtterance {
   id: string
   session_id: string
@@ -86,6 +96,9 @@ export interface AdminUtterance {
   } | null
   honorific_level: string | null
   confidence_tier: string | null
+  // 사람 emotion 라벨 (PR-H2b-api). 없으면 null/undefined → 사람 배지 미렌더.
+  // 저장 후 새로고침해도 이 값으로 배지를 재구성한다.
+  human_label?: EmbeddedHumanLabel | null
 }
 
 export interface UtteranceListResponse {
