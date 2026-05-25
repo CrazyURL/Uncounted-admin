@@ -1,7 +1,7 @@
 // 발화 단위 검수 + 자동라벨 확인 행 (STAGE 14)
 // 오디오 재생 → 감정/대화행위 선택 → 저장 → 다음 needs_review 자동 이동
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
   AdminUtterance,
   EmotionCategory,
@@ -15,6 +15,9 @@ import {
 } from '../../lib/api/utterances'
 import { UtteranceQualityReviewControls } from './UtteranceQualityReviewControls'
 import { ManualPiiSpanRegister } from './ManualPiiSpanRegister'
+import type { PiiCandidate } from '../../types/piiCandidate'
+import { splitSnippetForHighlight } from '../../lib/pii/highlightSnippet'
+import { mapKoreanPiiTypeToEnum, PII_TYPE_OPTIONS, type PiiType } from '../../lib/pii/manualSpan'
 
 // ── 상수 ──────────────────────────────────────────────────────────────────
 const EMOTION_OPTIONS = ['기쁨', '놀람', '슬픔', '분노', '불안', '당황', '중립'] as const
@@ -144,6 +147,9 @@ function labelSourceBadge(source: LabelSource | null): {
 // ── Props ─────────────────────────────────────────────────────────────────
 export interface UtteranceReviewRowProps {
   utterance: AdminUtterance
+  /** 이 발화의 자동 탐지 PII 후보(검수 대기). 행 강조 + 수동등록 유형 차단에 쓴다.
+   *  후보 컨텍스트가 없는 화면(예: AdminUtterancesPage)에서는 미전달 → 빈 배열. */
+  piiCandidates?: PiiCandidate[]
   checked: boolean
   included: boolean
   busy: boolean
@@ -159,6 +165,7 @@ export interface UtteranceReviewRowProps {
 // ── 컴포넌트 ──────────────────────────────────────────────────────────────
 export function UtteranceReviewRow({
   utterance,
+  piiCandidates = [],
   checked,
   included,
   busy,
@@ -361,6 +368,20 @@ export function UtteranceReviewRow({
 
   const sourceBadge = labelSourceBadge(utterance.label_source)
 
+  // 이 발화에 자동 탐지된 후보 유형(enum). 수동등록에서 해당 유형 선택을 막는다.
+  // 매핑 불가(null)한 후보는 차단 집합에서 제외 — fail-open(서버 409 dedup 이 최종 방어).
+  const blockedTypes = useMemo(() => {
+    const set = new Set<PiiType>()
+    for (const c of piiCandidates) {
+      const t = mapKoreanPiiTypeToEnum(c.predicted_type)
+      if (t) set.add(t)
+    }
+    return set
+  }, [piiCandidates])
+  // 모든 PII 유형이 후보로 차단된 경우에만 수동등록 진입 자체를 막는다.
+  // (일부만 차단이면 다른 누락 유형 등록을 위해 패널 진입은 허용 — 발화×유형 단위 차단.)
+  const allTypesBlocked = blockedTypes.size >= PII_TYPE_OPTIONS.length
+
   return (
     <div
       ref={rowRef}
@@ -474,27 +495,80 @@ export function UtteranceReviewRow({
           {busy ? '...' : included ? '제외' : '포함'}
         </button>
 
-        {/* 수동 PII 등록 토글 — 탐지기가 놓친 PII 를 원문에서 직접 등록 */}
+        {/* 수동 PII 등록 토글 — 탐지기가 놓친 PII 를 원문에서 직접 등록.
+            모든 유형이 후보로 차단되면 진입 비활성("PII 후보 있음"). */}
         <button
           type="button"
           onClick={() => setManualPiiOpen((p) => !p)}
+          disabled={allTypesBlocked}
           aria-pressed={manualPiiOpen}
           className={[
             'text-xs px-2 py-0.5 rounded border whitespace-nowrap',
-            manualPiiOpen
-              ? 'bg-amber-100 text-amber-800 border-amber-400'
-              : 'border-border-soft hover:bg-bg-hover text-txt-sub',
+            allTypesBlocked
+              ? 'border-border-soft text-txt-sub opacity-50 cursor-not-allowed'
+              : manualPiiOpen
+                ? 'bg-amber-100 text-amber-800 border-amber-400'
+                : 'border-border-soft hover:bg-bg-hover text-txt-sub',
           ].join(' ')}
-          title="자동 탐지가 놓친 개인정보를 원문에서 직접 선택해 등록"
+          title={
+            allTypesBlocked
+              ? '이미 자동 탐지된 PII 유형입니다. 상단 후보 카드에서 판정하세요.'
+              : '자동 탐지가 놓친 개인정보를 원문에서 직접 선택해 등록'
+          }
         >
-          PII 수동등록
+          {allTypesBlocked ? 'PII 후보 있음' : 'PII 수동등록'}
         </button>
       </div>
 
-      {/* 수동 PII 등록 패널 */}
+      {/* 자동 탐지/확정 PII — 유형 배지 + 서버 최소 스니펫 하이라이트(전체 원문 미표시).
+          pending(검수 대기)은 상단 카드에서 판정, confirmed(이미 PII 확정)은 표시만 — 둘 다 같은 유형 수동등록을 막는다. */}
+      {piiCandidates.length > 0 && (
+        <div className="mt-1.5 ml-10 space-y-1">
+          <div className="flex flex-wrap items-center gap-1.5 text-xs">
+            <span className="material-symbols-outlined text-sm text-red-600">privacy_tip</span>
+            {piiCandidates.map((c) => {
+              const isConfirmed = c.admin_decision === 'confirmed'
+              return (
+                <span
+                  key={c.id}
+                  className={[
+                    'px-1.5 py-0.5 rounded border font-medium whitespace-nowrap',
+                    isConfirmed
+                      ? 'border-red-400 bg-red-100 text-red-800'
+                      : 'border-red-300 bg-red-50 text-red-700',
+                  ].join(' ')}
+                >
+                  {c.predicted_type} {isConfirmed ? '확정' : '후보'}
+                </span>
+              )
+            })}
+            {piiCandidates.some((c) => c.admin_decision !== 'confirmed') && (
+              <span className="text-[10px] text-txt-sub">상단 후보 카드에서 판정하세요</span>
+            )}
+          </div>
+          {piiCandidates.map((c) => {
+            const parts = splitSnippetForHighlight(c.snippet, c.highlight_start, c.highlight_end)
+            if (!parts || !parts.mark) return null
+            const isConfirmed = c.admin_decision === 'confirmed'
+            return (
+              <div key={`snip-${c.id}`} className="text-xs break-words">
+                <span className="text-txt-tertiary">{isConfirmed ? '확정됨: ' : '자동 탐지: '}</span>
+                <span className="text-txt-sub">{parts.before}</span>
+                <mark className="bg-red-200 text-red-800 font-semibold rounded px-0.5 underline decoration-red-500">
+                  {parts.mark}
+                </mark>
+                <span className="text-txt-sub">{parts.after}</span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* 수동 PII 등록 패널 — 후보 유형은 blockedTypes 로 차단 */}
       {manualPiiOpen && (
         <ManualPiiSpanRegister
           utteranceId={utterance.id}
+          blockedTypes={blockedTypes}
           onClose={() => setManualPiiOpen(false)}
         />
       )}

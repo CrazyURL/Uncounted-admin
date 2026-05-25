@@ -34,6 +34,43 @@ export const PII_TYPE_OPTIONS: readonly PiiTypeOption[] = [
   { value: 'other', label: '기타' },
 ]
 
+// 후보 predicted_type(한국어, voice-api 부여) → pii_annotations enum(PiiType).
+// 서버 annotationReview.ts 의 KOREAN_PII_TYPE_MAP 과 동일 의미 — 행별 수동등록에서
+// "이미 자동 탐지된 유형"을 차단(disable)할 때 후보 한국어 타입을 enum 으로 환산한다.
+const KOREAN_PII_TYPE_MAP: Record<string, PiiType> = {
+  이름: 'name',
+  전화번호: 'phone',
+  휴대폰번호: 'phone',
+  계좌번호: 'account',
+  주소: 'address',
+  IP주소: 'ip',
+  IP: 'ip',
+  이메일: 'email',
+  기관명: 'organization',
+  회사명: 'organization',
+  '기관/회사명': 'organization',
+  주민번호: 'resident_id',
+  주민등록번호: 'resident_id',
+  기타: 'other',
+}
+
+const VALID_PII_TYPES = new Set<string>(PII_TYPE_OPTIONS.map((o) => o.value))
+
+/**
+ * 후보 predicted_type 을 pii_annotations enum 으로 환산한다.
+ * - 이미 유효한 enum 문자열이면 그대로 통과(방어적).
+ * - 알려진 한국어 라벨이면 매핑.
+ * - 그 외는 null(차단하지 않음 — fail-open, 서버 409 dedup 이 최종 방어).
+ */
+export function mapKoreanPiiTypeToEnum(
+  predictedType: string | null | undefined,
+): PiiType | null {
+  if (!predictedType) return null
+  const t = predictedType.trim()
+  if (VALID_PII_TYPES.has(t)) return t as PiiType
+  return KOREAN_PII_TYPE_MAP[t] ?? null
+}
+
 export interface SpanOffsets {
   charStart: number
   charEnd: number

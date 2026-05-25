@@ -7,9 +7,9 @@
 // 안전: 전체 transcript_text 를 요청/표시하지 않는다(API 가 주는 최소 스니펫만 사용).
 // candidate_text/snippet 을 console 로 출력하지 않는다.
 
-import { useEffect, useState, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { Badge, Button, useToast } from '../ui'
-import { getPiiCandidates, decidePiiCandidate, promotePiiCandidate } from '../../lib/api/piiCandidates'
+import { decidePiiCandidate, promotePiiCandidate } from '../../lib/api/piiCandidates'
 import type { PiiCandidate, PiiDecision } from '../../types/piiCandidate'
 import { splitSnippetForHighlight } from '../../lib/pii/highlightSnippet'
 
@@ -26,30 +26,23 @@ const DECISION_TOAST: Record<PiiDecision, string> = {
 }
 
 interface PiiCandidateReviewSectionProps {
-  sessionId: string
+  /** 후보는 부모(UtteranceExpansion)가 보유 — 상단 카드와 발화 행이 같은 집합을 공유한다. */
+  candidates: PiiCandidate[]
+  loading: boolean
+  error: string | null
+  /** 판정(맞음/아님/보류) 성공 시 부모에 통지 — 부모가 카드·행 게이팅을 동시 갱신.
+   *  decision 으로 confirmed(유형 차단 유지) ↔ rejected/skipped(차단 해제)를 구분한다. */
+  onDecided: (candidateId: string, decision: PiiDecision) => void
 }
 
-export function PiiCandidateReviewSection({ sessionId }: PiiCandidateReviewSectionProps) {
+export function PiiCandidateReviewSection({
+  candidates,
+  loading,
+  error,
+  onDecided,
+}: PiiCandidateReviewSectionProps) {
   const toast = useToast()
-  const [candidates, setCandidates] = useState<PiiCandidate[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [decidingId, setDecidingId] = useState<string | null>(null)
-
-  useEffect(() => {
-    let alive = true
-    setLoading(true)
-    setError(null)
-    getPiiCandidates({ sessionId }).then((res) => {
-      if (!alive) return
-      if (res.error) setError(res.error)
-      else setCandidates(res.data ?? [])
-      setLoading(false)
-    })
-    return () => {
-      alive = false
-    }
-  }, [sessionId])
 
   const decide = useCallback(
     async (id: string, decision: PiiDecision) => {
@@ -64,12 +57,12 @@ export function PiiCandidateReviewSection({ sessionId }: PiiCandidateReviewSecti
         toast.error(`판정 저장 실패 — ${res.error}`)
       } else {
         toast.success(DECISION_TOAST[decision])
-        // decided 후보는 큐에서 제거(기본 필터가 pending 만 노출 → 새로고침해도 유지)
-        setCandidates((prev) => prev.filter((c) => c.id !== id))
+        // 부모가 보유 — 카드·행 게이팅 동시 갱신(confirmed 는 차단 유지, rejected/skipped 는 해제).
+        onDecided(id, decision)
       }
       setDecidingId(null)
     },
-    [toast],
+    [toast, onDecided],
   )
 
   if (loading) {

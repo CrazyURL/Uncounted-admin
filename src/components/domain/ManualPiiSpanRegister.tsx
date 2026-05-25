@@ -27,6 +27,11 @@ import {
 export interface ManualPiiSpanRegisterProps {
   utteranceId: string
   onClose: () => void
+  /**
+   * 이미 자동 탐지된 PII 유형 — 중복 annotation 방지로 해당 유형 선택/등록을 막는다.
+   * (자동 후보가 놓친 다른 유형은 계속 등록 가능 — 발화×유형 단위 차단.)
+   */
+  blockedTypes?: ReadonlySet<PiiType>
   /** 등록 성공 시 부모 통지(선택). 인자에 원문 없음 — offset/유형/상태만. */
   onRegistered?: (annotation: PiiAnnotation) => void
 }
@@ -34,13 +39,17 @@ export interface ManualPiiSpanRegisterProps {
 export function ManualPiiSpanRegister({
   utteranceId,
   onClose,
+  blockedTypes,
   onRegistered,
 }: ManualPiiSpanRegisterProps) {
   const [rawText, setRawText] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
 
-  const [piiType, setPiiType] = useState<PiiType>('name')
+  // 초기 유형은 차단되지 않은 첫 유형(기본 name 이 이미 후보면 다른 유형으로).
+  const [piiType, setPiiType] = useState<PiiType>(
+    () => PII_TYPE_OPTIONS.find((o) => !blockedTypes?.has(o.value))?.value ?? 'name',
+  )
   const [span, setSpan] = useState<SpanOffsets | null>(null)
 
   const [saving, setSaving] = useState(false)
@@ -86,8 +95,10 @@ export function ManualPiiSpanRegister({
     setSpan(offsets)
   }
 
+  const isTypeBlocked = blockedTypes?.has(piiType) ?? false
+
   async function handleRegister() {
-    if (!span || saving) return
+    if (!span || saving || isTypeBlocked) return
     setSaving(true)
     setSaveError(null)
     const res = await createManualPiiAnnotation({
@@ -161,21 +172,30 @@ export function ManualPiiSpanRegister({
                 onChange={(e) => setPiiType(e.target.value as PiiType)}
                 className="ml-1 text-xs rounded border border-border-soft bg-white px-1 py-0.5"
               >
-                {PII_TYPE_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
+                {PII_TYPE_OPTIONS.map((o) => {
+                  const blocked = blockedTypes?.has(o.value) ?? false
+                  return (
+                    <option key={o.value} value={o.value} disabled={blocked}>
+                      {o.label}
+                      {blocked ? ' (자동 탐지됨)' : ''}
+                    </option>
+                  )
+                })}
               </select>
             </label>
             <button
               type="button"
               onClick={handleRegister}
-              disabled={!span || saving}
+              disabled={!span || saving || isTypeBlocked}
               className="text-xs px-3 py-1 rounded bg-accent text-white hover:bg-accent/90 disabled:opacity-40 font-medium"
             >
               {saving ? '등록 중…' : 'PII 등록'}
             </button>
+            {isTypeBlocked && (
+              <span className="text-xs text-amber-700">
+                이미 자동 탐지된 유형입니다. 상단 후보 카드에서 판정하세요.
+              </span>
+            )}
             {okFlash && <span className="text-xs text-green-700">수동 PII 등록 완료</span>}
             {saveError && <span className="text-xs text-red-600">{saveError}</span>}
           </div>
