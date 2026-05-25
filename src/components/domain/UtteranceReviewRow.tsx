@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { AdminUtterance, LabelSource } from '../../lib/api/utterances'
 import { fetchUtteranceAudio, patchUtterance } from '../../lib/api/utterances'
 import { UtteranceQualityReviewControls } from './UtteranceQualityReviewControls'
+import { ManualPiiSpanRegister } from './ManualPiiSpanRegister'
 
 // ── 상수 ──────────────────────────────────────────────────────────────────
 const EMOTION_OPTIONS = ['기쁨', '놀람', '슬픔', '분노', '불안', '당황', '중립'] as const
@@ -127,6 +128,7 @@ export function UtteranceReviewRow({
   const [saveError, setSaveError] = useState<string | null>(null)
   const [savedFlash, setSavedFlash] = useState(false)
   const [expandedLabels, setExpandedLabels] = useState(false)
+  const [manualPiiOpen, setManualPiiOpen] = useState(false)
 
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const rowRef = useRef<HTMLDivElement>(null)
@@ -346,7 +348,31 @@ export function UtteranceReviewRow({
         >
           {busy ? '...' : included ? '제외' : '포함'}
         </button>
+
+        {/* 수동 PII 등록 토글 — 탐지기가 놓친 PII 를 원문에서 직접 등록 */}
+        <button
+          type="button"
+          onClick={() => setManualPiiOpen((p) => !p)}
+          aria-pressed={manualPiiOpen}
+          className={[
+            'text-xs px-2 py-0.5 rounded border whitespace-nowrap',
+            manualPiiOpen
+              ? 'bg-amber-100 text-amber-800 border-amber-400'
+              : 'border-border-soft hover:bg-bg-hover text-txt-sub',
+          ].join(' ')}
+          title="자동 탐지가 놓친 개인정보를 원문에서 직접 선택해 등록"
+        >
+          PII 수동등록
+        </button>
       </div>
+
+      {/* 수동 PII 등록 패널 */}
+      {manualPiiOpen && (
+        <ManualPiiSpanRegister
+          utteranceId={utterance.id}
+          onClose={() => setManualPiiOpen(false)}
+        />
+      )}
 
       {/* 라벨 카테고리 (발화 단위 자동라벨 — 표시 전용) */}
       {(utterance.emotion || utterance.dialog_act || utterance.segment_topic) && (
