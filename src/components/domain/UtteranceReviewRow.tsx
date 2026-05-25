@@ -13,6 +13,7 @@ import {
   patchUtterance,
   saveUtteranceHumanLabel,
 } from '../../lib/api/utterances'
+import { buildHumanLabelBody, DEFAULT_FINE_BY_CATEGORY } from '../../lib/labels/humanLabelPayload'
 import { UtteranceQualityReviewControls } from './UtteranceQualityReviewControls'
 import { ManualPiiSpanRegister } from './ManualPiiSpanRegister'
 import type { PiiCandidate } from '../../types/piiCandidate'
@@ -45,15 +46,8 @@ type DialogAct = (typeof DIALOG_ACT_OPTIONS)[number]
 const HUMAN_CATEGORY_OPTIONS = ['긍정', '중립', '부정', '판단불가'] as const
 type HumanCategory = (typeof HUMAN_CATEGORY_OPTIONS)[number]
 
-// 카테고리 선택 시 자동 적용되는 기본 fine_label (설계 §3.2 안전맵 기준).
-// resolved 는 서버에서 fine_label·emotion_category 둘 다 필수(미전송 시 400)이므로 기본값이 필요하다.
-// ⚠️ 이 기본값은 학습 품질에 직접 영향을 준다 — 부정은 슬픔/분노/불안이 섞여 있으므로
-//    검수자가 가능하면 아래 fine_label 드롭다운으로 정확한 7종을 보정해야 한다(기본값 맹신 금지).
-const DEFAULT_FINE_BY_CATEGORY: Record<EmotionCategory, Emotion> = {
-  긍정: '기쁨',
-  중립: '중립',
-  부정: '불안',
-}
+// 카테고리 선택 시 자동 적용되는 기본 fine_label / 저장 본문 구성은
+// ../../lib/labels/humanLabelPayload (DEFAULT_FINE_BY_CATEGORY, buildHumanLabelBody) 로 추출 — 검수 큐와 공유.
 
 interface SavedHumanLabel {
   decision: HumanLabelDecision
@@ -317,15 +311,11 @@ export function UtteranceReviewRow({
     setHumanSaving(true)
     setHumanSaveError(null)
 
-    const isUndecidable = humanCategory === '판단불가'
     // resolved 는 fine_label·emotion_category 둘 다 필수. category_source 는 서버가 manual 로 강제하므로 미전송.
-    const fineLabel = isUndecidable ? null : (humanFine ?? DEFAULT_FINE_BY_CATEGORY[humanCategory])
-    const res = await saveUtteranceHumanLabel(
-      utterance.id,
-      isUndecidable
-        ? { category_decision: 'undecidable' }
-        : { category_decision: 'resolved', emotion_category: humanCategory, fine_label: fineLabel ?? undefined },
-    )
+    // 본문 구성은 humanLabelPayload.buildHumanLabelBody 로 단일화(검수 큐와 공유).
+    const isUndecidable = humanCategory === '판단불가'
+    const built = buildHumanLabelBody(humanCategory, humanFine)
+    const res = await saveUtteranceHumanLabel(utterance.id, built.body)
     setHumanSaving(false)
 
     if (res.error) {
@@ -336,7 +326,7 @@ export function UtteranceReviewRow({
     setSavedHuman({
       decision: isUndecidable ? 'undecidable' : 'resolved',
       category: isUndecidable ? null : humanCategory,
-      fineLabel,
+      fineLabel: built.resolvedFineLabel,
     })
   }, [humanCategory, humanFine, humanSaving, utterance.id])
 
