@@ -43,6 +43,32 @@ export async function fetchTrainingStatus(
   return apiFetch<TrainingJob>(`/api/admin/training/status/${jobId}`)
 }
 
+// PII 학습 데이터 진행도 (read-only). 원문/스니펫 미포함 — count/type/gate 만.
+export interface PiiTrainingProgress {
+  positive_annotations: number
+  negative_candidates: number
+  skipped_candidates: number
+  pending_review: number
+  by_type_positive: Record<string, number>
+  by_type_negative: Record<string, number>
+  gate: {
+    current: string
+    learning_eligible: boolean
+    pilot_required_positive: number
+    pilot_required_negative: number
+    positive_remaining: number
+    negative_remaining: number
+    next: string | null
+  }
+}
+
+export async function fetchPiiTrainingProgress(): Promise<{
+  data?: PiiTrainingProgress
+  error?: string
+}> {
+  return apiFetch<PiiTrainingProgress>('/api/admin/training/pii-progress')
+}
+
 export async function exportTrainingData(): Promise<void> {
   const token = localStorage.getItem('uncounted_access_token')
   const apiBase = import.meta.env.VITE_API_URL ?? 'http://localhost:3001'
