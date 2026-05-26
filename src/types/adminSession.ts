@@ -4,6 +4,8 @@
 // 기존 src/types/session.ts 의 Session 타입은 사용자 앱과 공유되므로
 // admin 전용 확장 필드는 본 파일에서 분리 관리.
 
+import { classifyUploadFailureLabel } from '../lib/labels'
+
 export type PipelineStatus = 'pending' | 'running' | 'done' | 'failed' | 'skipped'
 
 // 전체 파이프라인의 집계 상태
@@ -23,6 +25,8 @@ export interface SessionPipeline {
   upload_error_message?: string | null
   /** raw_audio_url 존재 여부 — 진짜 S3 업로드 실패와 처리 실패 구분용 */
   raw_audio_url_present?: boolean
+  /** gpu_retry_count — 처리 재시도 횟수(소진=MAX_PIPELINE_RETRY). 실패 행 "다음 액션" 판단용 */
+  upload_retry_count?: number | null
 
   stt_status?: PipelineStatus
   stt_at?: string | null
@@ -166,6 +170,74 @@ export function firstFailedStep(s: SessionPipeline): PipelineStep | null {
   if (s.auto_label_status === 'failed') return 'auto_label'
   if (s.quality_status === 'failed') return 'quality'
   return null
+}
+
+// ── 처리 실패 상세 (운영자용: 왜 / 다음 액션) ──────────────────────────────────
+// voice worker(worker.py) MAX_RETRY_COUNT 와 동일 — 도달 시 자동 재시도 중단(영구 failed).
+export const MAX_PIPELINE_RETRY = 3
+
+export interface PipelineFailureInfo {
+  /** 실패 단계 */
+  step: PipelineStep
+  /**
+   * 화면용 단계명. 업로드 단계라도 원음(raw_audio)이 있으면 'GPU 처리'로 표기한다 —
+   * 실제론 앱 업로드가 아니라 GPU 처리 단계 실패라 "업로드 실패" 오해를 줄이기 위함.
+   */
+  stageLabel: string
+  /** 짧은 사유 라벨 (업로드 단계는 classifyUploadFailureLabel 재사용) */
+  reasonLabel: string
+  /** gpu_last_error 원문(없으면 null) */
+  detail: string | null
+  /** 재시도 횟수(모르면 null) */
+  retryCount: number | null
+  /** 재시도 소진 여부(>= MAX_PIPELINE_RETRY) */
+  retryExhausted: boolean
+  /** 운영자 다음 액션 한 줄 */
+  nextAction: string
+}
+
+/**
+ * 실패한 세션의 "왜 / 다음 액션"을 구조화. 실패 단계가 없으면 null.
+ * 순수 함수(렌더 비의존) — node 환경 단위 테스트 가능.
+ */
+export function describePipelineFailure(s: SessionPipeline): PipelineFailureInfo | null {
+  const step = firstFailedStep(s)
+  if (!step) return null
+
+  const detail = s.upload_error_message?.trim() || null
+  const retryCount = typeof s.upload_retry_count === 'number' ? s.upload_retry_count : null
+  const retryExhausted = retryCount != null && retryCount >= MAX_PIPELINE_RETRY
+
+  if (step === 'upload') {
+    // raw_audio 부재 = 진짜 앱 업로드 실패 / 존재 = GPU 처리 단계 실패(타임아웃 등)
+    const actualUploadFailure = s.raw_audio_url_present === false
+    return {
+      step,
+      stageLabel: actualUploadFailure ? '업로드' : 'GPU 처리',
+      reasonLabel: classifyUploadFailureLabel(detail, s.raw_audio_url_present),
+      detail,
+      retryCount,
+      retryExhausted,
+      nextAction: actualUploadFailure
+        ? '원음 미존재 — 앱에서 재업로드 필요'
+        : retryExhausted
+          ? '자동 재시도 소진 — 처리 서버 점검 후 수동 재처리'
+          : '처리 재시도 대기 / 처리 로그 확인',
+    }
+  }
+
+  // 비-업로드 단계(STT/화자분리/개인정보/품질 등) 실패
+  return {
+    step,
+    stageLabel: STAGE_LABELS[`${step}_status` as StageKey] ?? step,
+    reasonLabel: '처리 실패',
+    detail,
+    retryCount,
+    retryExhausted,
+    nextAction: retryExhausted
+      ? '자동 재시도 소진 — 처리 로그 확인 후 수동 재처리'
+      : '처리 로그 확인 필요',
+  }
 }
 
 // ── 판매 상태 ─────────────────────────────────────────────────────────────────
