@@ -69,6 +69,39 @@ export async function fetchPiiTrainingProgress(): Promise<{
   return apiFetch<PiiTrainingProgress>('/api/admin/training/pii-progress')
 }
 
+// Emotion human-label 진행도 (read-only). utterances.emotion(모델 출력) 미포함 —
+// utterance_human_labels 의 resolved/manual 게이트만. 설계: design_human_emotion_label_loop §11.
+export type EmotionGate = 'E0' | 'E1' | 'E2' | 'E3' | 'E4'
+
+export interface EmotionHumanLabelStats {
+  resolvedTotal: number
+  resolvedManual: number
+  resolvedDerived: number
+  pendingContext: number
+  undecidable: number
+  byCategory: { 긍정: number; 중립: number; 부정: number }
+  byFineLabel: {
+    기쁨: number
+    놀람: number
+    슬픔: number
+    분노: number
+    불안: number
+    당황: number
+    중립: number
+  }
+  lowConfidenceQueueCount: number
+  gate: EmotionGate
+  nextRequired: { metric: string; need: number } | null
+  threshold: number
+}
+
+export async function fetchEmotionHumanLabelStats(): Promise<{
+  data?: EmotionHumanLabelStats
+  error?: string
+}> {
+  return apiFetch<EmotionHumanLabelStats>('/api/admin/emotion-labels/stats')
+}
+
 export async function exportTrainingData(): Promise<void> {
   const token = localStorage.getItem('uncounted_access_token')
   const apiBase = import.meta.env.VITE_API_URL ?? 'http://localhost:3001'
