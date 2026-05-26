@@ -152,7 +152,7 @@ export function MinSaleableDownloadPanel({
                       className="text-xs px-1.5 py-0.5 rounded"
                       style={{ backgroundColor: 'var(--color-surface-dim, #e5e5e5)' }}
                     >
-                      미포함 · 풀 패키지에서 제공
+                      동봉 미포함 · 참조 경로만 (준비 중)
                     </span>
                   </span>
                 </div>
