@@ -21,6 +21,8 @@ export interface SessionPipeline {
   uploaded_at?: string | null
   /** gpu_last_error 원문 (UI 표시는 classifyUploadFailureLabel 경유) */
   upload_error_message?: string | null
+  /** gpu_retry_count — 업로드 단계 자동 재시도 횟수 (0~3, 3 도달 시 영구 실패) */
+  upload_retry_count?: number | null
   /** raw_audio_url 존재 여부 — 진짜 S3 업로드 실패와 처리 실패 구분용 */
   raw_audio_url_present?: boolean
 

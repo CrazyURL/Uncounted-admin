@@ -11,6 +11,8 @@
 //   <span>{labels.status.pending}</span>  // "대기 중"
 //   <span>{labels.review[session.review_status]}</span>
 
+import { firstFailedStep, type PipelineStep, type SessionPipeline } from '../types/adminSession'
+
 export const labels = {
   // ── 처리 흐름 단계 status (sessions.upload_status / stt_status / ...) ──
   status: {
@@ -197,6 +199,15 @@ export const labels = {
     zeroUtterances: '발화 미감지',
     generic: '처리 오류',
   },
+
+  // ── 처리 흐름 실패 행 — 사유 + 다음 액션 안내 ───────────────────────────
+  // "업로드 실패"는 진짜 원음 미도달일 때만(raw_audio_url 부재). 그 외 단계 실패는
+  // 원음이 서버에 있으므로 서버 재처리로 해소 → "재처리 필요"로 안내.
+  pipelineFailure: {
+    reasonGeneric: '처리 오류',
+    nextReprocess: '재처리 필요',
+    nextReupload: '앱에서 재업로드 필요',
+  },
 } as const
 
 // 유틸 함수 — 동적 키 접근 시 안전한 fallback
@@ -240,6 +251,77 @@ export function classifyUploadFailureLabel(
   if (s.includes('stuck')) return labels.uploadFailure.stuck
   if (s.includes('voice_api_0_utterances')) return labels.uploadFailure.zeroUtterances
   return labels.uploadFailure.generic
+}
+
+/** 처리 흐름 실패 행에 표시할 사유 + 재시도 + 다음 액션 정보 */
+export interface PipelineFailureInfo {
+  step: PipelineStep
+  /** 실패한 단계 이름 (업로드 / 음성 인식 / ...) */
+  stageLabel: string
+  /** 사람이 읽는 실패 사유 */
+  reasonLabel: string
+  /** 업로드 단계 자동 재시도 횟수 (있을 때만, 예: "재시도 2/3회") */
+  retryText: string | null
+  /** 운영자 다음 액션 안내 (버튼 아님, 안내 텍스트) */
+  nextAction: string
+  /** gpu_last_error 원문 (업로드 단계만 의미 있음 — 툴팁용) */
+  errorDetail: string | null
+}
+
+// 업로드 단계 자동 재시도 상한 (migration 059: 0→1→2→3, 3 도달 시 영구 실패)
+const UPLOAD_MAX_RETRY = 3
+
+/**
+ * 처리 흐름 실패 세션의 표시 정보를 산출한다.
+ *
+ * 업로드 단계: classifyUploadFailureLabel 로 사유 세분화 + 재시도 횟수 표시.
+ *   - 원음 미도달(raw_audio_url 부재) → "앱에서 재업로드 필요"
+ *   - 원음 존재(처리 서버 접속/타임아웃 등) → "재처리 필요"
+ * 그 외 단계: 원음은 이미 서버에 있으므로 "재처리 필요". gpu_last_error 는
+ *   업로드 단계 전용이라 사유 상세로 쓰지 않는다(§CLAUDE.md migration 059).
+ *
+ * 실패 단계가 없으면 null.
+ */
+export function classifyPipelineFailureLabel(
+  session: SessionPipeline,
+): PipelineFailureInfo | null {
+  const step = firstFailedStep(session)
+  if (!step) return null
+
+  const stageLabel = labels.pipeline[step]
+
+  if (step === 'upload') {
+    const reasonLabel = classifyUploadFailureLabel(
+      session.upload_error_message,
+      session.raw_audio_url_present,
+    )
+    const count = session.upload_retry_count
+    const retryText =
+      typeof count === 'number' && count > 0
+        ? `재시도 ${Math.min(count, UPLOAD_MAX_RETRY)}/${UPLOAD_MAX_RETRY}회`
+        : null
+    const nextAction =
+      session.raw_audio_url_present === false
+        ? labels.pipelineFailure.nextReupload
+        : labels.pipelineFailure.nextReprocess
+    return {
+      step,
+      stageLabel,
+      reasonLabel,
+      retryText,
+      nextAction,
+      errorDetail: session.upload_error_message ?? null,
+    }
+  }
+
+  return {
+    step,
+    stageLabel,
+    reasonLabel: labels.pipelineFailure.reasonGeneric,
+    retryText: null,
+    nextAction: labels.pipelineFailure.nextReprocess,
+    errorDetail: null,
+  }
 }
 
 // 한도 도달률 → 경고 메시지 (0~1 스케일)

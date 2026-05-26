@@ -23,24 +23,38 @@ function makeSession(overrides: Partial<AdminSession> = {}): AdminSession {
 }
 
 describe('SessionPipelineCells', () => {
-  // ── 업로드 실패 특수 케이스 ──────────────────────────────────────────────
-  describe('upload_status=failed 특수 케이스', () => {
-    it('도트 1개 + 업로드 실패 텍스트만 표시', () => {
+  // ── 업로드 실패 행 — 단계/사유/재시도/다음 액션 통합 표시 ──────────────────
+  describe('upload_status=failed 행', () => {
+    it('전체 도트 행(7개) 유지 + 업로드 도트 danger', () => {
       const { container } = render(<SessionPipelineCells session={makeSession({ upload_status: 'failed' })} />)
-      const dots = container.querySelectorAll('.rounded-full')
-      expect(dots).toHaveLength(1)
-      expect(screen.getByText('업로드 실패')).toBeTruthy()
+      expect(container.querySelectorAll('.rounded-full')).toHaveLength(7)
+      const uploadDot = container.querySelector('[aria-label="업로드 failed"]')
+      expect(uploadDot?.className).toContain('bg-danger')
     })
 
-    it('도트는 danger 색상', () => {
-      const { container } = render(<SessionPipelineCells session={makeSession({ upload_status: 'failed' })} />)
-      const dot = container.querySelector('.rounded-full')
-      expect(dot?.className).toContain('bg-danger')
+    it('원음 부재 → 사유=업로드 실패 + 다음 액션=앱에서 재업로드 + 재시도 표시', () => {
+      const session = makeSession({
+        upload_status: 'failed',
+        raw_audio_url_present: false,
+        upload_retry_count: 3,
+      })
+      render(<SessionPipelineCells session={session} />)
+      expect(screen.getByText('⚠')).toBeTruthy()
+      expect(screen.getByText(/업로드 실패/)).toBeTruthy()
+      expect(screen.getByText(/재시도 3\/3회/)).toBeTruthy()
+      expect(screen.getByText(/앱에서 재업로드 필요/)).toBeTruthy()
     })
 
-    it('⚠ 경고 아이콘 없음 (업로드 실패 케이스에서는 별도 ⚠ 미표시)', () => {
-      render(<SessionPipelineCells session={makeSession({ upload_status: 'failed' })} />)
-      expect(screen.queryByText('⚠')).toBeNull()
+    it('원음 존재(접속 오류) → 사유=처리 서버 접속 실패 + 다음 액션=재처리 필요', () => {
+      const session = makeSession({
+        upload_status: 'failed',
+        raw_audio_url_present: true,
+        upload_error_message: 'ECONNREFUSED localhost:8001',
+        upload_retry_count: 1,
+      })
+      render(<SessionPipelineCells session={session} />)
+      expect(screen.getByText(/처리 서버 접속 실패/)).toBeTruthy()
+      expect(screen.getByText(/재처리 필요/)).toBeTruthy()
     })
   })
 
