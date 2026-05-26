@@ -49,16 +49,18 @@ export function buildChips(stats: DashboardStats | null): FilterChip[] {
     (r?.approved ?? 0) +
     (r?.rejected ?? 0) +
     (r?.needs_revision ?? 0)
+  // primary = 기본 노출(전체·검수 대기·저품질·PII 의심). 나머지 처리 상태 칩은
+  // FilterChips 의 '상세 필터' 아래로 접힌다.
   return [
-    { id: 'all',             label: '전체',           count: total },
-    { id: 'pending',         label: '검수 대기',       count: r?.pending ?? 0 },
+    { id: 'all',             label: '전체',           count: total, primary: true },
+    { id: 'pending',         label: '검수 대기',       count: r?.pending ?? 0, primary: true },
+    { id: 'quality_c',       label: '저품질(C)',       warn: true, primary: true },
+    { id: 'pii_flag',        label: '⚠ PII 의심',     count: stats?.alerts.piiSessionCount ?? 0, warn: true, primary: true },
     { id: 'in_review',       label: '검수 중',         count: r?.in_review ?? 0 },
     { id: 'approved',        label: '승인됨',          count: r?.approved ?? 0 },
     { id: 'needs_revision',  label: '수정 필요',       count: r?.needs_revision ?? 0 },
     { id: 'rejected',        label: '거절됨',          count: r?.rejected ?? 0 },
     { id: 'failed',          label: '처리 오류',       count: failedCount, warn: failedCount > 0 },
-    { id: 'pii_flag',        label: '⚠ PII 의심',     count: stats?.alerts.piiSessionCount ?? 0, warn: true },
-    { id: 'quality_c',       label: '저품질(C)',       warn: true },
     { id: 'pipeline_idle',    label: '처리 대기' },
     { id: 'pipeline_waiting', label: '처리 중단',  warn: true },
     { id: 'pipeline_running', label: '처리 중' },
