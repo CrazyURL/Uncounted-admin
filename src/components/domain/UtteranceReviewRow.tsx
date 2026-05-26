@@ -10,7 +10,6 @@ import type {
 } from '../../lib/api/utterances'
 import {
   fetchUtteranceAudio,
-  patchUtterance,
   saveUtteranceHumanLabel,
 } from '../../lib/api/utterances'
 import { buildHumanLabelBody, DEFAULT_FINE_BY_CATEGORY } from '../../lib/labels/humanLabelPayload'
@@ -21,27 +20,14 @@ import { splitSnippetForHighlight } from '../../lib/pii/highlightSnippet'
 import { mapKoreanPiiTypeToEnum, PII_TYPE_OPTIONS, type PiiType } from '../../lib/pii/manualSpan'
 
 // ── 상수 ──────────────────────────────────────────────────────────────────
+// 7종 세부 감정. 사람 감정 라벨(학습용)의 fine_label 드롭다운에서 쓴다.
+// PR-H2c: utterances.emotion 의 어드민 in-place 편집(PATCH)은 폐기됐다 — 모델 emotion 은 읽기전용 표시만.
 const EMOTION_OPTIONS = ['기쁨', '놀람', '슬픔', '분노', '불안', '당황', '중립'] as const
 type Emotion = (typeof EMOTION_OPTIONS)[number]
 
-const EMOTION_KEY_MAP: Record<string, Emotion> = {
-  '1': '기쁨',
-  '2': '놀람',
-  '3': '슬픔',
-  '4': '분노',
-  '5': '불안',
-  '6': '당황',
-  '7': '중립',
-}
-
-const DIALOG_ACT_OPTIONS = [
-  '진술', '질문', '요청', '감사', '동의', '부정', '인사', '기타',
-] as const
-type DialogAct = (typeof DIALOG_ACT_OPTIONS)[number]
-
 // ── 사람 감정 라벨 (학습용, PR-H2a) ────────────────────────────────────────
-// 위 EMOTION_OPTIONS(7종 모델 라벨, utterances.emotion in-place PATCH)와는 별개다.
 // 사람 라벨은 utterances.emotion 을 건드리지 않고 utterance_human_labels 테이블에 누적된다.
+// (모델 emotion 자동라벨 값과 완전 분리 — PR-H2c 로 in-place PATCH 경로 폐기 후 더 명확해짐.)
 // 1차로 3종 카테고리(긍정/중립/부정) 또는 판단불가를 고르고, 7종 fine_label 은 드롭다운으로 보정한다.
 const HUMAN_CATEGORY_OPTIONS = ['긍정', '중립', '부정', '판단불가'] as const
 type HumanCategory = (typeof HUMAN_CATEGORY_OPTIONS)[number]
@@ -150,7 +136,9 @@ export interface UtteranceReviewRowProps {
   isDanger: boolean
   onToggleSelect: () => void
   onToggleReview: () => void
-  /** 저장 성공 시 호출 — 부모가 낙관 업데이트 후 다음 needs_review 로 스크롤 */
+  /** @deprecated PR-H2c 로 모델 emotion in-place 저장이 폐기되어 더 이상 호출되지 않는다.
+   *  호출처(AdminInventoryPage/AdminUtterancesPage 의 handleLabelSaved 낙관 업데이트 체인)는
+   *  후속 정리 대상 — 본 PR 범위(검수 행 UI)에서는 인터페이스만 유지하고 소비하지 않는다. */
   onLabelSaved?: (id: string, updatedFields: Partial<AdminUtterance>) => void
   /** 품질 검수 판정 변경 시 호출 — 부모가 리포트 재집계 트리거 */
   onQualityReviewUpdated?: (id: string) => void
@@ -166,7 +154,6 @@ export function UtteranceReviewRow({
   isDanger,
   onToggleSelect,
   onToggleReview,
-  onLabelSaved,
   onQualityReviewUpdated,
 }: UtteranceReviewRowProps) {
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
@@ -175,16 +162,6 @@ export function UtteranceReviewRow({
   const [playing, setPlaying] = useState(false)
   const [isReviewing, setIsReviewing] = useState(false)
 
-  const [selectedEmotion, setSelectedEmotion] = useState<Emotion | null>(
-    (utterance.emotion as Emotion | null) ?? null,
-  )
-  const [selectedDialogAct, setSelectedDialogAct] = useState<DialogAct | null>(
-    (utterance.dialog_act as DialogAct | null) ?? null,
-  )
-
-  const [saving, setSaving] = useState(false)
-  const [saveError, setSaveError] = useState<string | null>(null)
-  const [savedFlash, setSavedFlash] = useState(false)
   const [expandedLabels, setExpandedLabels] = useState(false)
   const [manualPiiOpen, setManualPiiOpen] = useState(false)
 
@@ -205,12 +182,6 @@ export function UtteranceReviewRow({
 
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const rowRef = useRef<HTMLDivElement>(null)
-
-  // 상위에서 utterance 가 바뀌면 선택값 동기화
-  useEffect(() => {
-    setSelectedEmotion((utterance.emotion as Emotion | null) ?? null)
-    setSelectedDialogAct((utterance.dialog_act as DialogAct | null) ?? null)
-  }, [utterance.emotion, utterance.dialog_act])
 
   // 사람 라벨 server-init 재동기화 (PR-H2b).
   // key = 결정|updated_at — 실제 서버 refetch 로 값이 바뀔 때만 갱신한다.
@@ -258,44 +229,8 @@ export function UtteranceReviewRow({
     }, 50)
   }, [audioUrl, playing, utterance.id])
 
-  // 저장
-  const handleSave = useCallback(async () => {
-    if (!selectedEmotion || saving) return
-    setSaving(true)
-    setSaveError(null)
-
-    const body = {
-      emotion: selectedEmotion,
-      dialog_act: selectedDialogAct ?? undefined,
-      label_source: 'admin_confirmed' as LabelSource,
-    }
-
-    // 낙관적 업데이트를 위해 미리 호출
-    const updatedFields: Partial<AdminUtterance> = {
-      emotion: selectedEmotion,
-      dialog_act: selectedDialogAct,
-      label_source: 'admin_confirmed',
-    }
-    onLabelSaved?.(utterance.id, updatedFields)
-
-    const res = await patchUtterance(utterance.id, body)
-    setSaving(false)
-
-    if (res.error) {
-      setSaveError(res.error)
-      // 롤백 — 원래값으로 복원
-      onLabelSaved?.(utterance.id, {
-        emotion: utterance.emotion,
-        dialog_act: utterance.dialog_act,
-        label_source: utterance.label_source,
-      })
-      return
-    }
-
-    setSavedFlash(true)
-    setTimeout(() => setSavedFlash(false), 600)
-    setIsReviewing(false)
-  }, [selectedEmotion, selectedDialogAct, saving, utterance, onLabelSaved])
+  // PR-H2c: 모델 emotion in-place 저장(handleSave/patchUtterance)은 폐기.
+  // utterances.emotion/dialog_act 는 자동라벨 읽기값으로 고정하고, 사람 판단은 아래 handleSaveHuman 경로로만 적재한다.
 
   // 사람 감정 라벨 — 카테고리 선택. 긍정/중립/부정은 기본 fine_label 을 자동 적용(드롭다운으로 보정 가능).
   const handleSelectHumanCategory = useCallback((cat: HumanCategory) => {
@@ -330,7 +265,8 @@ export function UtteranceReviewRow({
     })
   }, [humanCategory, humanFine, humanSaving, utterance.id])
 
-  // 키보드 단축키 (row 포커스 시)
+  // 키보드 단축키 (row 포커스 시) — Space 로 오디오 재생/일시정지.
+  // PR-H2c: 1~7(모델 감정 선택)·Enter(모델 저장) 단축키는 in-place PATCH 폐기와 함께 제거.
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (!isReviewing) return
@@ -338,22 +274,9 @@ export function UtteranceReviewRow({
       if (e.code === 'Space') {
         e.preventDefault()
         handlePlay()
-        return
-      }
-
-      const emotion = EMOTION_KEY_MAP[e.key]
-      if (emotion) {
-        e.preventDefault()
-        setSelectedEmotion(emotion)
-        return
-      }
-
-      if (e.key === 'Enter') {
-        e.preventDefault()
-        handleSave()
       }
     },
-    [isReviewing, handlePlay, handleSave],
+    [isReviewing, handlePlay],
   )
 
   const sourceBadge = labelSourceBadge(utterance.label_source)
@@ -379,7 +302,7 @@ export function UtteranceReviewRow({
       onKeyDown={handleKeyDown}
       className={[
         'px-4 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent',
-        isDanger ? 'bg-pink-50' : savedFlash ? 'bg-green-50' : '',
+        isDanger ? 'bg-pink-50' : '',
         'transition-colors duration-300',
       ].join(' ')}
       title={isDanger ? 'PII 의심 발화 — 검수자 확인 필요' : undefined}
@@ -674,79 +597,12 @@ export function UtteranceReviewRow({
         <div className="mt-1 ml-10 text-xs text-red-600">{audioError}</div>
       )}
 
-      {/* 라벨 선택 영역 (재생 후 또는 클릭) */}
+      {/* 사람 감정 라벨 검수 영역 (재생 후 또는 클릭).
+          PR-H2c: 모델 emotion/대화행위 in-place 편집 블록(7종 감정 버튼·대화행위·저장)은 제거됨 —
+          모델 emotion 은 위 자동라벨 배지로 읽기전용 표시만, 검수 결과는 아래 사람 라벨 경로로만 적재. */}
       {isReviewing && (
-        <>
-        <div className="mt-2 ml-10 flex flex-wrap items-center gap-3">
-          {/* 감정 선택 (모델 라벨 — utterances.emotion in-place 저장) */}
-          <div className="flex items-center gap-1">
-            <span className="text-xs text-txt-sub mr-1">감정</span>
-            {EMOTION_OPTIONS.map((em, idx) => (
-              <button
-                key={em}
-                type="button"
-                onClick={() => setSelectedEmotion(em)}
-                className={[
-                  'text-xs px-2 py-1 rounded border transition-colors',
-                  selectedEmotion === em
-                    ? emotionColor(em) + ' font-semibold'
-                    : 'border-border-soft hover:bg-bg-hover text-txt-sub',
-                ].join(' ')}
-                title={`${em} (키: ${idx + 1})`}
-              >
-                {em}
-              </button>
-            ))}
-          </div>
-
-          {/* 대화행위 선택 */}
-          <div className="flex items-center gap-1 flex-wrap">
-            <span className="text-xs text-txt-sub mr-1">대화행위</span>
-            {DIALOG_ACT_OPTIONS.map((da) => (
-              <button
-                key={da}
-                type="button"
-                onClick={() =>
-                  setSelectedDialogAct((prev) => (prev === da ? null : da))
-                }
-                className={[
-                  'text-xs px-2 py-1 rounded border transition-colors',
-                  selectedDialogAct === da
-                    ? 'bg-accent text-white border-accent'
-                    : 'border-border-soft hover:bg-bg-hover text-txt-sub',
-                ].join(' ')}
-              >
-                {da}
-              </button>
-            ))}
-          </div>
-
-          {/* 저장 + 취소 */}
-          <div className="flex items-center gap-2 ml-auto">
-            {saveError && (
-              <span className="text-xs text-red-600">{saveError}</span>
-            )}
-            <button
-              type="button"
-              onClick={() => setIsReviewing(false)}
-              className="text-xs px-2 py-1 rounded border border-border-soft hover:bg-bg-hover text-txt-sub"
-            >
-              취소
-            </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={!selectedEmotion || saving}
-              className="text-xs px-3 py-1 rounded bg-accent text-white hover:bg-accent/90 disabled:opacity-40 font-medium"
-              title="저장 (Enter)"
-            >
-              {saving ? '저장 중...' : '저장'}
-            </button>
-          </div>
-        </div>
-
-        {/* 사람 감정 라벨 (학습용) — 모델값 미변경, utterance_human_labels 에 저장.
-            onKeyDown stopPropagation: row 단축키(1~7=모델감정, Enter=모델저장)와 충돌 방지. */}
+        // 사람 감정 라벨 (학습용) — 모델값 미변경, utterance_human_labels 에 저장.
+        // onKeyDown stopPropagation: row 의 Space(오디오 재생) 단축키와 충돌 방지.
         <div
           onKeyDown={(e) => e.stopPropagation()}
           className="mt-2 ml-10 pt-2 border-t border-dashed border-border-soft flex flex-wrap items-center gap-2"
@@ -816,7 +672,6 @@ export function UtteranceReviewRow({
             </button>
           </div>
         </div>
-        </>
       )}
     </div>
   )
