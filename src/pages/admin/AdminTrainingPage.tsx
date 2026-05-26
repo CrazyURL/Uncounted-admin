@@ -5,9 +5,11 @@ import {
   fetchTrainingStatus,
   exportTrainingData,
   fetchPiiTrainingProgress,
+  fetchEmotionHumanLabelStats,
   type TrainingStats,
   type TrainingJob,
   type PiiTrainingProgress,
+  type EmotionHumanLabelStats,
 } from '../../lib/api/training'
 
 const POLL_INTERVAL_MS = 5000
@@ -24,6 +26,7 @@ export default function AdminTrainingPage() {
   const [exporting, setExporting] = useState(false)
 
   const [pii, setPii] = useState<PiiTrainingProgress | null>(null)
+  const [emoLabel, setEmoLabel] = useState<EmotionHumanLabelStats | null>(null)
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -44,10 +47,16 @@ export default function AdminTrainingPage() {
     if (res.data) setPii(res.data)
   }, [])
 
+  const loadEmoLabel = useCallback(async () => {
+    const res = await fetchEmotionHumanLabelStats()
+    if (res.data) setEmoLabel(res.data)
+  }, [])
+
   useEffect(() => {
     loadStats()
     loadPii()
-  }, [loadStats, loadPii])
+    loadEmoLabel()
+  }, [loadStats, loadPii, loadEmoLabel])
 
   const stopPolling = useCallback(() => {
     if (pollRef.current) {
@@ -260,6 +269,9 @@ export default function AdminTrainingPage() {
       {/* PII 학습 데이터 (read-only — 트리거 없음) */}
       {pii && <PiiProgressCard pii={pii} />}
 
+      {/* 감정 사람 라벨 진행도 (read-only — 모델 학습 카드와 카운트 분리) */}
+      {emoLabel && <EmotionHumanLabelCard stats={emoLabel} />}
+
       {/* Job progress */}
       {job && (
         <JobProgress job={job} />
@@ -348,6 +360,131 @@ function PiiStat({ label, value }: PiiStatProps) {
       </div>
       <div className="text-lg font-bold" style={{ color: 'var(--color-text)' }}>
         {value}
+      </div>
+    </div>
+  )
+}
+
+/* ── 감정 사람 라벨 진행도 카드 (read-only) ── */
+
+const EMOTION_GATES: EmotionHumanLabelStats['gate'][] = ['E0', 'E1', 'E2', 'E3', 'E4']
+
+function EmotionHumanLabelCard({ stats }: { stats: EmotionHumanLabelStats }) {
+  // 학습 파일럿 가능 = gate E2 이상(사람 직접 라벨 gold 기준 게이트). §11.2/§11.3
+  const eligible = EMOTION_GATES.indexOf(stats.gate) >= EMOTION_GATES.indexOf('E2')
+  const [note, setNote] = useState<string | null>(null)
+
+  const cat = stats.byCategory
+  const catTotal = cat.긍정 + cat.중립 + cat.부정
+  const catPct = (n: number) => (catTotal > 0 ? Math.round((n / catTotal) * 100) : 0)
+
+  const fine = stats.byFineLabel
+  const fineOrder: Array<keyof typeof fine> = ['기쁨', '놀람', '슬픔', '분노', '불안', '당황', '중립']
+
+  function handlePilot() {
+    if (!eligible) return
+    // §11.3 — 이 버튼은 current 모델을 바꾸지 않는다. 실제 파일럿/재학습은 별도 승인(H4 트랙).
+    setNote('학습 파일럿 실행은 별도 승인(GPU 재학습 트랙)에서 진행합니다. 이 버튼은 현재 모델을 바꾸지 않습니다.')
+  }
+
+  return (
+    <div
+      className="rounded-lg p-5 space-y-4"
+      style={{ backgroundColor: 'var(--color-surface-alt)', border: '1px solid var(--color-border-light)' }}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <span className="material-symbols-outlined text-base" style={{ color: 'var(--color-text-sub)' }}>
+            mood
+          </span>
+          <span className="font-medium text-sm" style={{ color: 'var(--color-text)' }}>
+            감정 사람 라벨
+          </span>
+        </div>
+        <span
+          className="px-2 py-0.5 rounded text-xs font-medium"
+          style={{
+            backgroundColor: eligible ? 'rgba(34,197,94,0.12)' : 'rgba(107,114,128,0.12)',
+            color: eligible ? '#16a34a' : 'var(--color-text-sub)',
+          }}
+        >
+          {stats.gate} · {eligible ? '파일럿 가능' : '파일럿 불가'}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <PiiStat label="확정 총계" value={stats.resolvedTotal.toLocaleString()} />
+        <PiiStat label="사람 직접 (gold)" value={stats.resolvedManual.toLocaleString()} />
+        <PiiStat label="자동 파생" value={stats.resolvedDerived.toLocaleString()} />
+        <PiiStat label="문맥 보류" value={stats.pendingContext.toLocaleString()} />
+        <PiiStat label="판단불가" value={stats.undecidable.toLocaleString()} />
+        <PiiStat label="저신뢰 검수 대기" value={stats.lowConfidenceQueueCount.toLocaleString()} />
+      </div>
+
+      {catTotal > 0 && (
+        <div className="space-y-2">
+          <div className="text-xs font-medium" style={{ color: 'var(--color-text-sub)' }}>
+            확정 라벨 감정 분포
+          </div>
+          <EmotionBar label="긍정" count={cat.긍정} pct={catPct(cat.긍정)} color="#22c55e" />
+          <EmotionBar label="중립" count={cat.중립} pct={catPct(cat.중립)} color="#6b7280" />
+          <EmotionBar label="부정" count={cat.부정} pct={catPct(cat.부정)} color="#ef4444" />
+        </div>
+      )}
+
+      <div className="flex flex-wrap gap-1.5">
+        {fineOrder.map((k) => (
+          <span
+            key={k}
+            className="px-2 py-0.5 rounded text-xs"
+            style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text-sub)' }}
+          >
+            {k} {fine[k].toLocaleString()}
+          </span>
+        ))}
+      </div>
+
+      <div className="space-y-1.5 text-xs" style={{ color: 'var(--color-text-sub)' }}>
+        <div className="flex justify-between">
+          <span>현재 단계</span>
+          <span className="font-medium" style={{ color: 'var(--color-text)' }}>
+            {stats.gate}
+          </span>
+        </div>
+        {stats.nextRequired && (
+          <div className="flex justify-between">
+            <span>다음 단계까지</span>
+            <span>
+              {stats.nextRequired.metric} {stats.nextRequired.need.toLocaleString()}건 필요
+            </span>
+          </div>
+        )}
+      </div>
+
+      <button
+        onClick={handlePilot}
+        disabled={!eligible}
+        className="flex items-center gap-2 px-4 py-2 rounded text-sm font-medium transition-colors"
+        style={{
+          backgroundColor: eligible ? 'var(--color-accent)' : 'var(--color-surface)',
+          color: eligible ? '#fff' : 'var(--color-text-sub)',
+          cursor: eligible ? 'pointer' : 'not-allowed',
+          opacity: eligible ? 1 : 0.6,
+        }}
+      >
+        <span className="material-symbols-outlined text-base">model_training</span>
+        학습 파일럿 시작
+      </button>
+
+      {note && (
+        <div className="text-xs" style={{ color: 'var(--color-text-sub)' }}>
+          {note}
+        </div>
+      )}
+
+      <div className="text-xs leading-relaxed" style={{ color: 'var(--color-text-tertiary)' }}>
+        사람 직접(manual) 라벨이 gold 기준입니다. 자동 파생·문맥 보류·판단불가는 학습 가능 카운트에 넣지 않습니다.
+        모델 자동 감정(utterances.emotion)은 이 진행도에 포함되지 않습니다.
       </div>
     </div>
   )
