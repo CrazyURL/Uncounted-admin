@@ -25,8 +25,10 @@ function makeSession(overrides: Partial<AdminSession> = {}): AdminSession {
 describe('SessionPipelineCells', () => {
   // ── 업로드 실패 특수 케이스 ──────────────────────────────────────────────
   describe('upload_status=failed 특수 케이스', () => {
-    it('도트 1개 + 업로드 실패 텍스트만 표시', () => {
-      const { container } = render(<SessionPipelineCells session={makeSession({ upload_status: 'failed' })} />)
+    it('원음 부재(진짜 업로드 실패) → 도트 1개 + "업로드 실패" 텍스트', () => {
+      const { container } = render(
+        <SessionPipelineCells session={makeSession({ upload_status: 'failed', raw_audio_url_present: false })} />,
+      )
       const dots = container.querySelectorAll('.rounded-full')
       expect(dots).toHaveLength(1)
       expect(screen.getByText('업로드 실패')).toBeTruthy()
@@ -41,6 +43,24 @@ describe('SessionPipelineCells', () => {
     it('⚠ 경고 아이콘 없음 (업로드 실패 케이스에서는 별도 ⚠ 미표시)', () => {
       render(<SessionPipelineCells session={makeSession({ upload_status: 'failed' })} />)
       expect(screen.queryByText('⚠')).toBeNull()
+    })
+
+    it('원음 존재 + poll 타임아웃 → "GPU 처리" 사유 + 다음 액션 + 재시도 소진 노출', () => {
+      render(
+        <SessionPipelineCells
+          session={makeSession({
+            upload_status: 'failed',
+            raw_audio_url_present: true,
+            upload_error_message: 'poll_job timeout 600s: abc123',
+            upload_retry_count: 3,
+          })}
+        />,
+      )
+      // "업로드 실패" 가 아니라 처리 타임아웃으로 표기 (오해 방지)
+      expect(screen.queryByText('업로드 실패')).toBeNull()
+      expect(screen.getByText('처리 시간 초과')).toBeTruthy()
+      expect(screen.getByText(/재시도 소진\(3\/3\)/)).toBeTruthy()
+      expect(screen.getByText(/수동 재처리/)).toBeTruthy()
     })
   })
 
