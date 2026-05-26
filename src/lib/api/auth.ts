@@ -2,6 +2,7 @@
 // httpOnly Cookie 기반 인증 클라이언트 (Supabase SDK 미사용)
 
 import { apiFetch, setAuthToken, getAuthToken } from './client'
+import { generateCodeVerifier, codeChallengeS256, PKCE_VERIFIER_KEY } from '../pkce'
 
 // ── 타입 정의 ────────────────────────────────────────────────────────────
 
@@ -187,7 +188,19 @@ export async function signInWithOAuth(
   }
 ) {
   const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3001'
-  const oauthUrl = `${apiUrl}/api/auth/oauth/${provider}?redirect=${encodeURIComponent(options.redirectTo)}`
+  let oauthUrl = `${apiUrl}/api/auth/oauth/${provider}?redirect=${encodeURIComponent(options.redirectTo)}`
+
+  // 클라이언트 PKCE: verifier 를 sessionStorage(admin 동일출처)에 보관하고 challenge 만 서버로 전달.
+  // → 서버가 native 경로로 처리하여 pkce_flow_id 서드파티 쿠키를 쓰지 않음(시크릿/모바일/Safari 동작).
+  // sessionStorage/crypto 불가 시에는 challenge 를 생략 → 서버 쿠키 기반 PKCE 로 폴백(기존 동작).
+  try {
+    const verifier = generateCodeVerifier()
+    const challenge = await codeChallengeS256(verifier)
+    sessionStorage.setItem(PKCE_VERIFIER_KEY, verifier)
+    oauthUrl += `&code_challenge=${encodeURIComponent(challenge)}`
+  } catch {
+    // 폴백: challenge 미전송 → 서버가 쿠키 기반 PKCE 사용
+  }
 
   if (options.skipBrowserRedirect) {
     // 네이티브: URL만 반환 (Browser.open()에서 사용)
@@ -206,9 +219,24 @@ export async function signInWithOAuth(
 export async function handleOAuthCallback(
   code: string,
 ): Promise<{ error: string | null }> {
-  const result = await apiFetch<{ session?: Session; success?: boolean }>(
-    `/api/auth/oauth/callback?code=${encodeURIComponent(code)}`,
-  )
+  // 클라이언트 PKCE: signInWithOAuth 가 저장한 verifier 를 함께 보내 서버 쿠키 의존을 제거.
+  // verifier 가 없으면(폴백 경로) code 만 보내 서버가 쿠키 flowId 로 처리(기존 동작).
+  let verifier: string | null = null
+  try {
+    verifier = sessionStorage.getItem(PKCE_VERIFIER_KEY)
+  } catch {
+    verifier = null
+  }
+  const callbackUrl = verifier
+    ? `/api/auth/oauth/callback?code=${encodeURIComponent(code)}&code_verifier=${encodeURIComponent(verifier)}`
+    : `/api/auth/oauth/callback?code=${encodeURIComponent(code)}`
+  const result = await apiFetch<{ session?: Session; success?: boolean }>(callbackUrl)
+  // verifier 는 1회용 — 결과와 무관하게 즉시 제거.
+  try {
+    sessionStorage.removeItem(PKCE_VERIFIER_KEY)
+  } catch {
+    /* ignore */
+  }
 
   if (result.error) {
     console.error('[handleOAuthCallback] backend error:', result.error)
