@@ -26,86 +26,66 @@ export default function ExportLogPanel({ onRegisterDelivery }: Props) {
   const logs = open ? getExportLogs().slice(0, 10) : []
 
   return (
-    <div style={{ border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, overflow: 'hidden' }}>
+    <div className="rounded-lg border border-border overflow-hidden">
       <button
         onClick={() => setOpen((v) => !v)}
-        style={{
-          width: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '10px 14px',
-          background: 'rgba(255,255,255,0.04)',
-          border: 'none',
-          color: 'rgba(255,255,255,0.7)',
-          cursor: 'pointer',
-          fontSize: 13,
-        }}
+        className="w-full flex items-center justify-between px-3.5 py-2.5 bg-surface-alt text-txt-sub text-[13px] hover:text-txt focus:outline-none"
       >
         <span>최근 다운로드 로그</span>
-        <span style={{ fontSize: 10 }}>{open ? '▲' : '▼'}</span>
+        <span className="text-[10px]">{open ? '▲' : '▼'}</span>
       </button>
 
       {open && (
-        <div style={{ padding: '0 14px 12px', overflowX: 'auto' }}>
+        <div className="px-3.5 pb-3 overflow-x-auto">
           {logs.length === 0 ? (
-            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, margin: '10px 0' }}>
+            <p className="text-xs text-txt-tertiary my-2.5">
               다운로드 이력이 없습니다
             </p>
           ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <table className="w-full border-collapse text-xs">
               <thead>
-                <tr style={{ color: 'rgba(255,255,255,0.4)', textAlign: 'left' }}>
-                  <th style={{ padding: '6px 8px 4px 0', fontWeight: 500 }}>일시</th>
-                  <th style={{ padding: '6px 8px 4px 0', fontWeight: 500 }}>유형</th>
-                  <th style={{ padding: '6px 8px 4px 0', fontWeight: 500, textAlign: 'right' }}>건수</th>
-                  <th style={{ padding: '6px 8px 4px 0', fontWeight: 500, textAlign: 'right' }}>발화수</th>
-                  <th style={{ padding: '6px 8px 4px 0', fontWeight: 500 }}>제한포함</th>
-                  <th style={{ padding: '6px 8px 4px 0', fontWeight: 500 }}>결과</th>
-                  <th style={{ padding: '6px 8px 4px 0', fontWeight: 500 }}></th>
+                <tr className="text-txt-tertiary text-left">
+                  <th className="font-medium pr-2 pt-1.5 pb-1">일시</th>
+                  <th className="font-medium pr-2 pt-1.5 pb-1">유형</th>
+                  <th className="font-medium pr-2 pt-1.5 pb-1 text-right">건수</th>
+                  <th className="font-medium pr-2 pt-1.5 pb-1 text-right">발화수</th>
+                  <th className="font-medium pr-2 pt-1.5 pb-1">제한포함</th>
+                  <th className="font-medium pr-2 pt-1.5 pb-1">결과</th>
+                  <th className="font-medium pr-2 pt-1.5 pb-1"></th>
                 </tr>
               </thead>
               <tbody>
                 {logs.map((log) => (
-                  <tr key={log.id} style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                    <td style={{ padding: '5px 8px 5px 0', color: 'rgba(255,255,255,0.6)' }}>
+                  <tr key={log.id} className="border-t border-border-light">
+                    <td className="py-1.5 pr-2 text-txt-sub">
                       {formatDate(log.exported_at)}
                     </td>
-                    <td style={{ padding: '5px 8px 5px 0', color: 'rgba(255,255,255,0.7)' }}>
+                    <td className="py-1.5 pr-2 text-txt-sub">
                       {EXPORT_TYPE_LABEL[log.export_type]}
                     </td>
-                    <td style={{ padding: '5px 8px 5px 0', textAlign: 'right', color: 'rgba(255,255,255,0.7)' }}>
+                    <td className="py-1.5 pr-2 text-right text-txt-sub tabular-nums">
                       {log.call_count}
                     </td>
-                    <td style={{ padding: '5px 8px 5px 0', textAlign: 'right', color: 'rgba(255,255,255,0.7)' }}>
+                    <td className="py-1.5 pr-2 text-right text-txt-sub tabular-nums">
                       {log.utterance_count}
                     </td>
-                    <td style={{ padding: '5px 8px 5px 0', color: 'rgba(255,255,255,0.5)' }}>
+                    <td className="py-1.5 pr-2 text-txt-tertiary">
                       {log.include_restricted ? '포함' : '-'}
                     </td>
-                    <td style={{ padding: '5px 8px 5px 0' }}>
+                    <td className="py-1.5 pr-2">
                       {log.result_status === 'success' ? (
-                        <span style={{ color: '#22c55e' }}>완료</span>
+                        <span className="text-success">완료</span>
                       ) : (
-                        <span style={{ color: '#ef4444' }} title={log.error_message}>
+                        <span className="text-danger" title={log.error_message}>
                           실패
                         </span>
                       )}
                     </td>
-                    <td style={{ padding: '5px 0 5px 8px' }}>
+                    <td className="py-1.5 pl-2">
                       {log.result_status === 'success' && (log.session_ids?.length ?? 0) > 0 && (
                         <button
                           onClick={() => onRegisterDelivery(log)}
-                          style={{
-                            padding: '2px 8px',
-                            fontSize: 11,
-                            background: 'rgba(99,102,241,0.15)',
-                            border: '1px solid rgba(99,102,241,0.4)',
-                            borderRadius: 4,
-                            color: 'rgba(165,180,252,0.9)',
-                            cursor: 'pointer',
-                            whiteSpace: 'nowrap',
-                          }}
+                          className="px-2 py-0.5 text-[11px] rounded border border-accent/40 bg-accent/15 text-accent hover:bg-accent/25 whitespace-nowrap focus:outline-none"
                         >
                           납품 등록
                         </button>
