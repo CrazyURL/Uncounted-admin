@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { BigStat, Button, ConfirmDialog, EmptyState, ErrorBanner, StatusBadge, useToast } from '../../components/ui'
-import { FilterChips } from '../../components/domain/FilterChips'
+import { ReviewQueueFilterBar } from '../../components/domain/ReviewQueueFilterBar'
 import { SessionPipelineCells } from '../../components/domain/SessionPipelineCells'
 import { SessionDeliveryModal } from '../../components/domain/SessionDeliveryModal'
 import { fetchDashboardStats, type DashboardStats } from '../../lib/api/dashboard'
@@ -27,7 +27,16 @@ import {
   type UtteranceStatsResponse,
 } from '../../lib/api/utterances'
 import { UtteranceExpansion } from '../../components/domain/UtteranceExpansion'
-import { type FilterId, buildFilters, buildChips, SESSIONS_PER_PAGE } from '../../lib/adminFilters'
+import {
+  buildFiltersFromState,
+  parseFiltersFromSearch,
+  migrateLegacyFilter,
+  buildFilterGroups,
+  SESSIONS_PER_PAGE,
+  type ProcessStatus,
+  type ReviewFilter,
+  type FlagId,
+} from '../../lib/adminFilters'
 import { summarizeBulkResults } from '../../lib/bulkActionResult'
 import { getOwnerDisplay } from '../../lib/ownerDisplay'
 import { exportMinSaleableDataset } from '../../lib/adminHelpers'
@@ -129,7 +138,10 @@ export default function AdminInventoryPage() {
   const toast = useToast()
   const { userId } = useAuth()
 
-  const filterId = (searchParams.get('filter') as FilterId) ?? 'all'
+  const filterState = parseFiltersFromSearch(searchParams)
+  const processParam = searchParams.get('process')
+  const reviewParam = searchParams.get('review')
+  const flagsParam = searchParams.get('flags')
   const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10))
   const searchQuery = searchParams.get('q') ?? ''
 
@@ -195,7 +207,7 @@ export default function AdminInventoryPage() {
   const loadSessions = useCallback(async () => {
     setLoading(true)
     setError(null)
-    const filters = buildFilters(filterId, page, searchQuery || undefined)
+    const filters = buildFiltersFromState(filterState, page, searchQuery || undefined)
     if (sortBy) { filters.sortBy = sortBy; filters.sortDir = sortDir }
     const res = await fetchReviewQueue(filters)
     if (res.data) {
@@ -205,7 +217,7 @@ export default function AdminInventoryPage() {
       setError(res.error ?? labels.error.fetchFailed)
     }
     setLoading(false)
-  }, [filterId, page, sortBy, sortDir, searchQuery])
+  }, [processParam, reviewParam, flagsParam, page, sortBy, sortDir, searchQuery])
 
   useEffect(() => {
     loadStats()
@@ -216,19 +228,39 @@ export default function AdminInventoryPage() {
     loadSessions()
   }, [loadSessions])
 
-  function setFilter(id: string) {
+  // 레거시 ?filter=<id> 북마크 → 새 3그룹 param 으로 1회 변환 후 URL replace
+  useEffect(() => {
+    const migrated = migrateLegacyFilter(searchParams)
+    if (migrated) setSearchParams(migrated, { replace: true })
+  }, [searchParams, setSearchParams])
+
+  // 필터 변경 = 해당 차원만 갱신 + page 리셋(검색 q 는 유지).
+  function updateFilterParam(mut: (next: URLSearchParams) => void) {
     setSearchParams(prev => {
       const next = new URLSearchParams(prev)
-      next.set('filter', id)
+      mut(next)
       next.set('page', '1')
       return next
+    })
+  }
+  function setProcess(v?: ProcessStatus) {
+    updateFilterParam(next => { if (v) next.set('process', v); else next.delete('process') })
+  }
+  function setReview(v?: ReviewFilter) {
+    updateFilterParam(next => { if (v) next.set('review', v); else next.delete('review') })
+  }
+  function toggleFlag(f: FlagId) {
+    updateFilterParam(next => {
+      const cur = (next.get('flags')?.split(',').filter(Boolean) ?? []) as FlagId[]
+      const updated = cur.includes(f) ? cur.filter(x => x !== f) : [...cur, f]
+      if (updated.length) next.set('flags', updated.join(','))
+      else next.delete('flags')
     })
   }
 
   function setPage(n: number) {
     setSearchParams(prev => {
       const next = new URLSearchParams(prev)
-      next.set('filter', filterId)
       next.set('page', String(n))
       return next
     })
@@ -495,7 +527,7 @@ export default function AdminInventoryPage() {
     return { sellable, restricted, locked, utteranceCount, totalSecs, estimatedRevenue }
   }, [sessions, saleStatusMap, utterancesMap])
 
-  const chips = buildChips(stats)
+  const filterGroups = buildFilterGroups(stats)
   const totalPages = Math.ceil(total / SESSIONS_PER_PAGE)
   const r = stats?.review
   const failedCount = stats?.alerts.pipelineFailedCount ?? 0
@@ -768,13 +800,13 @@ export default function AdminInventoryPage() {
         <BigStat
           title="검수 대기"
           value={statsLoading ? '…' : (r?.pending ?? 0).toLocaleString()}
-          onClick={() => setFilter('pending')}
+          onClick={() => setReview('pending')}
         />
         <BigStat
           title="검수승인"
           value={statsLoading ? '…' : (r?.approved ?? 0).toLocaleString()}
           sub={(r?.approved ?? 0) > 0 ? '납품 대기 중' : undefined}
-          onClick={() => setFilter('approved')}
+          onClick={() => setReview('approved')}
         />
         <BigStat
           title="납품 완료"
@@ -786,7 +818,7 @@ export default function AdminInventoryPage() {
           value={statsLoading ? '…' : failedCount.toLocaleString()}
           sub={failedCount > 0 ? '즉시 확인 필요' : undefined}
           tone={failedCount > 0 ? 'danger' : undefined}
-          onClick={failedCount > 0 ? () => setFilter('failed') : undefined}
+          onClick={failedCount > 0 ? () => setProcess('failed') : undefined}
         />
       </div>
 
@@ -820,8 +852,14 @@ export default function AdminInventoryPage() {
         className="w-full px-3 py-2 text-sm border border-line rounded-lg bg-bg text-txt placeholder:text-txt-sub focus:outline-none focus:ring-1 focus:ring-accent"
       />
 
-      {/* 필터 칩 */}
-      <FilterChips chips={chips} active={filterId} onChange={setFilter} />
+      {/* 3그룹 필터 (처리현황 · 검수현황 · 데이터 특이사항) */}
+      <ReviewQueueFilterBar
+        groups={filterGroups}
+        state={filterState}
+        onProcessChange={setProcess}
+        onReviewChange={setReview}
+        onToggleFlag={toggleFlag}
+      />
 
       {/* 판매 데이터셋 Export 패널 */}
       <MinSaleableDownloadPanel
