@@ -45,8 +45,8 @@ vi.mock('../../components/ui', () => ({
 
 // ── Domain component mocks ───────────────────────────────────────────────────
 
-vi.mock('../../components/domain/FilterChips', () => ({
-  FilterChips: () => null,
+vi.mock('../../components/domain/ReviewQueueFilterBar', () => ({
+  ReviewQueueFilterBar: () => null,
 }))
 
 vi.mock('../../components/domain/SessionPipelineCells', () => ({
