@@ -113,7 +113,10 @@ function QualityBadge({
       ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
       : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
   return (
-    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${cls}`}>
+    <span
+      className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${cls}`}
+      title="품질 등급은 참고 지표입니다 — 납품 가능 여부는 검수·동의 상태로 결정됩니다"
+    >
       {g}{score != null ? `·${Math.round(score)}` : ''}
     </span>
   )

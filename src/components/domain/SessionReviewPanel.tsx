@@ -94,9 +94,9 @@ export function SessionReviewPanel({ session }: Props) {
                       <div>말투연령 <span className="text-txt">{sp.speaker_speech_age_range}</span></div>
                     )}
                     {sp.speaker_relation ? (
-                      <div>관계 <span className="text-txt">{sp.speaker_relation}</span></div>
+                      <div>관계(추정) <span className="text-txt">{sp.speaker_relation}</span></div>
                     ) : sp.speaker_role === 'other' ? (
-                      <div>관계 <span className="text-txt-sub">미검출</span></div>
+                      <div>관계 <span className="text-txt-sub">미확정</span></div>
                     ) : null}
                     {sp.speaker_role === 'self' && sp.speaker_accent_group && (
                       <div>사투리 <span className="text-txt">{sp.speaker_accent_group}</span></div>
@@ -116,9 +116,12 @@ export function SessionReviewPanel({ session }: Props) {
           )}
         </div>
 
-        {/* 품질 지표 */}
+        {/* 품질 참고 지표 */}
         <div>
-          <div className="font-medium text-txt-sub mb-2">품질 지표</div>
+          <div className="font-medium text-txt-sub mb-1">품질 참고 지표</div>
+          <div className="text-[10px] text-txt-tertiary mb-2 leading-snug">
+            등급은 여러 지표의 종합 추정값입니다 · 개별 수치(SNR 등)는 참고용
+          </div>
           {hasQuality ? (
             <div className="space-y-1.5">
               {session.quality_grade_min != null && (

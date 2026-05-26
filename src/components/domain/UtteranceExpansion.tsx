@@ -163,6 +163,7 @@ export function UtteranceExpansion({
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           전체 듣기
+          <span className="ml-1 px-1 py-0.5 rounded text-[9px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">준비 중</span>
         </button>
         <button
           type="button"
@@ -174,6 +175,7 @@ export function UtteranceExpansion({
             <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
           </svg>
           마스킹 전후 비교
+          <span className="ml-1 px-1 py-0.5 rounded text-[9px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">준비 중</span>
         </button>
         <div className="flex-1" />
         <span className="text-xs text-txt-sub">
