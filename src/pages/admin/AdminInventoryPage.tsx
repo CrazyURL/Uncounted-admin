@@ -40,7 +40,7 @@ import {
 import { summarizeBulkResults } from '../../lib/bulkActionResult'
 import { getOwnerDisplay } from '../../lib/ownerDisplay'
 import { exportMinSaleableDataset } from '../../lib/adminHelpers'
-import { exportSingleSession, exportBatch } from '../../lib/api/delivery'
+import { exportBatch } from '../../lib/api/delivery'
 import { FullPackageExportModal } from '../../components/domain/FullPackageExportModal'
 import { MinSaleableDownloadPanel } from '../../components/domain/MinSaleableDownloadPanel'
 import ExportLogPanel from '../../components/domain/ExportLogPanel'
@@ -679,19 +679,6 @@ export default function AdminInventoryPage() {
     }
   }
 
-  async function handleZipSingle(sessionId: string) {
-    addActionLoading(sessionId)
-    const res = await exportSingleSession(sessionId)
-    removeActionLoading(sessionId)
-    if (res.error) {
-      toast.error(`ZIP 내보내기 실패: ${res.error}`)
-      return
-    }
-    if (res.jobId) {
-      toast.success('ZIP 내보내기가 시작되었습니다')
-    }
-  }
-
   // ── v2 단건 풀 패키지 export ──────────────────────────────────────────
   // row "풀 패키지" 버튼 → FullPackageExportModal 오픈 (reference_only 동기 / embedded 비동기 job).
   function openFullPackage(sessionId: string) {
@@ -978,7 +965,6 @@ export default function AdminInventoryPage() {
                   onToggleReview={(u) => handleToggleReview(session.id, u)}
                   onLabelSaved={(uid, fields) => handleLabelSaved(session.id, uid, fields)}
                   onDownloadSingle={() => handleDownloadSingle(session.id)}
-                  onZipDownload={() => handleZipSingle(session.id)}
                   onZipDownloadV2={() => openFullPackage(session.id)}
                 />
               ))}
@@ -1118,7 +1104,6 @@ interface SessionRowProps {
   onNeedsRevisionPanel: (note?: string) => void
   onRejectPanel: (note?: string) => void
   onDownloadSingle: () => void
-  onZipDownload: () => void
   onZipDownloadV2: () => void
 }
 
@@ -1146,7 +1131,6 @@ function SessionRow({
   onNeedsRevisionPanel,
   onRejectPanel,
   onDownloadSingle,
-  onZipDownload,
   onZipDownloadV2,
 }: SessionRowProps) {
   const piiFlag = session.pii_flag ?? false
@@ -1238,29 +1222,18 @@ function SessionRow({
             >
               ↓
             </button>
-            {session.review_status === 'approved' && (
-              <>
+            {session.review_status === 'approved' &&
+              session.consent_status === 'both_agreed' && (
                 <button
                   type="button"
-                  onClick={onZipDownload}
-                  className="text-xs font-medium text-accent hover:text-accent-hover focus:outline-none"
-                  title="ZIP 내보내기 (서버 — 레거시 작업)"
+                  onClick={onZipDownloadV2}
+                  disabled={actionLoading}
+                  className="text-xs font-medium text-accent hover:text-accent-hover disabled:text-txt-tertiary disabled:cursor-not-allowed focus:outline-none"
+                  title="풀 패키지 ZIP · 전사/라벨/메타데이터 전체 (참조만 또는 음성 WAV 동봉 선택)"
                 >
-                  ZIP
+                  풀 패키지
                 </button>
-                {session.consent_status === 'both_agreed' && (
-                  <button
-                    type="button"
-                    onClick={onZipDownloadV2}
-                    disabled={actionLoading}
-                    className="text-xs font-medium text-accent hover:text-accent-hover disabled:text-txt-tertiary disabled:cursor-not-allowed focus:outline-none"
-                    title="풀 패키지 ZIP · 전사/라벨/메타데이터 전체 (참조만 또는 음성 WAV 동봉 선택)"
-                  >
-                    풀 패키지
-                  </button>
-                )}
-              </>
-            )}
+              )}
           </div>
         </td>
         <td className="px-4 py-3 text-right">
