@@ -26,6 +26,7 @@ import AdminTrainingPage from '../pages/admin/AdminTrainingPage'
 import AdminEmotionLabelQueuePage from '../pages/admin/AdminEmotionLabelQueuePage'
 import AdminDeliveryPage from '../pages/admin/AdminDeliveryPage'
 import AdminExportsPage from '../pages/admin/AdminExportsPage'
+import AdminConfidenceFlagPocPage from '../pages/admin/AdminConfidenceFlagPocPage'
 
 const routes: RouteObject[] = [
   {
@@ -67,6 +68,8 @@ const routes: RouteObject[] = [
       { path: '/admin/emotion-labels', element: <AdminEmotionLabelQueuePage /> },
       { path: '/admin/delivery', element: <AdminDeliveryPage /> },
       { path: '/admin/exports', element: <AdminExportsPage /> },
+      // P1-c PoC — 저신뢰 소프트플래그 시각 캘리브레이션 (Mock, design §4)
+      { path: '/admin/confidence-flag-poc', element: <AdminConfidenceFlagPocPage /> },
       // BM v10 신규 — 검수 + 납품 흐름 + 정산
       // /admin/review 폐기 (2026-05-15) — /admin/utterances 에 통합
       { path: '/admin/review', element: <Navigate to="/admin/utterances" replace /> },
