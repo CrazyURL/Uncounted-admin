@@ -1,29 +1,105 @@
-// P1-c PoC용 Mock 전사 — sess3(01dd38b9) 실측 word.probability 기반.
-// 백엔드(voice-api word.probability 적재 → uncounted-api 노출)가 뚫리기 전,
-// 프론트 하이라이트/Dismiss UX + 임계값 시각 캘리브레이션을 위한 강제 매립 데이터.
-// 실측 출처: _test_wordprob.py (제품하고 0.566, DLP 0.14, 네 0.02 등).
+// P1-c PoC용 Mock 전사 — sess3(01dd38b9) GT 전체 대화 정합.
+// 화자(본인/상대) 발화 단위 + 겹침 + [불확실] 구간을 저확률로 매립.
+// 백엔드(voice-api word.probability) 전, 프론트 하이라이트/Dismiss/캘리브레이션용 강제 데이터.
+//
+// 대부분 단어 = 명료(0.85, 미플래그). 저확률(<0.5)만 플래그:
+//   - (알수없는문장) = Whisper 부연환각 "제품하고 이제"(0.34/0.27)
+//   - "그니가"(0.38, 슬러), "이슈하는데"(0.40)/"우리쪽이지"(0.35) 음향 불확실
+// 확신 오역(예: 상대 "아 수석님" — Whisper는 '선생님'으로 오청)은 고확률이라 플래그 안 됨(설계 §4 한계).
 
 import type { TranscriptWord } from './api/transcripts'
 
-/** "그 인증서 그게 여러 개의 제품하고 이제 뭐 브라우저라..." — 부연 환각(제품하고 이제 뭐) 포함. */
-export const MOCK_FLAG_TRANSCRIPT: TranscriptWord[] = [
-  { word: '그', start: 30.0, end: 30.2, probability: 0.19 },
-  { word: '인증서', start: 30.2, end: 30.7, probability: 0.95 },
-  { word: '그게', start: 30.7, end: 31.0, probability: 0.88 },
-  { word: '여러', start: 31.0, end: 31.3, probability: 0.97 },
-  { word: '개의', start: 31.3, end: 31.6, probability: 0.62 },
-  { word: '제품하고', start: 31.6, end: 32.1, probability: 0.566 }, // 부연 환각 — low
-  { word: '이제', start: 32.1, end: 32.4, probability: 0.31 }, // 부연 환각 — low
-  { word: '뭐', start: 32.4, end: 32.6, probability: 0.12 }, // 짧음 → 제외
-  { word: '브라우저라', start: 32.6, end: 33.2, probability: 0.74 },
-  { word: '할', start: 33.2, end: 33.3, probability: 0.66 },
-  { word: '수도', start: 33.3, end: 33.6, probability: 0.9 },
-  { word: '있고', start: 33.6, end: 33.9, probability: 0.85 },
-  { word: 'DLP', start: 34.0, end: 34.4, probability: 0.14 }, // 정답이지만 저확률 → 오탐(캘리브레이션 관찰점)
-  { word: '팝업창', start: 34.4, end: 34.9, probability: 0.93 },
-  { word: '뜨는', start: 34.9, end: 35.2, probability: 0.81 },
-  { word: '거는', start: 35.2, end: 35.5, probability: 0.78 },
-  { word: '우리쪽', start: 35.5, end: 35.9, probability: 0.58 },
-  { word: '이슈인데', start: 35.9, end: 36.4, probability: 0.49 }, // low
-  { word: '공동인증서거든요', start: 36.4, end: 37.3, probability: 0.71 },
+export interface FlagUtterance {
+  speaker: string
+  words: TranscriptWord[]
+  overlap?: boolean
+}
+
+const W = (word: string, probability: number): TranscriptWord => ({ word, start: 0, end: 0, probability })
+
+/** 평이한 발화 — 모든 단어 명료(0.85). */
+const plain = (speaker: string, text: string, overlap = false): FlagUtterance => ({
+  speaker,
+  overlap,
+  words: text.split(/\s+/).filter(Boolean).map(w => W(w, 0.85)),
+})
+
+/** 저확률 단어가 섞인 발화 — [단어, 확률] 명시. */
+const mixed = (speaker: string, spec: Array<[string, number]>, overlap = false): FlagUtterance => ({
+  speaker,
+  overlap,
+  words: spec.map(([w, p]) => W(w, p)),
+})
+
+export const MOCK_FLAG_UTTERANCES: FlagUtterance[] = [
+  plain('본인', '여보세요'),
+  plain('상대', '아 수석님'),
+  plain('본인', '네 예'),
+  plain('상대', '한가지 여쭤보려고하는데'),
+  plain('본인', '네'),
+  plain('상대', '그 공인인증서 전자서명 생성 실패는 뭐 예외정책 어떤거 풀어줘야 되는거죠?'),
+  plain('본인', '뭐 DLP 팝업창 있어요?'),
+  plain('상대', '어 아니 따로 없는데'),
+  plain('본인', '그러면은 우리쪽 아닐텐데?', true),
+  plain('상대', '근데', true),
+  plain('상대', '근데 그 이미 그 IT처리요청서 품의 올라오고'),
+  plain('본인', '네', true),
+  plain('상대', '결재까지 다 해서 김지민 책임님이 저에게 처리해달라고 요청주신거거든요?', true),
+  plain('본인', '그거 그러니까 그거는'),
+  plain('상대', '네', true),
+  plain('본인', '저기 DLP 팝업창 뜨는거는', true),
+  plain('상대', '네'),
+  plain('본인', '우리쪽이슌데 그전에 뜨는거는 뭐 자체적으로 뭐 그 그 금융프로그램 재설치하던지 해야되요'),
+  plain('상대', '아 그래요?', true),
+  // (알수 없는 문장) = Whisper 부연환각 → 제품하고/이제 저확률
+  mixed('본인', [
+    ['그니까..', 0.6], ['거기서', 0.55], ['거기서', 0.6], ['보면은', 0.85], ['그', 0.5],
+    ['인증서', 0.9], ['그게', 0.85], ['여러개', 0.7],
+    ['제품하고', 0.34], ['이제', 0.27],
+    ['브라우저로', 0.8], ['할수도', 0.7], ['있고', 0.85], ['그렇잖아요?', 0.85],
+  ], true),
+  plain('상대', '공동인증서거든요?'),
+  plain('본인', '공동인증서든 뭐든간에 우리는', true),
+  plain('상대', '네예', true),
+  plain('본인', '우리는 인증서가 종류가 중요한게 아니라'),
+  plain('상대', '네예'),
+  plain('본인', '뭐 하드웨어 하던지 브라우저에서 하던지 그게 중요하잖아요?'),
+  plain('상대', '네에'),
+  plain('본인', 'DLP 통제타는건 브라우저에서 하는거는 통제타는 거고'),
+  plain('상대', '브라우저긴 하거든요'),
+  plain('본인', '그러면 브라우저면 예외처리 되어 있는지 봐야되고 그 URL'),
+  plain('상대', '아 그 뭐야 사이트요?'),
+  plain('본인', '네'),
+  plain('상대', '근데 사이트는 열리있긴 한데 그'),
+  plain('본인', '그러면은 우리쪽 이슈 아니에요 그거는뭐', true),
+  plain('상대', '그렇죠? 사이트 아예 차단되야 되잖아요? 그쪽 링크면? 앞에 도메인 관련해서 다 차단되야 되는거죠?', true),
+  plain('본인', '네 그니까 파일 업로드 응 그니까 파일 업로드 권한을', true),
+  plain('상대', '네', true),
+  plain('본인', '우리가 준 해제해준 거잖아요?'),
+  plain('상대', '네에'),
+  plain('본인', '그 그걸 봐야 되는거고'),
+  plain('상대', '아 아니 시간도 안 적혀있고 언제까지 풀어달라는지 한달 한달은 풀어주면 되나요?'),
+  plain('본인', '아니 그니까 그게'),
+  plain('상대', '네에'),
+  plain('본인', '음 일단은 그게 우리쪽 이슈인지를 봐야해요 그게 무슨 에러에요? 지금 업로드가 안되는거에요 뭐에요? 증상을 모르겠어', true),
+  plain('상대', '지금 세부내용이', true),
+  plain('본인', '응'),
+  plain('상대', '제정경재부 전자문서용 전자수입인지 구매절차중 공동인증서 열기 시 보안정책에 의한 블락 발생'),
+  // "그니가" = 슬러(그니까 오청) 저확률
+  mixed('본인', [
+    ['그니가', 0.38], ['그게', 0.8], ['무슨', 0.85], ['우리꺼', 0.8], ['보안', 0.85], ['그거', 0.7],
+    ['전화해서', 0.85], ['사용자에게', 0.85], ['물어봐야지', 0.85], ['이게', 0.8], ['우리쪽', 0.85],
+    ['이슈', 0.85], ['맞는지', 0.85], ['보안', 0.85], ['정책에', 0.85], ['의해서', 0.85],
+    ['차단된', 0.85], ['게', 0.7], ['맞는지', 0.85],
+  ]),
+  plain('본인', '그냥 프로그램 오류 아니에요? 그냥? 금융쪽 그거 자체 프로그램 이슈', true),
+  plain('상대', '한번 물어볼게요 전화해가지고', true),
+  // "이슈하는데"/"우리쪽이지" 음향 불확실
+  mixed('본인', [
+    ['네예예', 0.6], ['DLP', 0.5], ['이슈하는데', 0.4], ['DLP', 0.55], ['팝업뜨면', 0.8],
+    ['우리쪽이지', 0.35], ['그전에', 0.8], ['뜨는거는', 0.8], ['OA단이에요', 0.6],
+    ['프로그램', 0.85], ['재설치', 0.85], ['보안프로그램', 0.85], ['재설치', 0.85],
+    ['해준다던지', 0.8], ['그거', 0.7], ['먼저', 0.85], ['해야', 0.85], ['될', 0.7], ['것', 0.7], ['같아', 0.8],
+  ]),
+  plain('상대', '일단 알겠습니다'),
 ]
