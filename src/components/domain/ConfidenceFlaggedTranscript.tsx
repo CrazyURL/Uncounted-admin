@@ -32,6 +32,7 @@ export default function ConfidenceFlaggedTranscript({ utterances }: Props) {
   const [threshold, setThreshold] = useState(DEFAULT_FLAG_CONFIG.threshold)
   const [minWordLength, setMinWordLength] = useState(DEFAULT_FLAG_CONFIG.minWordLength)
   const [dismissed, setDismissed] = useState<ReadonlySet<number>>(new Set<number>())
+  const [flaggedOnly, setFlaggedOnly] = useState(false)
 
   const config = useMemo(
     () => ({ ...DEFAULT_FLAG_CONFIG, threshold, minWordLength }),
@@ -49,6 +50,12 @@ export default function ConfidenceFlaggedTranscript({ utterances }: Props) {
       return { speaker: u.speaker, overlap: u.overlap, flagged }
     })
   }, [utterances, allFlagged])
+
+  // "플래그만 보기" = 플래그된 단어가 있는 발화만 (발화 단위 문맥은 유지).
+  const visibleGroups = useMemo(
+    () => (flaggedOnly ? groups.filter(g => g.flagged.some(w => w.severity !== 'none')) : groups),
+    [flaggedOnly, groups],
+  )
 
   const dismiss = (index: number) => setDismissed(prev => new Set(prev).add(index))
   const resetDismissed = () => setDismissed(new Set<number>())
@@ -88,6 +95,18 @@ export default function ConfidenceFlaggedTranscript({ utterances }: Props) {
           />
         </label>
 
+        <button
+          onClick={() => setFlaggedOnly(prev => !prev)}
+          className="text-[11px] rounded px-2 py-0.5"
+          style={{
+            backgroundColor: flaggedOnly ? 'rgba(234,179,8,0.2)' : 'transparent',
+            border: '1px solid rgba(234,179,8,0.35)',
+            color: 'var(--color-text-sub)',
+          }}
+        >
+          {flaggedOnly ? '전체 보기' : '플래그만 보기'}
+        </button>
+
         {dismissed.size > 0 && (
           <button
             onClick={resetDismissed}
@@ -101,7 +120,12 @@ export default function ConfidenceFlaggedTranscript({ utterances }: Props) {
 
       {/* 화자별 발화 행 — 단어 하이라이트, 클릭 시 dismiss */}
       <div className="px-4 pb-4 space-y-2">
-        {groups.map((g, gi) => (
+        {flaggedOnly && visibleGroups.length === 0 && (
+          <div className="text-[11px]" style={{ color: 'var(--color-text-tertiary)' }}>
+            현재 임계에서 플래그된 발화 없음.
+          </div>
+        )}
+        {visibleGroups.map((g, gi) => (
           <div key={gi} className="flex gap-2 items-start">
             <span
               className="text-[10px] font-medium rounded px-1.5 py-0.5 mt-0.5 shrink-0"
