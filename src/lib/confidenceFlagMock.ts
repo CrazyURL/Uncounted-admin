@@ -1,29 +1,65 @@
-// P1-c PoC용 Mock 전사 — sess3(01dd38b9) 실측 word.probability 기반.
-// 백엔드(voice-api word.probability 적재 → uncounted-api 노출)가 뚫리기 전,
-// 프론트 하이라이트/Dismiss UX + 임계값 시각 캘리브레이션을 위한 강제 매립 데이터.
-// 실측 출처: _test_wordprob.py (제품하고 0.566, DLP 0.14, 네 0.02 등).
+// P1-c PoC용 Mock 전사 — sess3(01dd38b9) GT 구조 정합.
+// 화자(본인/상대) 발화 단위 + 겹침 + [불확실] 구간을 저확률로 매립.
+// 백엔드(voice-api word.probability) 전, 프론트 하이라이트/Dismiss/캘리브레이션용 강제 데이터.
+//
+// GT(사용자 제공):
+//   본인: (겹침)그니까.. 거기서(겹침) 거기서 보면은 그 인증서 그게 여러개 [알수없음] 브라우저로 할수도 있고 그렇잖아요?
+//   상대: 공동인증서거든요?
+//   본인: 네예예, DLP 이슈[하는데] DLP 팝업뜨면 우리쪽[이지] 그전에 뜨는거는 OA단이에요.
+// [알수없음]=Whisper가 억지로 찍은 부연환각(제품하고/이제), [하는데]/[이지]=음향 불확실 → 전부 저확률.
 
 import type { TranscriptWord } from './api/transcripts'
 
-/** "그 인증서 그게 여러 개의 제품하고 이제 뭐 브라우저라..." — 부연 환각(제품하고 이제 뭐) 포함. */
-export const MOCK_FLAG_TRANSCRIPT: TranscriptWord[] = [
-  { word: '그', start: 30.0, end: 30.2, probability: 0.19 },
-  { word: '인증서', start: 30.2, end: 30.7, probability: 0.95 },
-  { word: '그게', start: 30.7, end: 31.0, probability: 0.88 },
-  { word: '여러', start: 31.0, end: 31.3, probability: 0.97 },
-  { word: '개의', start: 31.3, end: 31.6, probability: 0.62 },
-  { word: '제품하고', start: 31.6, end: 32.1, probability: 0.566 }, // 부연 환각 — low
-  { word: '이제', start: 32.1, end: 32.4, probability: 0.31 }, // 부연 환각 — low
-  { word: '뭐', start: 32.4, end: 32.6, probability: 0.12 }, // 짧음 → 제외
-  { word: '브라우저라', start: 32.6, end: 33.2, probability: 0.74 },
-  { word: '할', start: 33.2, end: 33.3, probability: 0.66 },
-  { word: '수도', start: 33.3, end: 33.6, probability: 0.9 },
-  { word: '있고', start: 33.6, end: 33.9, probability: 0.85 },
-  { word: 'DLP', start: 34.0, end: 34.4, probability: 0.14 }, // 정답이지만 저확률 → 오탐(캘리브레이션 관찰점)
-  { word: '팝업창', start: 34.4, end: 34.9, probability: 0.93 },
-  { word: '뜨는', start: 34.9, end: 35.2, probability: 0.81 },
-  { word: '거는', start: 35.2, end: 35.5, probability: 0.78 },
-  { word: '우리쪽', start: 35.5, end: 35.9, probability: 0.58 },
-  { word: '이슈인데', start: 35.9, end: 36.4, probability: 0.49 }, // low
-  { word: '공동인증서거든요', start: 36.4, end: 37.3, probability: 0.71 },
+export interface FlagUtterance {
+  speaker: string
+  words: TranscriptWord[]
+  overlap?: boolean
+}
+
+const w = (word: string, start: number, end: number, probability: number): TranscriptWord => ({
+  word, start, end, probability,
+})
+
+export const MOCK_FLAG_UTTERANCES: FlagUtterance[] = [
+  {
+    speaker: '본인',
+    overlap: true, // 도입부 겹침
+    words: [
+      w('그니까', 30.0, 30.3, 0.6),
+      w('거기서', 30.3, 30.6, 0.52),
+      w('거기서', 30.6, 30.9, 0.58),
+      w('보면은', 30.9, 31.2, 0.83),
+      w('그', 31.2, 31.3, 0.4),
+      w('인증서', 31.3, 31.7, 0.94),
+      w('그게', 31.7, 32.0, 0.86),
+      w('여러개', 32.0, 32.4, 0.68),
+      // [알수없음] 구간 — Whisper 부연환각, 저확률
+      w('제품하고', 32.4, 32.9, 0.34),
+      w('이제', 32.9, 33.2, 0.27),
+      w('브라우저로', 33.2, 33.8, 0.75),
+      w('할수도', 33.8, 34.1, 0.64),
+      w('있고', 34.1, 34.4, 0.85),
+      w('그렇잖아요', 34.4, 35.0, 0.8),
+    ],
+  },
+  {
+    speaker: '상대',
+    words: [w('공동인증서거든요', 35.0, 35.9, 0.72)],
+  },
+  {
+    speaker: '본인',
+    words: [
+      w('네예예', 50.0, 50.4, 0.6),
+      w('DLP', 50.4, 50.8, 0.41), // 정답이지만 저확률 → 오탐(캘리브레이션 관찰점)
+      w('이슈', 50.8, 51.1, 0.63),
+      w('하는데', 51.1, 51.4, 0.3), // [하는데] 불확실
+      w('DLP', 51.4, 51.8, 0.55),
+      w('팝업뜨면', 51.8, 52.3, 0.71),
+      w('우리쪽', 52.3, 52.7, 0.57),
+      w('이지', 52.7, 52.9, 0.18), // [이지] 음향 불확실 (high)
+      w('그전에', 52.9, 53.2, 0.66),
+      w('뜨는거는', 53.2, 53.6, 0.73),
+      w('OA단이에요', 53.6, 54.2, 0.52),
+    ],
+  },
 ]

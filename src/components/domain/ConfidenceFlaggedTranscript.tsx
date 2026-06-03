@@ -1,9 +1,10 @@
-// B형 저신뢰 소프트플래그 — 검수 전사 하이라이트 + Dismiss UX + 임계 캘리브레이션.
+// B형 저신뢰 소프트플래그 — 화자별 발화 하이라이트 + Dismiss + 임계 캘리브레이션.
 // 설계: uncounted-voice-api/docs/design_review_panel_redesign_20260603.md §4
 // 목적: '저신뢰 구간 통과 가속기'(웅얼거림 우선검토). 오역 적출기 아님. 자동수정 없음.
+// 화자/발화 단위로 끊어 렌더 → 플래그가 "어느 구간"인지 즉시 식별.
 import { useMemo, useState, type CSSProperties } from 'react'
 
-import type { TranscriptWord } from '../../lib/api/transcripts'
+import type { FlagUtterance } from '../../lib/confidenceFlagMock'
 import {
   countFlags,
   flagWords,
@@ -17,12 +18,17 @@ const SEVERITY_STYLE: Record<Exclude<FlagSeverity, 'none'>, CSSProperties> = {
   high: { backgroundColor: 'rgba(249,115,22,0.22)', borderBottom: '2px solid rgba(249,115,22,0.7)' },
 }
 
-interface Props {
-  words: readonly TranscriptWord[]
+const SPEAKER_STYLE: Record<string, CSSProperties> = {
+  본인: { backgroundColor: 'rgba(59,130,246,0.12)', color: '#3b82f6' },
+  상대: { backgroundColor: 'rgba(148,163,184,0.16)', color: 'var(--color-text-sub)' },
 }
 
-/** 검수자가 단어를 클릭하면 플래그 해제(확인 완료). 임계 슬라이더로 시각 캘리브레이션. */
-export default function ConfidenceFlaggedTranscript({ words }: Props) {
+interface Props {
+  utterances: readonly FlagUtterance[]
+}
+
+/** 화자별 발화 행으로 렌더. 단어 클릭 = 플래그 해제(확인 완료). 임계 슬라이더로 시각 캘리브레이션. */
+export default function ConfidenceFlaggedTranscript({ utterances }: Props) {
   const [threshold, setThreshold] = useState(DEFAULT_FLAG_CONFIG.threshold)
   const [minWordLength, setMinWordLength] = useState(DEFAULT_FLAG_CONFIG.minWordLength)
   const [dismissed, setDismissed] = useState<ReadonlySet<number>>(new Set<number>())
@@ -31,11 +37,20 @@ export default function ConfidenceFlaggedTranscript({ words }: Props) {
     () => ({ ...DEFAULT_FLAG_CONFIG, threshold, minWordLength }),
     [threshold, minWordLength],
   )
-  const flagged = useMemo(() => flagWords(words, config, dismissed), [words, config, dismissed])
-  const counts = useMemo(() => countFlags(flagged), [flagged])
+  // 전역 단어 index 유지(발화 가로질러 dismiss/카운트 정합).
+  const allWords = useMemo(() => utterances.flatMap(u => u.words), [utterances])
+  const allFlagged = useMemo(() => flagWords(allWords, config, dismissed), [allWords, config, dismissed])
+  const counts = useMemo(() => countFlags(allFlagged), [allFlagged])
+  const groups = useMemo(() => {
+    let cursor = 0
+    return utterances.map(u => {
+      const flagged = allFlagged.slice(cursor, cursor + u.words.length)
+      cursor += u.words.length
+      return { speaker: u.speaker, overlap: u.overlap, flagged }
+    })
+  }, [utterances, allFlagged])
 
-  const dismiss = (index: number) =>
-    setDismissed(prev => new Set(prev).add(index))
+  const dismiss = (index: number) => setDismissed(prev => new Set(prev).add(index))
   const resetDismissed = () => setDismissed(new Set<number>())
 
   return (
@@ -84,25 +99,36 @@ export default function ConfidenceFlaggedTranscript({ words }: Props) {
         )}
       </div>
 
-      {/* 전사 본문 — 단어별 하이라이트, 클릭 시 dismiss */}
-      <div className="px-4 pb-4 leading-7 text-sm" style={{ color: 'var(--color-text-sub)' }}>
-        {flagged.map(fw => {
-          // severity==='none' 분기에서 narrow → SEVERITY_STYLE 인덱싱 타입안전
-          const flagStyle = fw.severity === 'none' ? undefined : SEVERITY_STYLE[fw.severity]
-          const isFlagged = flagStyle !== undefined
-          return (
+      {/* 화자별 발화 행 — 단어 하이라이트, 클릭 시 dismiss */}
+      <div className="px-4 pb-4 space-y-2">
+        {groups.map((g, gi) => (
+          <div key={gi} className="flex gap-2 items-start">
             <span
-              key={fw.index}
-              onClick={isFlagged ? () => dismiss(fw.index) : undefined}
-              title={isFlagged ? `확률 ${fw.probability.toFixed(3)} · 클릭하여 확인처리` : `확률 ${fw.probability.toFixed(3)}`}
-              role={isFlagged ? 'button' : undefined}
-              className={isFlagged ? 'cursor-pointer rounded px-0.5' : 'px-0.5'}
-              style={flagStyle}
+              className="text-[10px] font-medium rounded px-1.5 py-0.5 mt-0.5 shrink-0"
+              style={SPEAKER_STYLE[g.speaker] ?? SPEAKER_STYLE['상대']}
             >
-              {fw.word}{' '}
+              {g.speaker}{g.overlap ? ' ·겹침' : ''}
             </span>
-          )
-        })}
+            <div className="leading-7 text-sm" style={{ color: 'var(--color-text-sub)' }}>
+              {g.flagged.map(fw => {
+                const flagStyle = fw.severity === 'none' ? undefined : SEVERITY_STYLE[fw.severity]
+                const isFlagged = flagStyle !== undefined
+                return (
+                  <span
+                    key={fw.index}
+                    onClick={isFlagged ? () => dismiss(fw.index) : undefined}
+                    title={isFlagged ? `확률 ${fw.probability.toFixed(3)} · 클릭하여 확인처리` : `확률 ${fw.probability.toFixed(3)}`}
+                    role={isFlagged ? 'button' : undefined}
+                    className={isFlagged ? 'cursor-pointer rounded px-0.5' : 'px-0.5'}
+                    style={flagStyle}
+                  >
+                    {fw.word}{' '}
+                  </span>
+                )
+              })}
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* 한계 고지 */}
