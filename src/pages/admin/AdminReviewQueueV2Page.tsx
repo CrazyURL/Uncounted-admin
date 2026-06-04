@@ -3,8 +3,8 @@
 // Spec: docs/design_review_panel_redesign_20260603.md
 //
 // 의존:
-//   - GET  /api/admin/sessions/queue?tier=red
-//   - GET  /api/admin/utterances/queue?session_id=...&tier=red
+//   - GET  /api/admin/review-queue/sessions?tier=red
+//   - GET  /api/admin/review-queue/utterances?session_id=...&tier=red
 //   - POST /api/admin/utterance-gt
 //   - POST /api/admin/utterance-revisions
 
@@ -81,7 +81,7 @@ export default function AdminReviewQueueV2Page() {
   const loadQueue = async () => {
     setLoading(true)
     try {
-      const res = await apiFetch<SessionQueueRow[]>('/api/admin/sessions/queue?tier=red&limit=50')
+      const res = await apiFetch<SessionQueueRow[]>('/api/admin/review-queue/sessions?tier=red&limit=50')
       if (res?.data && Array.isArray(res.data)) {
         const items: ReviewQueueItem[] = res.data.map((s: SessionQueueRow) => ({
           session_id: s.id,
@@ -124,7 +124,7 @@ export default function AdminReviewQueueV2Page() {
     })
 
     const res = await apiFetch<UtteranceQueueRow[]>(
-      `/api/admin/utterances/queue?session_id=${sessionId}&tier=red&exclude_reviewed=true&limit=500`,
+      `/api/admin/review-queue/utterances?session_id=${sessionId}&tier=red&exclude_reviewed=true&limit=500`,
     )
     if (res?.data && Array.isArray(res.data)) {
       setRedUtterances(res.data)
