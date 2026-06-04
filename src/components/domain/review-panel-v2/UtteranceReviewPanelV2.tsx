@@ -208,35 +208,56 @@ export function UtteranceReviewPanelV2({
         </button>
       </div>
 
-      {/* 앞뒤 문맥 (있을 때만) */}
-      {context && context.length > 0 && (
-        <div>
-          <div className="text-xs text-txt-sub mb-1">앞뒤 문맥:</div>
-          <div className="font-mono text-sm border border-border-light rounded overflow-hidden">
-            {context.map((c) => {
-              const role = c.is_user ? '본인' : c.is_user === false ? '상대' : '?'
-              const time = `${Math.floor(c.start_sec / 60)}:${String(Math.floor(c.start_sec % 60)).padStart(2, '0')}`
-              return (
-                <div
-                  key={c.id}
-                  className={`px-2 py-1 flex gap-2 ${
-                    c.is_target ? 'bg-yellow-50 border-l-4 border-yellow-400' : 'bg-surface-alt'
-                  }`}
-                >
-                  <span className="text-xs text-txt-sub w-12 shrink-0">{time}</span>
-                  <span className={`text-xs w-10 shrink-0 ${c.is_user ? 'text-blue-700' : 'text-emerald-700'}`}>
-                    {role}
-                  </span>
-                  <span className={`flex-1 ${c.is_target ? 'font-semibold' : 'text-txt-sub'}`}>
-                    {c.transcript_text}
-                    {c.is_target && <span className="ml-2 text-xs text-yellow-700">← 검수 대상</span>}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
+      {/* 앞뒤 문맥 (항상 표시 — 통화 경계 명시) */}
+      <div>
+        <div className="text-xs text-txt-sub mb-1">앞뒤 문맥:</div>
+        <div className="font-mono text-sm border border-border-light rounded overflow-hidden">
+          {(() => {
+            const items = context ?? []
+            const targetIdx = items.findIndex((c) => c.is_target)
+            const hasPrev = targetIdx > 0
+            const hasNext = targetIdx >= 0 && targetIdx < items.length - 1
+            return (
+              <>
+                {!hasPrev && (
+                  <div className="px-2 py-1 text-xs text-txt-sub bg-gray-50 italic">
+                    ⤴ 통화 시작 — 이전 발화 없음
+                  </div>
+                )}
+                {items.map((c) => {
+                  const role = c.is_user ? '본인' : c.is_user === false ? '상대' : '?'
+                  const time = `${Math.floor(c.start_sec / 60)}:${String(Math.floor(c.start_sec % 60)).padStart(2, '0')}`
+                  return (
+                    <div
+                      key={c.id}
+                      className={`px-2 py-1 flex gap-2 ${
+                        c.is_target ? 'bg-yellow-50 border-l-4 border-yellow-400' : 'bg-surface-alt'
+                      }`}
+                    >
+                      <span className="text-xs text-txt-sub w-12 shrink-0">{time}</span>
+                      <span className={`text-xs w-10 shrink-0 ${c.is_user ? 'text-blue-700' : 'text-emerald-700'}`}>
+                        {role}
+                      </span>
+                      <span className={`flex-1 ${c.is_target ? 'font-semibold' : 'text-txt-sub'}`}>
+                        {c.transcript_text}
+                        {c.is_target && <span className="ml-2 text-xs text-yellow-700">← 검수 대상</span>}
+                      </span>
+                    </div>
+                  )
+                })}
+                {items.length === 0 && (
+                  <div className="px-2 py-1 text-xs text-txt-sub italic">문맥 로딩 중...</div>
+                )}
+                {!hasNext && items.length > 0 && (
+                  <div className="px-2 py-1 text-xs text-txt-sub bg-gray-50 italic">
+                    ⤵ 통화 끝 — 다음 발화 없음
+                  </div>
+                )}
+              </>
+            )
+          })()}
         </div>
-      )}
+      </div>
 
       {/* 자동전사 */}
       <div>
