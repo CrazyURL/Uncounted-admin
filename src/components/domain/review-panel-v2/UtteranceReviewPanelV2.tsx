@@ -11,9 +11,20 @@ import type {
 import { PiiRangePicker } from './PiiRangePicker'
 import { useReviewKeyboard, type ReviewKeyAction } from './ReviewKeyboardHook'
 
+export interface ContextUtterance {
+  id: string
+  sequence_order: number
+  transcript_text: string
+  is_user: boolean | null
+  start_sec: number
+  end_sec: number
+  is_target: boolean
+}
+
 interface UtteranceReviewPanelV2Props {
   utterance: UtteranceReviewItem
   isActive: boolean
+  context?: ContextUtterance[] // 앞뒤 ±n 발화 (선택)
   onSubmit: (decision: ReviewDecision) => void
   onNextRed: () => void
   onPlay: () => void
@@ -48,6 +59,7 @@ const EXCLUDE_REASONS: { value: ExcludeReason; label: string; isDeferredSplit?: 
 export function UtteranceReviewPanelV2({
   utterance,
   isActive,
+  context,
   onSubmit,
   onNextRed,
   onPlay,
@@ -157,19 +169,74 @@ export function UtteranceReviewPanelV2({
     <div className="border border-border-light rounded-lg p-4 space-y-3 bg-surface">
       {/* 헤더 */}
       <div className="flex items-center justify-between text-sm">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="font-medium">#{utterance.sequence_order}</span>
           <span className="text-txt-sub">
             {formatTime(utterance.start_sec)}-{formatTime(utterance.end_sec)} ({utterance.duration_sec.toFixed(1)}초)
           </span>
-          <span className={`text-xs px-1.5 py-0.5 rounded ${tierColor(utterance.review_priority_tier)}`}>
-            점수 {utterance.review_priority_score} ({tierLabel(utterance.review_priority_tier)})
+          {/* 자동 화자 (사전 표시, 체크박스 토글 전에도 보임) */}
+          <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-700" title="자동 추정 화자 — '화자' 체크 시 수정 가능">
+            자동: {utterance.is_user ? '본인' : utterance.is_user === false ? '상대' : '?'}
+            {utterance.speaker_id && ` (${utterance.speaker_id})`}
+          </span>
+          {/* 자동 라벨 (감정 / 품질 grade) */}
+          {utterance.emotion && (
+            <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-700">감정: {utterance.emotion}</span>
+          )}
+          {utterance.quality_grade && (
+            <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-700">품질: {utterance.quality_grade}</span>
+          )}
+          {/* 점수 + tooltip */}
+          <span
+            className={`text-xs px-1.5 py-0.5 rounded ${tierColor(utterance.review_priority_tier)}`}
+            title={
+              '검수점수 산식 (0-100):\n' +
+              '• quality_grade=C → +30\n' +
+              '• emotion=null → +20\n' +
+              '• emotion_confidence<0.5 → +15\n' +
+              '• duration<0.5초 → +15\n' +
+              '• duration>15초 → +10\n' +
+              '• 짧음(<1.5초)+품질B/C → +10\n' +
+              '\n분류: ≥60 빨강(필수) / 30-59 노랑(권장) / <30 초록(자동승인)'
+            }
+          >
+            점수 {utterance.review_priority_score} ({tierLabel(utterance.review_priority_tier)}) ⓘ
           </span>
         </div>
         <button onClick={onPlay} className="text-xs px-2 py-0.5 bg-blue-50 text-blue-700 rounded">
           🔊 재생
         </button>
       </div>
+
+      {/* 앞뒤 문맥 (있을 때만) */}
+      {context && context.length > 0 && (
+        <div>
+          <div className="text-xs text-txt-sub mb-1">앞뒤 문맥:</div>
+          <div className="font-mono text-sm border border-border-light rounded overflow-hidden">
+            {context.map((c) => {
+              const role = c.is_user ? '본인' : c.is_user === false ? '상대' : '?'
+              const time = `${Math.floor(c.start_sec / 60)}:${String(Math.floor(c.start_sec % 60)).padStart(2, '0')}`
+              return (
+                <div
+                  key={c.id}
+                  className={`px-2 py-1 flex gap-2 ${
+                    c.is_target ? 'bg-yellow-50 border-l-4 border-yellow-400' : 'bg-surface-alt'
+                  }`}
+                >
+                  <span className="text-xs text-txt-sub w-12 shrink-0">{time}</span>
+                  <span className={`text-xs w-10 shrink-0 ${c.is_user ? 'text-blue-700' : 'text-emerald-700'}`}>
+                    {role}
+                  </span>
+                  <span className={`flex-1 ${c.is_target ? 'font-semibold' : 'text-txt-sub'}`}>
+                    {c.transcript_text}
+                    {c.is_target && <span className="ml-2 text-xs text-yellow-700">← 검수 대상</span>}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* 자동전사 */}
       <div>
