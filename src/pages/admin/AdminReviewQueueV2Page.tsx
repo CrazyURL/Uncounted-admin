@@ -8,8 +8,9 @@
 //   - POST /api/admin/utterance-gt
 //   - POST /api/admin/utterance-revisions
 
-import { useEffect, useMemo, useState, useCallback } from 'react'
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import { apiFetch } from '../../lib/api/client'
+import { fetchUtteranceAudio } from '../../lib/api/utterances'
 import { ReviewQueueList } from '../../components/domain/review-panel-v2/ReviewQueueList'
 import { UtteranceReviewPanelV2, type ReviewDecision } from '../../components/domain/review-panel-v2/UtteranceReviewPanelV2'
 import { CallActionPanel, type NeedsRevisionOptions } from '../../components/domain/review-panel-v2/CallActionPanel'
@@ -278,12 +279,52 @@ export default function AdminReviewQueueV2Page() {
     }
   }, [activeSession, activeUtteranceIdx, redUtterances.length, revisionStats])
 
-  const handlePlay = useCallback(() => {
-    console.log('play utterance', redUtterances[activeUtteranceIdx]?.id)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const audioUrlCacheRef = useRef<Map<string, string>>(new Map())
+
+  // 발화 전환 시 audio 정지
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current = null
+    }
+  }, [activeUtteranceIdx])
+
+  const handlePlay = useCallback(async () => {
+    const utt = redUtterances[activeUtteranceIdx]
+    if (!utt) return
+    try {
+      // 같은 발화면 toggle pause/resume
+      if (audioRef.current && audioRef.current.dataset.uttId === utt.id) {
+        if (audioRef.current.paused) await audioRef.current.play()
+        else audioRef.current.pause()
+        return
+      }
+      // 새 발화 audio 로드
+      let url = audioUrlCacheRef.current.get(utt.id)
+      if (!url) {
+        const res = await fetchUtteranceAudio(utt.id)
+        if (res?.error || !res?.data?.url) {
+          alert('재생 실패: ' + (res?.error ?? 'no url'))
+          return
+        }
+        url = res.data.url
+        audioUrlCacheRef.current.set(utt.id, url)
+      }
+      const a = new Audio(url)
+      a.dataset.uttId = utt.id
+      audioRef.current = a
+      await a.play()
+    } catch (e) {
+      console.error('play failed', e)
+      alert('재생 실패: ' + (e instanceof Error ? e.message : String(e)))
+    }
   }, [redUtterances, activeUtteranceIdx])
 
   const handleSeek = useCallback((deltaSec: number) => {
-    console.log('seek', deltaSec)
+    if (audioRef.current) {
+      audioRef.current.currentTime = Math.max(0, audioRef.current.currentTime + deltaSec)
+    }
   }, [])
 
   const handleNextRed = useCallback(() => {
