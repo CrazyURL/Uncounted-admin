@@ -377,16 +377,20 @@ export default function AdminReviewQueueV2Page() {
         >
           큐
         </button>
-        {activeSessionId && (
+        {activeSessionId && activeSession && (
           <>
             <span className="text-txt-sub">/</span>
+            <span className="text-txt-sub text-xs px-2 py-1 bg-gray-100 rounded max-w-md truncate" title={activeSession.title ?? ''}>
+              {activeSession.title ?? `통화 #${activeSessionId.slice(-6)}`}
+              {' '}({activeSession.utterance_count}발화)
+            </span>
             <button
               type="button"
               onClick={() => setView('utterance')}
               className={`px-3 py-1 rounded ${view === 'utterance' ? 'bg-blue-500 text-white' : 'bg-gray-100'}`}
               disabled={redUtterances.length === 0}
             >
-              발화 검수 ({activeUtteranceIdx + 1}/{redUtterances.length})
+              빨강 발화 {activeUtteranceIdx + 1}/{redUtterances.length}
             </button>
             <button
               type="button"
