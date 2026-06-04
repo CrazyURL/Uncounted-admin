@@ -16,6 +16,7 @@
     "logs": "render logs"
   },
   "dependencies": {
+    "@alloc/quick-lru": "^5.2.0",
     "@huggingface/transformers": "^3.8.1",
     "@noble/ciphers": "^2.1.1",
     "@tanstack/react-virtual": "^3.13.23",
