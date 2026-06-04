@@ -12,7 +12,7 @@ import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import { apiFetch } from '../../lib/api/client'
 import { fetchUtteranceAudio } from '../../lib/api/utterances'
 import { ReviewQueueList } from '../../components/domain/review-panel-v2/ReviewQueueList'
-import { UtteranceReviewPanelV2, type ReviewDecision } from '../../components/domain/review-panel-v2/UtteranceReviewPanelV2'
+import { UtteranceReviewPanelV2, type ReviewDecision, type ContextUtterance } from '../../components/domain/review-panel-v2/UtteranceReviewPanelV2'
 import { CallActionPanel, type NeedsRevisionOptions } from '../../components/domain/review-panel-v2/CallActionPanel'
 import type {
   ReviewQueueItem,
@@ -64,6 +64,7 @@ export default function AdminReviewQueueV2Page() {
   const [activeSession, setActiveSession] = useState<SessionQueueRow | null>(null)
   const [redUtterances, setRedUtterances] = useState<UtteranceQueueRow[]>([])
   const [activeUtteranceIdx, setActiveUtteranceIdx] = useState(0)
+  const [contextItems, setContextItems] = useState<ContextUtterance[]>([])
 
   // 정정 통계 (call_action 패널 input)
   const [revisionStats, setRevisionStats] = useState({
@@ -282,13 +283,35 @@ export default function AdminReviewQueueV2Page() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const audioUrlCacheRef = useRef<Map<string, string>>(new Map())
 
-  // 발화 전환 시 audio 정지
+  // 발화 전환 시 audio 정지 + context fetch
   useEffect(() => {
     if (audioRef.current) {
       audioRef.current.pause()
       audioRef.current = null
     }
-  }, [activeUtteranceIdx])
+    const utt = redUtterances[activeUtteranceIdx]
+    if (!utt) {
+      setContextItems([])
+      return
+    }
+    let cancelled = false
+    apiFetch<ContextUtterance[]>(`/api/admin/review-queue/utterance-context?utterance_id=${utt.id}&n=2`)
+      .then((res) => {
+        if (cancelled) return
+        if (res?.data && Array.isArray(res.data)) {
+          setContextItems(res.data)
+        } else {
+          setContextItems([])
+        }
+      })
+      .catch((e) => {
+        console.error('context fetch failed', e)
+        if (!cancelled) setContextItems([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [activeUtteranceIdx, redUtterances])
 
   const handlePlay = useCallback(async () => {
     const utt = redUtterances[activeUtteranceIdx]
@@ -393,6 +416,7 @@ export default function AdminReviewQueueV2Page() {
         <UtteranceReviewPanelV2
           utterance={mapToReviewItem(redUtterances[activeUtteranceIdx])}
           isActive={true}
+          context={contextItems}
           onSubmit={handleUtteranceSubmit}
           onNextRed={handleNextRed}
           onPlay={handlePlay}
