@@ -27,6 +27,7 @@ import AdminEmotionLabelQueuePage from '../pages/admin/AdminEmotionLabelQueuePag
 import AdminDeliveryPage from '../pages/admin/AdminDeliveryPage'
 import AdminExportsPage from '../pages/admin/AdminExportsPage'
 import AdminConfidenceFlagPocPage from '../pages/admin/AdminConfidenceFlagPocPage'
+import AdminReviewQueueV2Page from '../pages/admin/AdminReviewQueueV2Page'
 
 const routes: RouteObject[] = [
   {
@@ -78,6 +79,8 @@ const routes: RouteObject[] = [
       { path: '/admin/transactions', element: <AdminTransactionsPage /> },
       { path: '/admin/balances', element: <AdminBalancesPage /> },
       { path: '/admin/utterances', element: <Navigate to="/admin/calls" replace /> },
+      // 검수 패널 v2 (P1 prototype, 정본 design_review_panel_redesign_20260603.md)
+      { path: '/admin/review-v2', element: <AdminReviewQueueV2Page /> },
       // detail
       { path: '/admin/users/:userId', element: <AdminUserDetailPage /> },
     ],
