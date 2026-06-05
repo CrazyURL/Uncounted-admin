@@ -193,6 +193,26 @@ export default function AdminUserDetailPage() {
               로컬 사용자 (이 디바이스)
             </div>
           )}
+
+          {/* PIPC v1.3 §13/§14 — 본인 옵트아웃·요청 큐 진입 */}
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              onClick={() => navigate('/admin/appeals')}
+              className="px-2.5 py-1 rounded text-[10px] inline-flex items-center gap-1"
+              style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
+            >
+              <span className="material-symbols-outlined text-xs">contact_support</span>
+              자동결정 거부 큐
+            </button>
+            <button
+              onClick={() => navigate('/admin/reports')}
+              className="px-2.5 py-1 rounded text-[10px] inline-flex items-center gap-1"
+              style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
+            >
+              <span className="material-symbols-outlined text-xs">report</span>
+              처리결과 신고 큐
+            </button>
+          </div>
         </div>
 
         {/* 프로필 정보 (로컬 사용자만) */}
