@@ -19,6 +19,8 @@ function getTitle(pathname: string): string {
   if (pathname.startsWith('/admin/units')) return '빌링 유닛'
   if (pathname.startsWith('/admin/labels')) return '라벨 카탈로그'
   if (pathname.startsWith('/admin/consents')) return '동의 관리'
+  if (pathname.startsWith('/admin/appeals')) return '자동결정 거부'
+  if (pathname.startsWith('/admin/reports')) return '처리결과 신고'
   // catalog
   if (pathname.startsWith('/admin/sku-catalog') || pathname.startsWith('/admin/studio')) return 'SKU 카탈로그'
   if (pathname.startsWith('/admin/sku-components')) return 'SKU 컴포넌트'

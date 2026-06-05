@@ -11,6 +11,9 @@ const NAV_ITEMS: NavItem[] = [
   { path: '/admin/balances', labelKo: '잔액관리', icon: 'account_balance_wallet' },
   { path: '/admin/training', labelKo: '모델 학습', icon: 'model_training' },
   { path: '/admin/emotion-labels', labelKo: '감정 라벨 검수', icon: 'sentiment_satisfied' },
+  // PIPC 2026 v1.3 정합
+  { path: '/admin/appeals', labelKo: '자동결정 거부', icon: 'contact_support' },
+  { path: '/admin/reports', labelKo: '처리결과 신고', icon: 'report' },
 ]
 
 export default function AdminNav() {

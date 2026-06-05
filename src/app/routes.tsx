@@ -28,6 +28,8 @@ import AdminDeliveryPage from '../pages/admin/AdminDeliveryPage'
 import AdminExportsPage from '../pages/admin/AdminExportsPage'
 import AdminConfidenceFlagPocPage from '../pages/admin/AdminConfidenceFlagPocPage'
 import AdminReviewQueueV2Page from '../pages/admin/AdminReviewQueueV2Page'
+import AdminAutomatedDecisionAppealsPage from '../pages/admin/AdminAutomatedDecisionAppealsPage'
+import AdminProcessingResultReportsPage from '../pages/admin/AdminProcessingResultReportsPage'
 
 const routes: RouteObject[] = [
   {
@@ -81,6 +83,9 @@ const routes: RouteObject[] = [
       { path: '/admin/utterances', element: <Navigate to="/admin/calls" replace /> },
       // 검수 패널 v2 (P1 prototype, 정본 design_review_panel_redesign_20260603.md)
       { path: '/admin/review-v2', element: <AdminReviewQueueV2Page /> },
+      // PIPC 2026 v1.3 정합 — §14.5 자동결정 거부 / §13.3 처리결과 신고
+      { path: '/admin/appeals', element: <AdminAutomatedDecisionAppealsPage /> },
+      { path: '/admin/reports', element: <AdminProcessingResultReportsPage /> },
       // detail
       { path: '/admin/users/:userId', element: <AdminUserDetailPage /> },
     ],
