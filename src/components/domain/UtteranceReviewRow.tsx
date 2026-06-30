@@ -356,8 +356,8 @@ export function UtteranceReviewRow({
           {utterance.speaker_gender === 'female' && (
             <span className="text-[10px] text-pink-500 leading-none">♀</span>
           )}
-          {utterance.speaker_voice_age_range && (
-            <span className="text-[10px] text-txt-sub leading-none">{utterance.speaker_voice_age_range}</span>
+          {utterance.speaker_age_band && (
+            <span className="text-[10px] text-txt-sub leading-none">{utterance.speaker_age_band}</span>
           )}
         </span>
 
