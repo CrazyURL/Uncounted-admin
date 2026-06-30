@@ -61,7 +61,7 @@ export interface AdminUtterance {
   session_speaker_id: string | null
   speaker_role: string | null
   speaker_gender: string | null
-  speaker_voice_age_range: string | null
+  speaker_age_band: string | null
   segment_id: string | null
   segment_topic: string | null
   start_ms: number

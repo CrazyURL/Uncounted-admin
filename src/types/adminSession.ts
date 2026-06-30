@@ -50,8 +50,7 @@ export interface SessionSpeaker {
   speaker_label: string
   speaker_role: string | null
   speaker_gender: string | null
-  speaker_voice_age_range: string | null
-  speaker_speech_age_range: string | null
+  speaker_age_band: string | null
   speaker_relation: string | null
   speaker_accent_group: string | null
   speaker_region_group: string | null

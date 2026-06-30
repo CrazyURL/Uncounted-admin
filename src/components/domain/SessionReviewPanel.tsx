@@ -87,11 +87,8 @@ export function SessionReviewPanel({ session }: Props) {
                     <GenderLabel gender={sp.speaker_gender} />
                   </div>
                   <div className="space-y-0.5 text-txt-sub">
-                    {sp.speaker_voice_age_range && (
-                      <div>목소리연령 <span className="text-txt">{sp.speaker_voice_age_range}</span></div>
-                    )}
-                    {sp.speaker_speech_age_range && (
-                      <div>말투연령 <span className="text-txt">{sp.speaker_speech_age_range}</span></div>
+                    {sp.speaker_age_band && (
+                      <div>연령대 <span className="text-txt">{sp.speaker_age_band}</span></div>
                     )}
                     {sp.speaker_relation ? (
                       <div>관계(추정) <span className="text-txt">{sp.speaker_relation}</span></div>

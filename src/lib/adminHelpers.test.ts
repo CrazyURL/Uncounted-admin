@@ -62,7 +62,7 @@ function makeUtterance(id: string, sessionId: string, reviewStatus: 'pending' | 
     session_speaker_id: null,
     speaker_role: 'candidate',
     speaker_gender: null,
-    speaker_voice_age_range: null,
+    speaker_age_band: null,
     segment_id: null,
     segment_topic: null,
     start_ms: 0,
